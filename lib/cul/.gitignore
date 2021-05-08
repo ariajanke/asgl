@@ -1,0 +1,12 @@
+.*
+!/.gitignore
+*.user
+*.VC.db
+*.filters
+*.opendb
+*.pro.user*
+!.travis.yml
+msvc/erfindung.VC.db
+libcommon.a
+libcommon-d.a
+

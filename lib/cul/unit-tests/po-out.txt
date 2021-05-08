@@ -1,0 +1,7 @@
+a: default b: 0 c: true d: false
+a: default b: -1 c: true d: true
+a: cat b: 4 c: false d: false
+a: default b: 2 c: false d: false
+a: default b: 0 c: false d: false
+a: default b: 0 c: false d: false
+a: default b: -1 c: true d: true

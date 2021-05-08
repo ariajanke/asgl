@@ -1,0 +1,12 @@
+These images are licensed under creative commons attribution 3.0 unported, all sourced from "freefoodphotos.com". Inclusion of these images should not be taken as their endorsement or having any affiliation with this software.
+
+apple.jpg: "Single fresh red apple" by freefoodphotos.com
+url: http://freefoodphotos.com/imagelibrary/fruit/slides/red_apple.html
+orange.jpg: "One whole fresh orange" by freefoodphotos.com
+url: http://freefoodphotos.com/imagelibrary/fruit/slides/single_orange.html
+bananas.jpg: "Bunch of bananas on white background" by freefoodphotos.com 
+url: http://freefoodphotos.com/imagelibrary/fruit/slides/banana_bunch.html
+
+Full legal text is available here:
+http://creativecommons.org/licenses/by/3.0/deed.en_US
+
