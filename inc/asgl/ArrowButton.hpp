@@ -23,10 +23,6 @@
 *****************************************************************************/
 
 #pragma once
-#if 0
-#include <ksg/Button.hpp>
-#include <ksg/DrawTriangle.hpp>
-#endif
 
 #include <asgl/Button.hpp>
 
@@ -52,10 +48,7 @@ public:
     ArrowButton();
 
     void set_direction(Direction dir_);
-#   if 0
-    void set_arrow_color(sf::Color color_)
-        { m_draw_tri.set_color(color_); }
-#   endif
+
     Direction direction() const { return m_dir; }
 
     void process_event(const Event & evnt) override;
@@ -67,19 +60,10 @@ public:
     void on_geometry_update() override;
 
 private:
-#   if 0
-    void draw(sf::RenderTarget & target, sf::RenderStates) const override;
-#   endif
-    void on_size_changed(int old_width, int old_height) override;
-
-    void on_location_changed(int old_x, int old_y) override;
-
     void draw_(WidgetRenderer &) const override;
 
     void update_points();
-#   if 0
-    DrawTriangle m_draw_tri;
-#   endif
+
     ItemKey m_triangle_style;
     TriangleTuple m_tri;
     Direction m_dir;

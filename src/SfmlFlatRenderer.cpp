@@ -9,12 +9,9 @@
 #include <asgl/ProgressBar.hpp>
 
 #include <asgl/Frame.hpp>
-
-
 #include <asgl/Text.hpp>
 
 #include <SFML/Graphics/RenderTarget.hpp>
-
 
 namespace {
 
@@ -60,7 +57,7 @@ static SfmlRenderItem to_field(sf::Color color) {
 
 void SfmlFlatEngine::setup_default_styles() {
     using namespace flat_colors;
-    static constexpr const int k_chosen_padding = 2;
+    static constexpr const int k_chosen_padding = 3;
 
     if (m_style_map.has_same_map_pointer(StyleMap())) {
         m_style_map = StyleMap::construct_new_map();
@@ -68,32 +65,45 @@ void SfmlFlatEngine::setup_default_styles() {
     {
     auto & stylemap = m_style_map;
     stylemap.add(styles::k_global_padding, to_field(k_chosen_padding));
+    stylemap.add(styles::k_global_font   , to_field( std::weak_ptr<const Font>( m_font_handler ) ));
     // frame
     auto add_frame_field = [&stylemap] (Frame::StyleEnum style, const StyleField & field)
         { stylemap.add(Frame::to_key(style), field); };
     add_frame_field(Frame::k_title_bar_style  , to_field(k_primary_mid));
-    add_frame_field(Frame::k_title_size_style , to_field(18));
+#   if 0
+    add_frame_field(Frame::k_title_size_style , to_field(22));
     add_frame_field(Frame::k_title_color_style, to_field(k_text_color));
+#   endif
     add_frame_field(Frame::k_widget_body_style, to_field(k_primary_dark));
     add_frame_field(Frame::k_border_size_style, to_field(k_chosen_padding));
+
+    add_frame_field(Frame::k_title_text_style , to_field(k_title_text));
+    add_frame_field(Frame::k_widget_text_style, to_field(k_widget_text));
     // button
     auto add_button_field = [&stylemap](Button::ButtonStyleEnum style, const StyleField & field)
         { stylemap.add(Button::to_key(style), field); };
-    add_button_field(Button::k_button_padding, to_field(k_chosen_padding));
+    add_button_field(Button::k_button_padding     , to_field(k_chosen_padding));
     add_button_field(Button::k_regular_front_style, to_field(k_secondary_dark));
-    add_button_field(Button::k_regular_back_style, to_field(k_secondary_mid));
-    add_button_field(Button::k_hover_back_style, to_field(k_secondary_mid));
-    add_button_field(Button::k_hover_front_style, to_field(k_secondary_light));
+    add_button_field(Button::k_regular_back_style , to_field(k_secondary_mid));
+    add_button_field(Button::k_hover_back_style   , to_field(k_secondary_mid));
+    add_button_field(Button::k_hover_front_style  , to_field(k_secondary_light));
     // arrow button
     stylemap.add(ArrowButton::to_key(ArrowButton::k_triangle_style), to_field(k_text_color));
     // progress bar
     auto add_pbar_field = [&stylemap](ProgressBar::StyleEnum style, const StyleField & field)
         { stylemap.add(ProgressBar::to_key(style), field); };
-    add_pbar_field(ProgressBar::k_outer_style, to_field(k_secondary_dark));
-    add_pbar_field(ProgressBar::k_fill_style, to_field(k_primary_light));
-    add_pbar_field(ProgressBar::k_void_style, to_field(k_text_color_dark));
+    add_pbar_field(ProgressBar::k_outer_style  , to_field(k_secondary_dark));
+    add_pbar_field(ProgressBar::k_fill_style   , to_field(k_primary_light));
+    add_pbar_field(ProgressBar::k_void_style   , to_field(k_text_color_dark));
     add_pbar_field(ProgressBar::k_padding_style, to_field(k_chosen_padding));
+#   if 0
+    stylemap.add(TextArea::to_key(TextArea::k_text_size ), StyleField(18));
+    stylemap.add(TextArea::to_key(TextArea::k_text_color), StyleField(sf::Color::White));
+#   endif
     }
+
+    m_font_handler->add_font_style(to_item_key(k_title_text ), 22, sf::Color::White);
+    m_font_handler->add_font_style(to_item_key(k_widget_text), 18, sf::Color::White);
 
     using sf::Color;
     m_items[to_item_key(k_primary_light  )] = to_field(Color(0x51, 0x51, 0x76));
@@ -102,19 +112,16 @@ void SfmlFlatEngine::setup_default_styles() {
     m_items[to_item_key(k_secondary_light)] = to_field(Color(0x77, 0x6A, 0x45));
     m_items[to_item_key(k_secondary_mid  )] = to_field(Color(0x4B, 0x46, 0x15));
     m_items[to_item_key(k_secondary_dark )] = to_field(Color(0x30, 0x2C, 0x05));
-    m_items[to_item_key(k_text_color     )] = to_field(Color(0xFF, 0xFF, 0xFF));
+    m_items[to_item_key(k_text_color     )] = [](){
+        DrawTriangle dtri;
+        dtri.set_color(sf::Color::White);
+        return SfmlRenderItem(dtri);
+    }();// to_field(Color(0xFF, 0xFF, 0xFF));
     m_items[to_item_key(k_text_color_dark)] = to_field(Color(0x40,    0,    0));
 }
 
 void SfmlFlatEngine::add_rectangle_style(sf::Color, StyleKey) {
 
-}
-
-void SfmlFlatEngine::add_global_font(std::shared_ptr<const sf::Font> font) {
-    if (m_style_map.has_same_map_pointer(StyleMap())) {
-        m_style_map = StyleMap::construct_new_map();
-    }
-    m_style_map.add(styles::k_global_font, StyleField(font));
 }
 
 /* static */ const sf::Texture * SfmlFlatEngine::dynamic_cast_to_texture
@@ -129,7 +136,8 @@ void SfmlFlatEngine::add_global_font(std::shared_ptr<const sf::Font> font) {
     (const sf::IntRect & rect, ItemKey itemkey, const void *)
 {
     auto itr = m_items.find(itemkey);
-    if (itr == m_items.end()) return;
+    if (itr == m_items.end())
+        return;
     switch (itr->second.type_id()) {
     case k_item_type_id<SfmlImageResPtr>:
         return render_rectangle(rect, *itr->second.as<SfmlImageResPtr>());
@@ -145,24 +153,42 @@ void SfmlFlatEngine::add_global_font(std::shared_ptr<const sf::Font> font) {
 }
 
 /* private */ void SfmlFlatEngine::render_triangle
-    (const TriangleTuple &, ItemKey, const void *)
+    (const TriangleTuple & tuple, ItemKey itemkey, const void *)
 {
-
+    auto itr = m_items.find(itemkey);
+    if (itr == m_items.end())
+        return;
+    switch (itr->second.type_id()) {
+    case k_item_type_id<SfmlImageResPtr>:
+    case k_item_type_id<DrawRectangle>:
+        throw RtError("SfmlFlatEngine::render_rectangle: Assigned ItemKey "
+                      "belonging to a rectangle and attempted to draw it as a "
+                      "triangle.");
+    case k_item_type_id<DrawTriangle>:
+        render_triangle(tuple, itr->second.as<DrawTriangle>());
+        break;
+    default:
+        throw RtError("SfmlFlatEngine::render_rectangle: Bad branch.");
+    }
 }
 
-/* private */ void SfmlFlatEngine::render_text(const Text & text) {
+/* private */ void SfmlFlatEngine::render_text(const SfmlTextObject & text) {
     m_target_ptr->draw(text, m_states);
+}
+
+/* private */ void SfmlFlatEngine::render_text(const TextBase & text_base) {
+    const auto * dc_text = dynamic_cast<const SfmlTextN *>(&text_base);
+    if (!dc_text) return;
+    m_target_ptr->draw(dc_text->text_object(), m_states);
 }
 
 
 /* private */ void SfmlFlatEngine::render_rectangle
     (const sf::IntRect & rect, DrawRectangle & drect) const
 {
-    auto co = drect.color();
     drect = DrawRectangle(
-        float(rect.left), float(rect.top),
+        float(rect.left ), float(rect.top   ),
         float(rect.width), float(rect.height), drect.color());
-    auto c = drect.color();
     m_target_ptr->draw(drect, m_states);
 }
 
@@ -177,9 +203,13 @@ void SfmlFlatEngine::add_global_font(std::shared_ptr<const sf::Font> font) {
 }
 
 /* private */ void SfmlFlatEngine::render_triangle
-    (const TriangleTuple &, DrawTriangle &) const
+    (const TriangleTuple & trituple, DrawTriangle & triangle) const
 {
-
+    using std::get;
+    triangle.set_point_a(sf::Vector2f(std::get<0>(trituple)));
+    triangle.set_point_b(sf::Vector2f(std::get<1>(trituple)));
+    triangle.set_point_c(sf::Vector2f(std::get<2>(trituple)));
+    m_target_ptr->draw(triangle, m_states);
 }
 
 

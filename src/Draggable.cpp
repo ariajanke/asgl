@@ -59,14 +59,6 @@ bool Draggable::mouse_click
             (int(std::round(x - drect.left)), int(std::round(y - drect.top)));
         return true;
     }
-#   if 0
-    if (is_in_rect(x, y, drect)) {
-        m_dragged = true;
-        m_drag_offset = sf::Vector2i
-            (int(std::round(x - drect.x())), int(std::round(y - drect.y())));
-        return true;
-    }
-#   endif
     return false;
 }
 
@@ -85,15 +77,8 @@ void Draggable::remove_drag_contraints() {
 }
 
 /* private */ bool Draggable::has_position_contraints() const {
-    return m_position_contraints.width  != 0 &&
-           m_position_contraints.height != 0;
+    return    m_position_contraints.width  != 0
+           && m_position_contraints.height != 0;
 }
-#if 0
-/* static */ bool Draggable::is_in_rect
-    (int x, int y, const DrawRectangle & drect)
-{
-    return (x >= drect.x() && x <= (drect.x() + drect.width() ) &&
-            y >= drect.y() && y <= (drect.y() + drect.height())   );
-}
-#endif
+
 } // end of asgl namespace

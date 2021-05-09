@@ -1,6 +1,5 @@
 QT      -= core gui
 TEMPLATE = app
-# CONFIG  += staticlib
 CONFIG  -= c++11
 
 QMAKE_CXXFLAGS += -std=c++17
@@ -19,7 +18,7 @@ linux {
 }
 
 debug {
-    TARGET  = ksg-d
+    TARGET  = asgl-test-app
     LIBS += "-L$$PWD/../lib/cul"
     LIBS   += -lcommon
 }
@@ -46,7 +45,8 @@ SOURCES += \
     ../src/Widget.cpp           \
     ../src/EditableText.cpp     \
     ../src/FocusWidget.cpp      \
-    ../src/Event.cpp
+    ../src/Event.cpp            \
+    ../src/TextOld.cpp
 
 HEADERS += \
     ../inc/asgl/SfmlFlatRenderer.hpp \
@@ -73,7 +73,8 @@ HEADERS += \
     ../inc/asgl/ForwardWidgets.hpp \
     ../inc/asgl/EditableText.hpp   \
     ../inc/asgl/FocusWidget.hpp    \
-    ../inc/asgl/Event.hpp
+    ../inc/asgl/Event.hpp          \
+    ../inc/asgl/TextOld.hpp
 
 INCLUDEPATH += \
     ../inc           \

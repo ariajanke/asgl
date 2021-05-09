@@ -23,7 +23,7 @@
 #include <SFML/Graphics/RenderWindow.hpp>
 #include <SFML/Graphics/Font.hpp>
 
-using UString = asgl::Text::UString;
+using UString = asgl::SfmlTextObject::UString;
 
 namespace {
 
@@ -57,12 +57,16 @@ int main() {
     ksg::Text::run_tests();
 #   endif
     asgl::SfmlFlatEngine engine;
+    engine.load_global_font("font.ttf");
     engine.setup_default_styles();
+#   if 0
     {
     auto font_ptr = std::make_shared<sf::Font>();
     font_ptr->loadFromFile("font.ttf");
     engine.add_global_font(font_ptr);
     }
+#   endif
+
 #   if 1
     DemoText dialog;
     dialog.setup_frame(engine);
@@ -83,7 +87,7 @@ int main() {
             if (event.type == sf::Event::Closed)
                 window.close();
         }
-        dialog.check_for_geometry_updates();
+        //dialog.check_for_geometry_updates();
         if (dialog.requesting_to_close())
             window.close();
         if (has_events) {
@@ -158,10 +162,11 @@ void DemoText::setup_frame(asgl::ImageLoader & loader) {
     begin_adding_widgets().
         add(m_text_area).
         add_horizontal_spacer().
-
+#       if 1
         add(m_embeded_frame).
         add_line_seperator().
         add_horizontal_spacer().
+#       endif
         add(m_text_button).
         add_horizontal_spacer();
 #   endif

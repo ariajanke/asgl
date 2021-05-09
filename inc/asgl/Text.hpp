@@ -19,218 +19,251 @@
 
 *****************************************************************************/
 
-////////////////////////////////////////////////////////////
-//
-// SFML - Simple and Fast Multimedia Library
-// Copyright (C) 2007-2015 Laurent Gomila (laurent@sfml-dev.org)
-//
-// This software is provided 'as-is', without any express or implied warranty.
-// In no event will the authors be held liable for any damages arising from the use of this software.
-//
-// Permission is granted to anyone to use this software for any purpose,
-// including commercial applications, and to alter it and redistribute it freely,
-// subject to the following restrictions:
-//
-// 1. The origin of this software must not be misrepresented;
-//    you must not claim that you wrote the original software.
-//    If you use this software in a product, an acknowledgment
-//    in the product documentation would be appreciated but is not required.
-//
-// 2. Altered source versions must be plainly marked as such,
-//    and must not be misrepresented as being the original software.
-//
-// 3. This notice may not be removed or altered from any source distribution.
-//
-////////////////////////////////////////////////////////////
-
 #pragma once
 
-#include <SFML/Graphics/Drawable.hpp>
-#include <SFML/Graphics/Font.hpp>
-#include <SFML/Graphics/Color.hpp>
-#include <SFML/Graphics/Vertex.hpp>
-#include <SFML/Graphics/Sprite.hpp>
+#include <SFML/System/Vector2.hpp>
+#include <SFML/Graphics/Rect.hpp>
 
-#include <vector>
-#include <string>
 #include <memory>
-#include <limits>
-
-#include <common/DrawRectangle.hpp>
-#include <common/MultiType.hpp>
-
-#include <asgl/StyleMap.hpp>
-#include <asgl/DrawCharacter.hpp>
+#include <string>
 
 namespace asgl {
 
-namespace detail {
+class Text;
+class WidgetRenderer;
+class ItemKey;
 
-using FontMtPtr = MultiType<const sf::Font *, std::shared_ptr<const sf::Font>>;
+// ----------------------------------------------------------------------------
+//             this is *sort of* beyond what the client should see
 
-} // end of detail namespace
-
-/** The following is a rewrite/extention/retraction of Laurent Gomila's
- *  sf::Text class.
- *
- *  This class is responsible for most geometric work involving the rendering
- *  of text. Some things, like how the text fits in the bigger picture, cannot
- *  be handled by this class.
- *
- *  Features:
- *  - can restrict it's text rendering to a rectangle.
- *  - handles multi line text restricted by width.
- *  - automatic word wrapping (greedy) based on restricted width
- */
-class Text final : public sf::Drawable {
+class TextBase {
 public:
     using UString          = std::u32string;
     using UChar            = UString::value_type;
     using UStringConstIter = UString::const_iterator;
-    using VectorF          = sf::Vector2f;
+    using VectorI          = sf::Vector2i;
 
-    static constexpr const int   k_max_string_length = std::numeric_limits<int>::max();
-    static constexpr const float k_inf               = std::numeric_limits<float>::infinity();
-    static constexpr const int   k_default_font_size = 12;
-
-    struct TextSize {
-        float width = 0.f, height = 0.f;
+    struct ProxyDeleter {
+        void operator () (TextBase *) const;
     };
+    using ProxyPointer = std::unique_ptr<TextBase, ProxyDeleter>;
+
+    class Helpers {
+        friend class TextBase;
+        friend class Text;
+
+        static ProxyPointer make_default_instance();
+        static ProxyPointer make_basic_instance();
+    };
+
+    struct TextSize { int width = 0, height = 0; };
+
+    virtual ~TextBase() {}
 
     void set_string(const UString & str);
 
     void set_string(UString && str);
 
-    UString take_cleared_string();
+    /** @returns a cleared string which in turn maybe reused to minimize
+     *           reallocation.
+     *  "give" puts Text in the nomitive, Text gives string
+     *  "take" puts Text in the accusitive, Text has string taken
+     */
+    UString give_cleared_string();
 
-    void set_limiting_width(float w);
+    UString give_string();
 
-    void set_limiting_height(float h);
+    /** @returns a string representation of the text */
+    virtual const UString & string() const = 0;
 
-    void enable_bottom_cutting();
+    /** Sets the pixel location of the text. */
+    virtual void set_location(int x, int y) = 0;
 
-    void disable_bottom_cutting();
+    /** @returns the pixel location of the text */
+    virtual VectorI location() const = 0;
 
-    void set_limiting_dimensions(float w, float h);
+    /** @returns the appearent width of the text (in pixels) */
+    virtual int width() const = 0;
 
-    void relieve_width_limit();
+    /** @returns the appearent height of the text (in pixels) */
+    virtual int height() const = 0;
 
-    void relieve_height_limit();
+    /** @returns the full width of the text, without viewport imposed
+     *           limitations.
+     */
+    virtual int full_width() const = 0;
 
-    void relieve_size_limit();
+    /** @returns the full height of the text, without viewport imposed
+     *           limitations.
+     */
+    virtual int full_height() const = 0;
 
-    void set_character_size(int);
+    /** Sets a hard limit of how far text may go, for now this is the maximum
+     *  width.
+     *  @note presently intented as "limited width" though I'm not sure if I'd
+     *        like to repurpose this later to something other than height.
+     *  @param x_limit line position, no character will appear after or at this
+     *                 line
+     */
+    virtual void set_limiting_line(int x_limit) = 0;
 
-    void set_color(sf::Color);
+    /** Sets the style of the text, this is meant to include the size, color,
+     *  and anything else.
+     */
+    virtual void stylize(ItemKey) = 0;
 
-    void set_location(float x, float y);
+    virtual TextSize measure_text(UStringConstIter beg, UStringConstIter end) const = 0;
 
-    // this needs to correspond 1:1 to the text's on screen location
-    void set_location(VectorF r);
+    virtual ProxyPointer clone() const = 0;
 
-    void assign_font(const sf::Font *);
+    virtual int limiting_line() const = 0;
 
-    void assign_font(const std::shared_ptr<const sf::Font> &);
-#   if 0
-    template <typename KeyType>
-    bool assign_font(const StyleMap &, const KeyType &);
-#   endif
-    void set_color_for_character(int index, sf::Color clr);
+    void set_viewport(const sf::IntRect &);
 
-    VectorF character_location(int index) const;
+    void reset_viewport();
 
-    VectorF location() const;
+    virtual const sf::IntRect & viewport() const = 0;
 
-    float width() const;
+protected:
+    template <typename T>
+    static std::unique_ptr<T, ProxyDeleter> make_clone(const T & obj) {
+        static_assert (std::is_base_of_v<TextBase, T>, "Type T must be derived from Text.");
+        return std::unique_ptr<T, ProxyDeleter>(new T (obj));
+    }
 
-    float height() const;
+    virtual void set_viewport_(const sf::IntRect &) = 0;
 
-    float line_height() const;
+    virtual void swap_string(UString &) = 0;
+
+    virtual UString give_string_() = 0;
+};
+
+// ----------------------------------------------------------------------------
+
+class Font {
+public:
+    using TextSize         = TextBase::TextSize;
+    using UString          = TextBase::UString;
+    using UStringConstIter = TextBase::UStringConstIter;
+    using TextPointer      = TextBase::ProxyPointer;
+
+    virtual TextPointer fit_pointer_to_adaptor(TextPointer &&) const = 0;
+    virtual TextSize measure_text(ItemKey, UStringConstIter beg, UStringConstIter end) const = 0;
+
+protected:
+    template <typename T>
+    static T & check_and_transform_text(TextPointer &);
+};
+
+// ----------------------------------------------------------------------------
+
+// this should be the client's interface
+class Text final {
+public:
+    using UString          = TextBase::UString;
+    using UStringConstIter = TextBase::UStringConstIter;
+    using VectorI          = TextBase::VectorI;
+    using ProxyPointer     = TextBase::ProxyPointer;
+    using TextSize         = TextBase::TextSize;
+
+    Text() {}
+    Text(const Text &);
+    Text(Text &&) = default;
+    ~Text() = default;
+
+    Text & operator = (const Text &);
+    Text & operator = (Text &&) = default;
+
+    void set_string(const UString & str);
+
+    void set_string(UString && str);
+
+    /** @returns a cleared string which in turn maybe reused to minimize
+     *           reallocation.
+     */
+    UString give_cleared_string();
+
+    UString give_string();
 
     const UString & string() const;
 
-    bool has_font_assigned() const;
+    void set_location(const VectorI &);
 
-    const sf::Font & assigned_font() const;
+    void set_location(int x, int y);
 
-    /** @returns get_unset_value<int>() if character size is not yet set since
-     *           object's creation.
+    VectorI location() const;
+
+    /** @returns the appearent width of the text (in pixels) */
+    int width() const;
+
+    /** @returns the appearent height of the text (in pixels) */
+    int height() const;
+
+    /** @returns the full width of the text, without viewport imposed
+     *           limitations.
      */
-    int character_size() const;
+    int full_width() const;
 
-    TextSize measure_text(const UString &) const;
-
-    float measure_width(UStringConstIter beg, UStringConstIter end);
-
-    float maximum_height(UStringConstIter beg, UStringConstIter end);
-
-    bool is_visible() const;
-
-    static TextSize measure_text
-        (const sf::Font &, unsigned character_size, const UString &);
-
-    /** Measures text in a single line like fashion.
-     *  @param character_size a value less than 1 indicates a zero sized font
-     *         and therefore will cause this function to always return a zerod
-     *         size object { 0.f, 0.f }
+    /** @returns the full height of the text, without viewport imposed
+     *           limitations.
      */
-    static TextSize measure_text
-        (const sf::Font &, int character_size, UStringConstIter beg, UStringConstIter end);
+    int full_height() const;
 
-    static float measure_width
-        (const sf::Font &, int character_size, UStringConstIter beg, UStringConstIter end);
+    /** Sets a hard limit of how far text may go, for now this is the maximum
+     *  width.
+     *  @note presently intented as "limited width" though I'm not sure if I'd
+     *        like to repurpose this later to something other than height.
+     *  @param x_limit line position, no character will appear after or at this
+     *                 line
+     */
+    void set_limiting_line(int x_limit);
 
-    static float maximum_height
-        (const sf::Font &, int character_size, UStringConstIter beg, UStringConstIter end);
+    /** Sets the style of the text, this is meant to include the size, color,
+     *  and anything else.
+     */
+    void stylize(ItemKey);
 
-    static void run_tests();
+    TextSize measure_text(UStringConstIter beg, UStringConstIter end) const;
+
+    void set_viewport(const sf::IntRect &);
+
+    void reset_viewport();
+
+    const sf::IntRect & viewport() const;
+
+    void set_font(const Font &);
+
+    void draw_to(WidgetRenderer &) const;
 
 private:
-    /** SFML draw, draws all verticies of the text.
-     *  @param target Target of all draws.
-     *  @param states States texture set, used to draw quads.
-     */
-    void draw(sf::RenderTarget & target, sf::RenderStates states) const override;
+    using Helpers = TextBase::Helpers;
 
-    const sf::Font * font_ptr() const noexcept;
+    void check_to_transform_to_basic();
 
-    void place_renderables(std::vector<detail::DrawableCharacter> &) const;
-
-    // cuts/removes renderables that fall outside of width/height constraints
-    void cut_renderables(std::vector<detail::DrawableCharacter> &) const;
-
-    void update_geometry();
-
-    using FontMtPtr = detail::FontMtPtr;
-    FontMtPtr m_font_ptr;
-    UString m_string;
-
-    std::vector<detail::DrawableCharacter> m_renderables;
-    // next iterator to the next chunk of text alternating between
-    // breakable and unbreakable
-    std::vector<UString::const_iterator> m_next_chunk;
-    int m_char_size = k_default_font_size;// styles::get_unset_value<int>();
-    sf::FloatRect m_bounds;
-    float m_width_constraint = k_inf;
-    float m_height_constraint = k_inf;
-    bool m_allow_bottom_cuts = false;
-    sf::Color m_color;
+    ProxyPointer m_proxy = Helpers::make_default_instance();
 };
-#if 0
-template <typename KeyType>
-bool Text::assign_font(const StyleMap & map, const KeyType & key_type) {
-    auto itr = map.find(key_type);
-    if (itr == map.end()) return false;
-    auto mt = itr->second;
-    if (mt.template is_type<const sf::Font *>()) {
-        m_font_ptr = FontMtPtr(mt.template as<const sf::Font *>());
-    } else if (mt.template is_type<std::shared_ptr<const sf::Font>>()) {
-        m_font_ptr = FontMtPtr(mt.template as<std::shared_ptr<const sf::Font>>());
-    } else {
-        return false;
+
+// -------------------------- implementation detail ---------------------------
+
+template <typename T>
+/* static protected */ T & Font::check_and_transform_text(TextPointer & ptr) {
+    static_assert(std::is_base_of_v<TextBase, T>, "T must be derived from Text.");
+    using DerivedPointer = std::unique_ptr<T, TextBase::ProxyDeleter>;
+    if (auto * rv = dynamic_cast<T *>(ptr.get())) {
+        return *rv;
     }
-    update_geometry();
-    return true;
+    auto new_ptr = DerivedPointer( new T() );
+    T & as_rv = *new_ptr;
+    TextBase & as_base = *new_ptr;
+
+    auto loc = ptr->location();
+    as_base.set_string       ( ptr->give_string()   );
+    as_base.set_viewport     ( ptr->viewport()      );
+    as_base.set_limiting_line( ptr->limiting_line() );
+    as_base.set_location     ( loc.x, loc.y );
+
+    ptr = std::move(new_ptr);
+    return as_rv;
 }
-#endif
+
 } // end of asgl namespace

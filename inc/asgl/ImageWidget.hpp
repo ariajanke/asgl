@@ -24,15 +24,7 @@
 #include <asgl/Widget.hpp>
 
 #include <memory>
-#if 0
-#include <SFML/Graphics/Image.hpp>
-#include <SFML/Graphics/Texture.hpp>
-#include <SFML/Graphics/Sprite.hpp>
 
-#include <common/MultiType.hpp>
-
-#include <ksg/Widget.hpp>
-#endif
 namespace asgl {
 
 struct ImageResource {
@@ -66,30 +58,6 @@ public:
 
     void stylize(const StyleMap &) override {}
 
-#   if 0
-    using TextureMultiType =
-        MultiType<const sf::Texture *, std::shared_ptr<const sf::Texture>, sf::Texture>;
-
-    bool load_from_file(const char * filename) noexcept;
-
-    void load_from_image(const sf::Image & image);
-
-    void set_texture(const sf::Texture & texture_,
-                     const sf::IntRect & trect_ = sf::IntRect());
-
-    void set_texture_shared_pointer(std::shared_ptr<const sf::Texture>);
-
-    /** Assigns a pointer to the texture, with the client being responsible for
-     *  ownership.
-     *  @note the given pointed to object must live at least as long as this
-     *        widget, or bad things will happen!
-     */
-    void assign_texture(const sf::Texture *);
-
-    void reset_texture_rectangle(const sf::IntRect & trect_);
-
-    void set_location(float x, float y) override;
-#   endif
     VectorI location() const override;
 
     int width() const override;
@@ -119,23 +87,8 @@ private:
 
     void draw_(WidgetRenderer &) const override;
 
-#   if 0
-    void draw(sf::RenderTarget & target, sf::RenderStates states) const override;
-
-    void check_invarients() const;
-#   endif
     SharedImagePtr m_image;
     sf::IntRect m_bounds;
-#   if 0
-    ItemKey m_image_item_key;
-
-    void update_size_post_load();
-
-    TextureMultiType m_texture_storage;
-    sf::Sprite   m_spt;
-    sf::Vector2f m_size;
-#   endif
-
 };
 
 } // end of ksg namespace

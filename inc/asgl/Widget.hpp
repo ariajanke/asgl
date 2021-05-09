@@ -23,9 +23,7 @@
 *****************************************************************************/
 
 #pragma once
-#if 0
-#include <SFML/Graphics/Drawable.hpp>
-#endif
+
 #include <asgl/StyleMap.hpp>
 #include <asgl/Event.hpp>
 
@@ -63,24 +61,24 @@ protected:
 class WidgetFlagsUpdater {
 public:
     virtual ~WidgetFlagsUpdater();
-    virtual void set_needs_geometry_update_flag() = 0;
+
+    virtual void receive_geometry_needs_update_flag() = 0;
+    virtual bool needs_geometry_update() const = 0;
     virtual void set_needs_redraw_flag() = 0;
 };
 
-class Text;
+class SfmlTextObject;
+class TextBase;
 using TriangleTuple = std::tuple<sf::Vector2i, sf::Vector2i, sf::Vector2i>;
 
 class WidgetRenderer {
 public:
     virtual ~WidgetRenderer();
-#   if 0
-    virtual void render_rectangle(const sf::IntRect &, sf::Color) const = 0;
-    virtual void render_texture  (const sf::IntRect &, const sf::Texture &) const = 0;
-    virtual void render_triangle (const TriangleTuple &, sf::Color) const = 0;
-#   endif
+
     virtual void render_rectangle(const sf::IntRect   &, ItemKey, const void * widget_spec_ptr) = 0;
     virtual void render_triangle (const TriangleTuple &, ItemKey, const void * widget_spec_ptr) = 0;
-    virtual void render_text     (const Text &) = 0;
+    [[deprecated]] virtual void render_text(const SfmlTextObject &) = 0;
+    virtual void render_text(const TextBase &) = 0;
 };
 
 /** A frame needs four things from a widget, in order to position the widget
@@ -113,12 +111,14 @@ public:
 
     /** This function is called whenever it's time for the widget to
      *  rearrange its internals and recompute geometry of its various features.
+     *
+     *  @note This is called after all widgets has had their proper locations
+     *        set.
      */
     virtual void on_geometry_update() = 0;
 
     /** @brief Called by frame for automatic widget sizing.
-     *  This in effect is telling the widget, go ahead, there are no
-     *  restrictions on widget size.
+     *  Widget computes its own size.
      *  @note This is called after styles are set, so fonts for widgets and
      *        others will be accessible on this call.
      *  @note The default behavior is for the widget to do nothing (no resize)
@@ -185,6 +185,21 @@ private:
                            // especially this this would end up on *all* controls
     WidgetFlagsUpdater * m_flags_updater = nullptr; // safety set
 };
+
+class FlagsReceivingWidget : public Widget, public WidgetFlagsUpdater {
+public:
+    void receive_geometry_needs_update_flag() final
+        { m_geo_update_flag = true; }
+    bool needs_geometry_update() const final { return m_geo_update_flag; }
+
+    void set_needs_redraw_flag() final {}
+
+    void unset_needs_geometry_update_flag()
+        { m_geo_update_flag = false; }
+private:
+    bool m_geo_update_flag = false;
+};
+
 #if 0
 class ResizableWidget : public Widget {
 public:

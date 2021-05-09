@@ -20,11 +20,6 @@
 *****************************************************************************/
 
 #include <common/Util.hpp>
-#if 0
-#include <ksg/Frame.hpp>
-#include <ksg/TextArea.hpp>
-#include <ksg/FocusWidget.hpp>
-#endif
 
 #include <asgl/Frame.hpp>
 
@@ -35,18 +30,16 @@
 #include <cassert>
 
 namespace {
-#if 0
-using VectorF = ksg::Frame::VectorF;
-#endif
+
 using VectorI = asgl::Frame::VectorI;
+
 } // end of <anonymous> namespace
 
-namespace asgl/*ksg */{
+namespace asgl {
 
 WidgetAdder::WidgetAdder
-    (Frame * frame_, const StyleMap * styles_, detail::LineSeperator * sep_):
+    (Frame * frame_, detail::LineSeperator * sep_):
     m_the_line_sep(sep_),
-    m_styles(styles_),
     m_parent(frame_)
 {
     static constexpr const char * k_null_parent =
@@ -65,7 +58,7 @@ WidgetAdder::~WidgetAdder() noexcept(false) {
     if (!m_parent) return;
     m_parent->finalize_widgets(
         std::move(m_widgets), std::move(m_horz_spacers),
-        m_the_line_sep, m_styles);
+        m_the_line_sep);
 }
 
 WidgetAdder & WidgetAdder::operator = (WidgetAdder && rhs) {
@@ -131,21 +124,11 @@ void WidgetAdder::swap(WidgetAdder & rhs) {
     m_widgets.swap(rhs.m_widgets);
     m_horz_spacers.swap(rhs.m_horz_spacers);
     std::swap(m_the_line_sep, rhs.m_the_line_sep);
-    std::swap(m_styles, rhs.m_styles);
     std::swap(m_parent, rhs.m_parent);
 }
 
 // ----------------------------------------------------------------------------
-#if 0
-/* static */ constexpr const char * const Frame::k_background_color ;
-/* static */ constexpr const char * const Frame::k_title_bar_color  ;
-/* static */ constexpr const char * const Frame::k_title_size       ;
-/* static */ constexpr const char * const Frame::k_title_color      ;
-/* static */ constexpr const char * const Frame::k_widget_body_color;
-/* static */ constexpr const char * const Frame::k_border_size      ;
 
-/* static */ constexpr const float Frame::k_default_padding;
-#endif
 /* protected */ Frame::Frame()
     { check_invarients(); }
 
@@ -194,17 +177,13 @@ void Frame::process_event(const Event & event) {
 
 void Frame::stylize(const StyleMap & smap) {
     m_border.stylize(smap);
-    m_padding = Helpers::verify_padding(smap.find(styles::k_global_padding),
-                                        "Frame::stylize");
-#   if 0
-    if (!styles::set_if_found(smap, styles::k_global_padding, m_padding)) {
-        m_padding = k_default_padding;
-    }
-#   endif
+    m_padding = Helpers::verify_padding(
+        smap.find(styles::k_global_padding), "Frame::stylize");
 
     for (Widget * widget_ptr : m_widgets)
         widget_ptr->stylize(smap);
-    m_geo_needs_update = true;
+
+    set_needs_geometry_update_flag();
     check_for_geometry_updates();
     check_invarients();
 }
@@ -215,29 +194,23 @@ int Frame::width() const { return m_border.width(); }
 
 int Frame::height() const { return m_border.height(); }
 
-void Frame::set_size(float w, float h) {
+void Frame::set_size(int w, int h) {
     m_border.set_size(w, h);
     check_invarients();
 }
 
-WidgetAdder Frame::begin_adding_widgets(const StyleMap & styles) {
-    return WidgetAdder(this, &styles, &m_the_line_seperator);
-}
-
-WidgetAdder Frame::begin_adding_widgets() {
-    return WidgetAdder(this, nullptr, &m_the_line_seperator);
-}
+WidgetAdder Frame::begin_adding_widgets()
+    { return WidgetAdder(this, &m_the_line_seperator); }
 
 void Frame::finalize_widgets(std::vector<Widget *> && widgets,
     std::vector<detail::HorizontalSpacer> && spacers,
-    detail::LineSeperator * the_line_sep, const StyleMap * styles)
+    detail::LineSeperator * the_line_sep)
 {
     static constexpr const char * k_must_know_line_sep =
         "Frame::finalize_widgets: caller must know the line seperator to call "
         "this function. This is meant to be called by a Widget Adder only.";
     if (the_line_sep != &m_the_line_seperator) {
         throw std::invalid_argument(k_must_know_line_sep);
-
     }
 
     static constexpr const char * k_cannot_contain_this =
@@ -248,18 +221,17 @@ void Frame::finalize_widgets(std::vector<Widget *> && widgets,
                 throw std::invalid_argument(k_cannot_contain_this);
             }
         }
-        widget->assign_flags_updater(this);
     }
 
     m_widgets     .swap(widgets);
     m_horz_spacers.swap(spacers);
 
-    if (styles) {
-        stylize(*styles);
-        // styles must be provided in order to finalize widgets
-        finalize_widgets();
-    }
-    m_geo_needs_update = true;
+    assign_flags_updater(this);
+    iterate_children_f([this](Widget & widget) {
+        widget.assign_flags_updater(this);
+    });
+
+    set_needs_geometry_update_flag();
     check_invarients();
 }
 
@@ -267,45 +239,53 @@ void Frame::set_padding(float pixels)
     { m_padding = pixels; }
 
 void Frame::check_for_geometry_updates() {
-    if (!m_geo_needs_update) return;
-    for (auto * widget : m_widgets) {
-        widget->on_geometry_update();
-    }
+    if (!needs_geometry_update()) return;
+
     finalize_widgets();
-    m_geo_needs_update = false;
+
+    unset_needs_geometry_update_flag();
 }
 
 void Frame::set_frame_border_size(float pixels)
     { m_border.set_border_size(pixels); }
-#if 0
-/* protected */ void Frame::draw(sf::RenderTarget & target, sf::RenderStates) const {
-    if (!is_visible()) return;
-
-    target.draw(m_border);
-    for (Widget * widget_ptr : m_widgets) {
-        if (widget_ptr->is_visible())
-            target.draw(*widget_ptr);
-    }
-}
-#endif
 
 /* protected */ void Frame::draw_(WidgetRenderer & target) const {
     m_border.draw(target);
     for (const auto * widget_ptr : m_widgets) {
         widget_ptr->draw(target);
-    }
+    }    
 }
 
 /* private */ void Frame::finalize_widgets() {
-    // auto sizing
+    // all size work (needed to be done first so we know where to place widgets)
     issue_auto_resize();
 
-    // must come before horizontal spacer updates
-    m_border.update_geometry();
+    place_widgets_to_locations();
 
-    // update horizontal spacer sizes
-    update_horizontal_spacers();
+    on_geometry_update();
 
+    // v we don't need this below on a regular geometry update v
+
+    // note: there is no consideration given to "vertical overflow"
+    // not considering if additional widgets overflow the frame's
+    // height
+    std::vector<FocusWidget *> focus_widgets;
+    iterate_children_f([&focus_widgets](Widget & widget) {
+        if (auto * frame = dynamic_cast<Frame *>(&widget)) {
+            frame->m_focus_handler.clear_focus_widgets();
+        }
+        if (auto * focwid = dynamic_cast<FocusWidget *>(&widget)) {
+            focus_widgets.push_back(focwid);
+        }
+    });
+    m_focus_handler.take_widgets_from(focus_widgets);
+
+    // ^ we don't need this below on a regular geometry update ^
+
+    check_invarients();
+}
+
+void Frame::place_widgets_to_locations() {
     const int start_x = m_border.widget_start().x + m_padding;
     int x = start_x;
     int y = m_border.widget_start().y + m_padding;
@@ -343,26 +323,9 @@ void Frame::set_frame_border_size(float pixels)
     }
 
     for (Widget * widget_ptr : m_widgets) {
-        auto * frame_ptr = dynamic_cast<Frame *>(widget_ptr);
-        if (frame_ptr)
-            frame_ptr->finalize_widgets();
+        if (auto * frame_ptr = dynamic_cast<Frame *>(widget_ptr))
+            frame_ptr->place_widgets_to_locations();
     }
-
-    // note: there is no consideration given to "vertical overflow"
-    // not considering if additional widgets overflow the frame's
-    // height
-    std::vector<FocusWidget *> focus_widgets;
-    iterate_children_f([&focus_widgets](Widget & widget) {
-        if (auto * frame = dynamic_cast<Frame *>(&widget)) {
-            frame->m_focus_handler.clear_focus_widgets();
-        }
-        if (auto * focwid = dynamic_cast<FocusWidget *>(&widget)) {
-            focus_widgets.push_back(focwid);
-        }
-    });
-    m_focus_handler.take_widgets_from(focus_widgets);
-
-    check_invarients();
 }
 
 void Frame::swap(Frame & lhs) {
@@ -385,9 +348,6 @@ void Frame::swap(Frame & lhs) {
         }
         if (is_line_seperator(widget_ptr)) {
             total_width   = std::max(line_width, total_width);
-#           if 0
-            assert(is_real(total_width));
-#           endif
             line_width    = 0;
             total_height += line_height + m_padding;
             line_height   = 0;
@@ -408,28 +368,17 @@ void Frame::swap(Frame & lhs) {
         line_width  += get_widget_advance(widget_ptr) + pad_fix;
         line_height  = std::max(line_height, height);
         pad_fix = 0;
-#       if 0 // this must have been here for debugging purposes
-        if (!is_real(line_width)) {
-            get_widget_advance(widget_ptr);
-        }
-        assert(is_real(line_width) && is_real(line_height));
-#       endif
     }
 
     if (line_width != 0) {
         total_width   = std::max(total_width, line_width);
         total_height += line_height + m_padding;
-#       if 0
-        assert(is_real(total_width));
-#       endif
     }
     // we want to fit for the title's width and height also
     // accommodate for the title
     total_height += (m_border.widget_start() - m_border.location()).y;
     total_width = std::max(total_width, m_border.title_width_accommodation() + m_padding*2);
-#   if 0
-    assert(is_real(total_width));
-#   endif
+
     if (!m_widgets.empty()) {
         // padding for borders + padding on end
         // during normal iteration we include only one
@@ -462,10 +411,14 @@ void Frame::swap(Frame & lhs) {
 
     issue_auto_resize_for_frame();
 
-    if (width() == 0.f || height() == 0.f) {
-        auto size_ = compute_size_to_fit();
-        set_size(size_.x, size_.y);
-    }
+    auto size_ = compute_size_to_fit();
+    m_border.set_size(size_.x, size_.y);
+
+    // must come before horizontal spacer updates
+    m_border.update_geometry();
+
+    // update horizontal spacer sizes
+    update_horizontal_spacers();
 }
 
 /* private */ bool Frame::contains(const Widget * wptr) const noexcept {
@@ -493,11 +446,13 @@ void Frame::swap(Frame & lhs) {
 }
 
 /* private */ void Frame::on_geometry_update() {
-    if (!m_geo_needs_update) return;
+    // this means there are two calls to this function during the course
+    // of geometric computations
+    m_border.update_geometry();
     for (auto * widget : m_widgets) {
         widget->on_geometry_update();
     }
-    m_geo_needs_update = false;
+    unset_needs_geometry_update_flag();
 }
 
 /* private */ void Frame::check_invarients() const {

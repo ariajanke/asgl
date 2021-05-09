@@ -2,6 +2,7 @@
 
 #include <asgl/Widget.hpp>
 #include <asgl/ImageWidget.hpp>
+#include <asgl/TextOld.hpp>
 
 #include <SFML/Graphics/Sprite.hpp>
 
@@ -43,6 +44,10 @@ enum ItemColorEnum {
     k_secondary_dark,
     k_text_color,
     k_text_color_dark,
+
+    k_title_text,
+    k_widget_text,
+
     k_color_count
 };
 
@@ -63,7 +68,10 @@ public:
 
     void add_rectangle_style(sf::Color, StyleKey);
 
-    void add_global_font(std::shared_ptr<const sf::Font>);
+    void load_global_font(const std::string & filename) {
+        m_font_handler = std::make_shared<SfmlFontN>();
+        m_font_handler->load_font(filename);
+    }
 
     static const sf::Texture * dynamic_cast_to_texture(SharedImagePtr);
 
@@ -73,7 +81,9 @@ private:
 
     void render_rectangle(const sf::IntRect   &, ItemKey, const void *) final;
     void render_triangle (const TriangleTuple &, ItemKey, const void *) final;
-    void render_text     (const Text &) final;
+    void render_text     (const SfmlTextObject &) final;
+
+    void render_text(const TextBase &) final;
 
     void render_rectangle(const sf::IntRect &, DrawRectangle &) const;
     void render_rectangle(const sf::IntRect &, SfmlImageResource &) const;
@@ -91,6 +101,10 @@ private:
 
     StyleMap m_style_map;
     styles::ItemKeyCreator m_item_key_creator;
+
+    std::shared_ptr<SfmlFontN> m_font_handler;
+
+    mutable int m_counter = 0;
 };
 
 } // end of asgl namespace

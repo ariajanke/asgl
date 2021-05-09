@@ -30,6 +30,8 @@
 #include <SFML/Graphics/Color.hpp>
 #include <SFML/Graphics/Font.hpp>
 
+#include <asgl/Text.hpp>
+
 #include <map>
 #include <string>
 #include <memory>
@@ -161,6 +163,7 @@ using StyleField = MultiType<
     sf::Color, // made necessary by font/text classes
     int,
     std::shared_ptr<const sf::Font>,
+    std::weak_ptr<const Font>,
     styles::AutomaticSize
     // not ready for this
     , ItemKey

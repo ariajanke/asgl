@@ -48,11 +48,7 @@ public:
         { set_point_c(pos.x, pos.y); }
 
     void move(VectorF);
-#   if 0
-    [[deprecated]] void set_location(VectorF);
 
-    [[deprecated]] void set_location(float, float);
-#   endif
     void set_center(VectorF);
 
     void set_center(float, float);
@@ -62,9 +58,7 @@ public:
     VectorF point_b() const;
 
     VectorF point_c() const;
-#   if 0
-    [[deprecated]] VectorF location() const;
-#   endif
+
     VectorF center() const;
 
     sf::Color color() const;

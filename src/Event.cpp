@@ -130,7 +130,7 @@ Event convert(const sf::Event & sfevent) {
     case sf::Event::MouseButtonPressed:
         return Event(MousePress(::convert(sfevent.mouseButton)));
     case sf::Event::MouseButtonReleased:
-        return Event(MousePress(::convert(sfevent.mouseButton)));
+        return Event(MouseRelease(::convert(sfevent.mouseButton)));
     case sf::Event::MouseMoved:
         return Event(MouseMove(::convert(sfevent.mouseMove)));
     case sf::Event::TextEntered:

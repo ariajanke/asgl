@@ -20,9 +20,7 @@
 *****************************************************************************/
 
 #pragma once
-#if 0
-#include <common/DrawRectangle.hpp>
-#endif
+
 #include <asgl/Widget.hpp>
 #include <asgl/StyleMap.hpp>
 
@@ -37,12 +35,7 @@ public:
     using DefaultStyles = styles::StyleKeysEnum<StyleEnum, k_style_count>;
     inline static StyleKey to_key(StyleEnum e)
         { return DefaultStyles::to_key(e); }
-#   if 0
-    static constexpr const char * const k_outer_color       = "progress-bar-outer-color";
-    static constexpr const char * const k_inner_front_color = "progress-bar-inner-front-color";
-    static constexpr const char * const k_inner_back_color  = "progress-bar-inner-back-color";
-    static constexpr const char * const k_padding           = "progress-bar-padding";
-#   endif
+
     /** ProgressBars do not respond to any event. */
     void process_event(const Event &) override {}
 
@@ -59,13 +52,6 @@ public:
     int height() const override;
 
     void stylize(const StyleMap &) override;
-#   if 0
-    void set_outer_color(sf::Color);
-
-    void set_inner_front_color(sf::Color);
-
-    void set_inner_back_color(sf::Color);
-#   endif
 
     /** Sets outer style key.
      *
@@ -95,14 +81,6 @@ private:
 
     void verify_padding_set(const char * caller) const;
 
-#   if 0
-    float active_padding() const;
-
-    void update_positions_using_outer();
-
-    void update_sizes_using_outer();
-#   endif
-
     int m_padding = styles::k_uninit_size;
     float m_fill_amount = 0.f;
     sf::IntRect m_bounds;
@@ -116,14 +94,6 @@ private:
     ItemKey m_fill_style;
     ItemKey m_void_style;
     ItemKey m_outer_style;
-#   if 0
-    DrawRectangle m_outer       = styles::make_rect_with_unset_color();
-    DrawRectangle m_inner_front = styles::make_rect_with_unset_color();
-    DrawRectangle m_inner_back  = styles::make_rect_with_unset_color();
-
-    float m_fill_amount = 0.f;
-    float m_padding = styles::get_unset_value<float>();
-#   endif
 };
 
 } // end of ksg namespace

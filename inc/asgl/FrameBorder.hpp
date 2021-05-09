@@ -20,10 +20,7 @@
 *****************************************************************************/
 
 #pragma once
-#if 0
-#include <ksg/Widget.hpp>
-#include <ksg/Text.hpp>
-#endif
+
 #include <asgl/Draggable.hpp>
 #include <asgl/Widget.hpp>
 #include <asgl/Text.hpp>
@@ -52,25 +49,19 @@ public:
     ~LineSeperator() override;
 
     void process_event(const Event &) override {}
-#   if 0
-    void set_location(float, float) override {}
-#   endif
+
     VectorI location() const override { return VectorI(); }
 
     int width() const override { return 0; }
 
     int height() const override { return 0; }
-#   if 0
-    void set_style(const StyleMap &) override {}
-#   endif
+
     void stylize(const StyleMap &) override {}
+
 private:
     void set_location_(int, int) override {}
     void on_geometry_update() override {}
     void draw_(WidgetRenderer &) const override {}
-#   if 0
-    void draw(sf::RenderTarget &, sf::RenderStates) const override {}
-#   endif
 };
 
 class HorizontalSpacer final : public Widget {
@@ -78,9 +69,7 @@ public:
     HorizontalSpacer(): m_width(0) {}
 
     void process_event(const Event &) override { }
-#   if 0
-    void set_location(float x_, float y_) override;
-#   endif
+
     VectorI location() const override;
 
     int width() const override;
@@ -88,14 +77,10 @@ public:
     int height() const override { return 0.f; }
 
     void set_width(int w);
-#   if 0
-    void set_style(const StyleMap &) override {}
-#   endif
+
     void stylize(const StyleMap &) override {}
+
 private:
-#   if 0
-    void draw(sf::RenderTarget &, sf::RenderStates) const override {}
-#   endif
     void set_location_(int x, int y) override;
 
     void on_geometry_update() override {}
@@ -114,28 +99,19 @@ private:
  *  Naturally the client only needs to concern themselves mostly with the
  *  title, styling, and click event function.
  */
-class FrameBorder final : public Draggable
-#   if 0
-        , public sf::Drawable
-#   endif
-{
+class FrameBorder final : public Draggable {
 public:
-#   if 0
-    using VectorF = Widget::VectorF;
-#   endif
     using VectorI = Widget::VectorI;
     using UString = Text::UString;
     enum ClickResponse {
         k_skip_other_events,
         k_continue_other_events
     };
+
     struct EventResponseSignal {
         bool skip_other_events      = false;
         bool should_update_geometry = false;
     };
-#   if 0
-    static constexpr const float k_default_padding = 2.f;
-#   endif
 
     VectorI widget_start() const noexcept;
 
@@ -149,10 +125,6 @@ public:
 
     void set_location(int x, int y);
 
-    // function renamed
-#   if 0
-    void set_style(const StyleMap &);
-#   endif
     // takes styles from frame
     void stylize(const StyleMap &);
 
@@ -204,9 +176,7 @@ public:
 
 private:
     void update_drag_position(int drect_x, int drect_y) override;
-#   if 0
-    void draw(sf::RenderTarget &, sf::RenderStates) const override;
-#   endif
+
     int title_height() const noexcept;
 
     void check_should_update_drag(const Event &);
@@ -214,19 +184,12 @@ private:
     static ClickResponse do_default_click_event();
 
     int outer_padding() const noexcept;
-#   if 0
-    float m_outer_padding = styles::get_unset_value<float>();
-#   endif
+
     int m_outer_padding = styles::k_uninit_size;
     bool m_recently_dragged = false;
-#   if 0
-    DrawRectangle m_back        = styles::make_rect_with_unset_color();
-    DrawRectangle m_title_bar   = styles::make_rect_with_unset_color();
-    DrawRectangle m_widget_body = styles::make_rect_with_unset_color();
-#   endif
 
     sf::IntRect m_back, m_title_bar, m_widget_body;
-    ItemKey m_title_bar_style;
+    ItemKey m_back_style, m_title_bar_style, m_widget_body_style;
 
     Text m_title;
 

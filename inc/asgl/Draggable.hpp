@@ -23,11 +23,7 @@
 
 #include <SFML/System/Vector2.hpp>
 #include <SFML/Graphics/Rect.hpp>
-#if 0
-#include <SFML/Window/Event.hpp>
 
-#include <common/DrawRectangle.hpp>
-#endif
 namespace asgl {
 
 /** @brief Any on-screen object that can be dragged by a mouse.
@@ -55,9 +51,6 @@ public:
     bool is_watching_for_drag_events() const { return m_watch_drag_events; }
 
 protected:
-#   if 0
-    using MouseButton = sf::Mouse::Button;
-#   endif
     virtual ~Draggable();
 
     /** @brief mouse_move updates the Draggable with the current mouse
@@ -83,9 +76,7 @@ protected:
      *  @return Returns true if the object has entered the drag state.
      */
     bool mouse_click(int x, int y, const sf::IntRect & drect);
-#   if 0
-    bool mouse_click(int x, int y, const DrawRectangle & drect);
-#   endif
+
     /** @brief drag_release Causes object to leave its drag state.
      */
     void drag_release()
@@ -112,9 +103,6 @@ protected:
     virtual void update_drag_position(int drect_x, int drect_y) = 0;
 
 private:
-#   if 0
-    static bool is_in_rect(int x, int y, const DrawRectangle & drect);
-#   endif
     bool has_position_contraints() const;
 
     bool m_watch_drag_events = true;

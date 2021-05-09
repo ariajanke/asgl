@@ -20,9 +20,7 @@
 *****************************************************************************/
 
 #pragma once
-#if 0
-#include <common/DrawRectangle.hpp>
-#endif
+
 #include <asgl/Widget.hpp>
 #include <asgl/ArrowButton.hpp>
 #include <asgl/Text.hpp>
@@ -38,7 +36,7 @@ namespace asgl {
  */
 class OptionsSlider final : public Widget {
 public:
-    using UString = Text::UString;
+    using UString      = Text::UString;
     using BlankFunctor = ArrowButton::BlankFunctor;
 
     OptionsSlider();
@@ -57,24 +55,7 @@ public:
     int height() const override;
 
     void stylize(const StyleMap &) override;
-#   if 0
-    /** @brief Sets the size of the widget by setting the size of it's interior.
-     *
-     *  This function will limit the size of the text to the given size. Unless
-     *  OptionsSlider::k_size_unset is passed. In which case, the control will
-     *  choose its own size in that dimension's regard.
-     *
-     *  @note The size of the arrows is determined by the height. They are made
-     *        into squares.
-     *  @param w width of the interior of the widget, where the text lives.
-     *  @param h height of the widget, this is also the height and width of
-     *         each arrow.
-     */
-    void set_interior_size(int w, int h);
-#   endif
-#   if 0
-    void swap_options(std::vector<UString> &);
-#   endif
+
     void set_options(const std::vector<UString> &);
 
     void set_options(std::vector<UString> &&);
@@ -86,20 +67,12 @@ public:
     const UString & selected_option() const;
 
     std::size_t options_count() const;
-#   if 0
-        { return m_options.size(); }
-#   endif
+
     void set_option_change_event(BlankFunctor && func);
-#   if 0
-    void set_wrap_enabled(bool);
-#   endif
+
     void swap(OptionsSlider &);
 
 private:
-#   if 0
-    void draw(sf::RenderTarget & target, sf::RenderStates) const override;
-#   endif
-
     void draw_(WidgetRenderer &) const override;
 
     void issue_auto_resize() override;
@@ -113,23 +86,11 @@ private:
     void set_location_(int x, int y) override;
 
     void set_arrow_events();
-#   if 0
-    void recenter_text();
 
-    bool is_horizontal() const
-        { return width() >= height(); }
+    void update_selections();
 
-    bool is_vertical() const
-        { return !is_horizontal(); }
-
-    float padding() const noexcept;
-#   endif
     ArrowButton m_left_arrow;
     ArrowButton m_right_arrow;
-#   if 0
-    DrawRectangle m_back  = styles::make_rect_with_unset_color();
-    DrawRectangle m_front = styles::make_rect_with_unset_color();
-#   endif
 
     int m_padding = styles::k_uninit_size;
     ItemKey m_back;
@@ -145,10 +106,7 @@ private:
     Text m_text;
     std::vector<UString> m_options;
     std::size_t m_selected_index = 0;
-#   if 0
-    float m_padding = styles::get_unset_value<float>();
-    sf::Vector2f m_size;
-#   endif
+
     BlankFunctor m_press_func = [](){};
     bool m_wrap_enabled = false;
 };

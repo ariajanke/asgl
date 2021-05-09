@@ -132,11 +132,6 @@ void FrameFocusHandler::clear_focus_widgets() {
         auto keyev = event.as<KeyPress>();
         return keyev.key == keys::k_tab && !keyev.shift;
     }
-#   if 0
-    if (event.type == sf::Event::KeyPressed) {
-        return event.key.code == sf::Keyboard::Tab && !event.key.shift;
-    }
-#   endif
     return false;
 }
 
@@ -145,11 +140,6 @@ void FrameFocusHandler::clear_focus_widgets() {
         auto keyev = event.as<KeyRelease>();
         return keyev.key == keys::k_tab && keyev.shift;
     }
-#   if 0
-    if (event.type == sf::Event::KeyReleased) {
-        return event.key.code == sf::Keyboard::Tab && event.key.shift;
-    }
-#   endif
     return false;
 }
 

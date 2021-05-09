@@ -23,12 +23,6 @@
 
 #include <functional>
 
-#if 0
-#include <common/DrawRectangle.hpp>
-
-#include <ksg/FocusWidget.hpp>
-#endif
-
 #include <asgl/FocusWidget.hpp>
 
 namespace asgl {
@@ -45,16 +39,6 @@ namespace asgl {
 class Button : public FocusWidget {
 public:
     using BlankFunctor = std::function<void()>;
-#   if 0
-    //! background color of button, when mouse hovers over the button
-    static constexpr const char * const k_hover_back_color = "button-hover-back";
-    //! foreground color of button, when mouse hovers over the button
-    static constexpr const char * const k_hover_front_color = "button-hover-front";
-    //! background color of button
-    static constexpr const char * const k_regular_back_color = "button-back";
-    //! foreground color of button
-    static constexpr const char * const k_regular_front_color = "button-front";
-#   endif
 
     enum ButtonStyleEnum {
         k_regular_back_style, k_regular_front_style,
@@ -125,42 +109,9 @@ protected:
      */
     Button();
 
-#   if 0
-    /** Draws the button's background. Override to add your own button
-     *  markings.
-     *  @param target the target, where the button is drawn
-     */
-    void draw(sf::RenderTarget & target, sf::RenderStates) const override;
-#   endif
     void draw_(WidgetRenderer &) const override;
 
     void on_geometry_update() override;
-#   if 0
-    /** Padding, which is applied both horizontally and vertically. Maybe
-     *  useful with geometry updates.
-     *  @return padding amount in pixels
-     */
-    float padding() const
-        { return m_padding; }
-#   endif
-    /** This function is called @em after the button's size changes.
-     *  Override to add your own geometry updates with location changes.
-     *  @param old_width old width of the button in pixels
-     *  @param old_height old height of the button in pixels
-     */
-    virtual void on_size_changed(int old_width, int old_height);
-
-    /** This function is called @em after the button's location changes.
-     *  Override to add your own geometry updates with location changes.
-     *  @param old_x old x coordinate, left boundry of the button
-     *  @param old_y old y coordinate, top boundry of the button
-     */
-    virtual void on_location_changed(int old_x, int old_y);
-
-    /** Called by set_size, allowing inheriting classes to resize their
-     *  internals.
-     */
-    virtual void set_size_back(int width, int height);
 
     /** Sets the size of the button's frame.
      *  @note Make sure to adjust for padding if necessary so that the button
@@ -182,15 +133,7 @@ private:
     void notify_focus_gained() override;
 
     void notify_focus_lost() override;
-#   if 0
-    struct ColorPair {
-        ColorPair(){}
-        ColorPair(sf::Color b_, sf::Color f_): back(b_), front(f_) {}
 
-        sf::Color back  = styles::get_unset_value<sf::Color>();
-        sf::Color front = styles::get_unset_value<sf::Color>();
-    };
-#   endif
     template <typename T>
     struct KeyPairImpl {
         KeyPairImpl() {}
@@ -200,11 +143,7 @@ private:
     };
     using StyleKeyPair = KeyPairImpl<StyleKey>;
     using ItemKeyPair  = KeyPairImpl<ItemKey >;
-#   if 0
-    // strangley ok for default color value
-    DrawRectangle m_outer;
-    DrawRectangle m_inner;
-#   endif
+
     StyleKeyPair m_regular_keys = StyleKeyPair(to_key(k_regular_back_style), to_key(k_regular_front_style));
     StyleKeyPair m_hover_keys   = StyleKeyPair(to_key(k_hover_back_style  ), to_key(k_hover_front_style  ));
     ItemKeyPair m_regular_items;
@@ -214,13 +153,9 @@ private:
 
     sf::IntRect m_back, m_front;
 
-    int m_padding = styles::k_uninit_size;// styles::get_unset_value<float>();
+    int m_padding = styles::k_uninit_size;
     bool m_is_highlighted = false;
     BlankFunctor m_press_functor = [](){};
-#   if 0
-    ColorPair m_reg;
-    ColorPair m_hover;
-#   endif
 };
 
 } // end of ksg namespace

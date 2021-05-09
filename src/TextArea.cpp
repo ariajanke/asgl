@@ -20,6 +20,7 @@
 *****************************************************************************/
 
 #include <asgl/TextArea.hpp>
+#include <asgl/Frame.hpp>
 
 #include <cmath>
 
@@ -47,8 +48,7 @@ int TextArea::height() const
 void TextArea::stylize(const StyleMap & stylemap) {
     set_required_text_fields(
         m_draw_text, stylemap.find(styles::k_global_font),
-        stylemap.find(to_key(k_text_size)),
-        stylemap.find(to_key(k_text_color)),
+        stylemap.find(Frame::to_key(Frame::k_widget_text_style)),
         "TextArea::stylize");
 }
 
@@ -58,64 +58,48 @@ void TextArea::set_string(const UString & str)
 void TextArea::set_string(UString && str)
     { m_draw_text.set_string(std::move(str)); }
 
-UString TextArea::take_cleared_string()
-    { return m_draw_text.take_cleared_string(); }
-#if 0
-void TextArea::set_width(int w) {
+UString TextArea::give_cleared_string()
+    { return m_draw_text.give_cleared_string(); }
 
-}
-
-void TextArea::set_height(int h) {
-
-}
-#endif
+// most of the demos I think, let text set its own size
 void TextArea::set_max_width(int w)
-    { m_draw_text.set_limiting_width(float(w)); }
+    { m_draw_text.set_limiting_line(w);/* m_draw_text.set_limiting_width(float(w)); */}
 
-void TextArea::set_max_height(int h)
-    { m_draw_text.set_limiting_height(float(h)); }
-#if 0
-void TextArea::set_size(int w, int h) {
+void TextArea::set_max_height(int /*h*/)
+    { /*m_draw_text.set_limiting_height(float(h));*/ }
 
-}
-#endif
 /* static */ void TextArea::set_required_text_fields
-    (Text & text, const StyleField * font, const StyleField * color,
-     const StyleField * character_size, const char * full_call)
+    (Text & text, const StyleField * font, const StyleField * style_key,
+     const char * full_call)
 {
+    using FontPtr = std::weak_ptr<const Font>;
     auto make_error = [full_call](const char * what)
         { return RtError(std::string(full_call) + ": " + what); };
-
-    static const auto k_white = StyleField(sf::Color::White);
-    static const auto k_size  = StyleField(14);
-    if (!color) {
-        color = &k_white;
-#       if 0
-        throw make_error("cannot find text color in style map.");
-#       endif
-    } else if (!color->is_type<sf::Color>()) {
-        throw make_error("text color style must be a color type.");
+    if (!font) {
+        throw make_error("no font found for style keys.");
+    } else if (!font->is_type<FontPtr>()) {
+        throw make_error("font item is not a font type (was the wrong key used?)");
+    } else if (font->as<FontPtr>().expired()) {
+        throw make_error("font pointer has expired (was the engine deleted?)");
     }
-    if (!character_size) {
-        character_size = &k_size;
-#       if 0
-        throw make_error("cannot find character size in style map.");
-#       endif
-    } else if (character_size->is_type<int>()) {
-        throw make_error("character size must be an integer.");
-    } else if (character_size->as<int>() <= 0) {
-        throw make_error("character size must be a non-negative integer.");
+    if (!style_key) {
+        throw make_error("no text style key found.");
+    } else if (!style_key->is_type<ItemKey>()) {
+        throw make_error("text style is not an item key.");
+    } else if (style_key->as<ItemKey>() == ItemKey()) {
+        throw make_error("text style item key is the default (null) key.");
     }
-    text.assign_font(Helpers::verify_required_font(font, full_call));
-    text.set_character_size(character_size->as<int>());
-    text.set_color(color->as<sf::Color>());
+    const auto & font_ = *font->as<FontPtr>().lock();
+    text.set_font(font_);
+    text.stylize(style_key->as<ItemKey>());
 }
 
 /* private */ void TextArea::set_location_(int x, int y)
     { m_draw_text.set_location(float(x), float(y)); }
 
-/* private */ void TextArea::draw_(WidgetRenderer & target) const
-    { target.render_text(m_draw_text); }
+/* private */ void TextArea::draw_(WidgetRenderer & target) const {
+    m_draw_text.draw_to(target);
+}
 
 /* private */ void TextArea::issue_auto_resize() {}
 
@@ -124,186 +108,3 @@ void TextArea::set_size(int w, int h) {
 }
 
 } // end of asgl namespace
-#if 0
-#include <SFML/Graphics/RenderTarget.hpp>
-
-#include <array>
-
-#include <cmath>
-#include <cassert>
-
-using asgl::TextArea::VectorI;
-
-namespace {
-#if 0
-bool is_unassigned(float x)
-    { return std::equal_to<float>()(x, ksg::TextArea::k_unassigned_size); }
-#endif
-float verify_valid_size(float, const char * caller, const char * name);
-
-} // end of <anonymous> namespace
-
-namespace asgl {
-
-/* free fn */ void set_if_present
-    (Text & text, const StyleMap & smap, const char * font_field,
-     const char * char_size_field, const char * text_color)
-{
-    using namespace styles;
-    text.assign_font(smap, font_field);
-
-    if (auto * color = find<sf::Color>(smap, text_color))
-        text.set_color(*color);
-    else
-        text.set_color(sf::Color::White);
-
-    if (auto * char_size = find<float>(smap, char_size_field)) {
-        if (get_unset_value<int>() == text.character_size())
-            text.set_character_size(int(std::round(*char_size)));
-    }
-}
-
-// ----------------------------------------------------------------------------
-
-/* static */ constexpr const char * const TextArea::k_text_color;
-/* static */ constexpr const char * const TextArea::k_text_size ;
-/* static */ constexpr const float TextArea::k_unassigned_size;
-
-TextArea::TextArea() {}
-
-void TextArea::process_event(const sf::Event &) {}
-
-void TextArea::set_location(float x, float y) {
-    m_bounds.left = x;
-    m_bounds.top  = y;
-    recompute_geometry();
-}
-
-VectorF TextArea::location() const
-    { return m_draw_text.location(); }
-
-float TextArea::width() const {
-    if (is_unassigned(m_bounds.width))
-        return m_draw_text.width();
-    return m_bounds.width;
-}
-
-float TextArea::height() const {
-    if (is_unassigned(m_bounds.height))
-        return m_draw_text.height();
-    return m_bounds.height;
-}
-
-void TextArea::set_style(const StyleMap & smap) {
-    using namespace styles;
-    set_if_present(m_draw_text, smap, k_global_font, k_text_size, k_text_color);
-    recompute_geometry();
-}
-
-void TextArea::issue_auto_resize() {
-    recompute_geometry();
-}
-
-void TextArea::set_text(const UString & str) {
-    m_draw_text.set_string(str);
-    recompute_geometry();
-}
-
-void TextArea::set_string(const UString & str) {
-    m_draw_text.set_string(str);
-    recompute_geometry();
-}
-
-void TextArea::set_character_size(int size_) {
-    m_draw_text.set_character_size(size_);
-    recompute_geometry();
-}
-
-void TextArea::set_width(float w) {
-    set_size(w, m_bounds.height);
-}
-
-void TextArea::set_height(float h) {
-    set_size(m_bounds.width, h);
-}
-
-void TextArea::set_max_width(float w) {
-    set_max_width_no_update(w);
-    recompute_geometry();
-}
-
-void TextArea::set_max_height(float h) {
-    set_max_height_no_update(h);
-    recompute_geometry();
-}
-
-void TextArea::set_size(float w, float h) {
-    m_bounds.width = verify_valid_size(w, "TextArea::set_size", "width");
-    set_max_width_no_update(w);
-
-    m_bounds.height = verify_valid_size(h, "TextArea::set_size", "height");
-    set_max_height_no_update(h);
-
-    recompute_geometry();
-}
-
-void TextArea::assign_font(const sf::Font & font) {
-    m_draw_text.assign_font(&font);
-    recompute_geometry();
-}
-
-/* protected */ void TextArea::draw
-    (sf::RenderTarget & target, sf::RenderStates) const
-{
-    target.draw(m_draw_text);
-}
-
-/* private */ void TextArea::recompute_geometry() {
-    VectorF text_loc;
-    if (is_unassigned(m_bounds.width)) {
-        text_loc.x = m_bounds.left;
-    } else {
-        text_loc.x = m_bounds.left + (m_bounds.width - m_draw_text.width()) / 2;
-    }
-    if (is_unassigned(m_bounds.height)) {
-        text_loc.y = m_bounds.top;
-    } else {
-        text_loc.y = m_bounds.top + (m_bounds.height - m_draw_text.height()) / 2;
-    }
-    m_draw_text.set_location(text_loc);
-}
-
-/* private */ void TextArea::set_max_width_no_update(float w) {
-    verify_valid_size(w, "TextArea::set_max_width_no_update", "width");
-    if (is_unassigned(w)) {
-        m_draw_text.relieve_width_limit();
-    } else {
-        m_draw_text.set_limiting_width(w);
-    }
-}
-
-/* private */ void TextArea::set_max_height_no_update(float h) {
-    verify_valid_size(h, "TextArea::set_max_height_no_update", "height");
-    if (is_unassigned(h)) {
-        m_draw_text.relieve_height_limit();
-    } else {
-        m_draw_text.set_limiting_height(h);
-    }
-}
-
-} // end of asgl namespace
-
-namespace {
-
-float verify_valid_size(float x, const char * caller, const char * name) {
-    if (is_unassigned(x)) return x;
-    if (x < 0.f) {
-        throw std::invalid_argument(
-            std::string(caller) + ": " + name + " must be a non-negative real "
-            "number or the k_unassigned_size sentinel.");
-    }
-    return x;
-}
-
-} // end of <anonymous> namespace
-#endif

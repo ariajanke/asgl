@@ -46,12 +46,7 @@ void DrawTriangle::move(VectorF r) {
     for (sf::Vertex & v : m_verticies)
         v.position += r;
 }
-#if 0
-void DrawTriangle::set_location(VectorF r) { move(r - center()); }
 
-void DrawTriangle::set_location(float x, float y)
-    { move(VectorF(x, y) - center()); }
-#endif
 void DrawTriangle::set_center(VectorF r)
     { move(r - center()); }
 
@@ -66,10 +61,7 @@ VectorF DrawTriangle::point_b() const
 
 VectorF DrawTriangle::point_c() const
     { return m_verticies[k_point_c].position; }
-#if 0
-VectorF DrawTriangle::location() const
-    { return center(); }
-#endif
+
 VectorF DrawTriangle::center() const {
     VectorF loc;
     for (const sf::Vertex & v : m_verticies)

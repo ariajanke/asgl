@@ -18,10 +18,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 *****************************************************************************/
-#if 0
-#include <ksg/Button.hpp>
-#include <ksg/Frame.hpp>
-#endif
+
 #include <asgl/Button.hpp>
 #include <asgl/Frame.hpp>
 
@@ -35,31 +32,11 @@ using StyleMap = asgl::StyleMap;
 using InvArg   = std::invalid_argument;
 using RtError  = std::runtime_error;
 using VectorI  = asgl::Widget::VectorI;
-#if 0
-bool is_in_drect(int x, int y, const DrawRectangle & drect) {
-    return (x >= drect.x() && y >= drect.y()
-            && x <= drect.x() + drect.width()
-            && y <= drect.y() + drect.height());
-}
-#endif
-#if 0
-bool is_click_in(const sf::Event::MouseButtonEvent & mouse,
-              const DrawRectangle & drect)
-{ return is_in_drect(mouse.x, mouse.y, drect); }
 
-bool is_mouse_in(const sf::Event::MouseMoveEvent & mouse,
-              const DrawRectangle & drect)
-{ return is_in_drect(mouse.x, mouse.y, drect); }
-#endif
 } // end of <anonymous> namespace
 
 namespace asgl {
-#if 0
-/* static */ constexpr const char * const Button::k_hover_back_color;
-/* static */ constexpr const char * const Button::k_hover_front_color;
-/* static */ constexpr const char * const Button::k_regular_back_color;
-/* static */ constexpr const char * const Button::k_regular_front_color;
-#endif
+
 void Button::process_event(const /*sf::*/Event & evnt) {
     switch (evnt.type_id()) {
     case k_mouse_release_id:
@@ -103,31 +80,11 @@ void Button::process_event(const /*sf::*/Event & evnt) {
 }
 
 /* private */ void Button::set_location_(int x, int y) {
-#   if 0
-    float old_x = location().x, old_y = location().y;
-    m_outer.set_position(x, y);
-    m_inner.set_position(x + std::max(m_padding, 0.f), y + std::max(m_padding, 0.f));
-
-    set_button_frame_size(width(), height());
-    on_location_changed(old_x, old_y);
-#   endif
     m_back.left = x;
     m_back.top  = y;
 }
 
 void Button::stylize(const StyleMap & smap) {
-#   if 0
-    using namespace styles;
-
-    set_if_found(smap, k_hover_back_color     , m_hover.back );
-    set_if_found(smap, k_hover_front_color    , m_hover.front);
-    set_if_found(smap, k_regular_back_color   , m_reg.back   );
-    set_if_found(smap, k_regular_front_color  , m_reg.front  );
-    set_if_found(smap, k_global_padding       , m_padding    );
-
-    m_outer.set_color(m_reg.back);
-    m_inner.set_color(m_reg.front);
-#   endif
     m_padding = Helpers::verify_padding
         (smap.find(to_key(k_button_padding), styles::k_global_padding),
          "Button::stylize");
@@ -144,6 +101,7 @@ void Button::stylize(const StyleMap & smap) {
         make_tuple(&m_hover_items.back, "hover back style",
                    smap.find(m_hover_keys.back, to_key(k_hover_back_style))),
     });
+    m_active_items = m_regular_items;
 }
 
 void Button::set_press_event(BlankFunctor && func) {
@@ -159,20 +117,7 @@ VectorI Button::location() const
     { return VectorI(m_back.left, m_back.top); }
 
 void Button::set_size(int width_, int height_) {
-    Helpers::verify_non_negative(width_ , "Button::set_size", "width" );
-    Helpers::verify_non_negative(height_, "Button::set_size", "height");
-#   if 0
-    if (width_ <= 0 || height_ <= 0) {
-        throw InvArg("asgl::Button::set_size: width and height must be "
-                     "positive real numbers (which excludes zero)."    );
-    }
-#   endif
-
-    float old_width = width(), old_height = height();
-
     set_button_frame_size(width_, height_);
-    set_size_back(width_, height_);
-    on_size_changed(old_width, old_height);
     set_needs_geometry_update_flag();
 }
 
@@ -181,14 +126,6 @@ int Button::width() const { return m_back.width; }
 int Button::height() const { return m_back.height; }
 
 /* protected */ Button::Button() {}
-#if 0
-/* protected */ void Button::draw
-    (sf::RenderTarget & target, sf::RenderStates) const
-{
-    target.draw(m_outer);
-    target.draw(m_inner);
-}
-#endif
 
 /* protected */ void Button::draw_(WidgetRenderer & target) const {
     draw_to(target, m_back , m_active_items.back );
@@ -207,12 +144,6 @@ int Button::height() const { return m_back.height; }
     }
 }
 
-/* protected */ void Button::on_size_changed(int, int) { }
-
-/* protected */ void Button::on_location_changed(int, int) { }
-
-/* protected */ void Button::set_size_back(int, int) { }
-
 /* protected */ void Button::set_button_frame_size
     (int width_, int height_)
 {
@@ -220,11 +151,6 @@ int Button::height() const { return m_back.height; }
     Helpers::verify_non_negative(height_, "Button::set_button_frame_size", "height");
     m_back.width  = width_;
     m_back.height = height_;
-#   if 0
-    m_outer.set_size(width_, height_);
-    m_inner.set_size(std::max(width_  - m_padding*2.f, 0.f),
-                     std::max(height_ - m_padding*2.f, 0.f));
-#   endif
 }
 
 /* protected */ void Button::deselect() {
@@ -235,14 +161,7 @@ int Button::height() const { return m_back.height; }
     } else {
         m_active_items.front = m_regular_items.back;
     }
-#   if 0
-    m_inner.set_color(m_reg.front);
-    if (has_focus()) {
-        m_outer.set_color(m_hover.front);
-    } else {
-        m_outer.set_color(m_reg.back);
-    }
-#   endif
+
     set_needs_redraw_flag();
 }
 
@@ -254,25 +173,11 @@ int Button::height() const { return m_back.height; }
     } else {
         m_active_items.back = m_hover_items.back;
     }
-#   if 0
-    m_inner.set_color(m_hover.front);
-    if (has_focus()) {
-        m_outer.set_color(m_hover.front);
-    } else {
-        m_outer.set_color(m_hover.back);
-    }
-#   endif
+
     set_needs_redraw_flag();
 }
 
 /* private */ void Button::process_focus_event(const Event & event) {
-#   if 0
-    if (event.type == sf::Event::KeyReleased) {
-        if (event.key.code == sf::Keyboard::Return) {
-            m_press_functor();
-        }
-    }
-#   endif
     if (event.is_type<KeyRelease>()) {
         if (event.as<KeyRelease>().key == keys::k_enter) {
             m_press_functor();
@@ -281,16 +186,10 @@ int Button::height() const { return m_back.height; }
 }
 
 /* private */ void Button::notify_focus_gained() {
-#   if 0
-    m_outer.set_color(m_hover.front);
-#   endif
     m_active_items.back = m_hover_items.front;
 }
 
 /* private */ void Button::notify_focus_lost() {
-#   if 0
-    m_outer.set_color(m_reg.back);
-#   endif
     m_active_items.back = m_regular_items.back;
 }
 

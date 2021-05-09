@@ -55,23 +55,10 @@ void ArrowButton::stylize(const StyleMap & smap) {
 void ArrowButton::set_arrow_style(ItemKey ky)
     { m_triangle_style = ky; }
 
-void ArrowButton::on_geometry_update()
-    { update_points(); }
-
-#if 0
-/* private */ void ArrowButton::draw
-    (sf::RenderTarget & target, sf::RenderStates) const
-{
-    Button::draw(target, sf::RenderStates::Default);
-    if (m_dir == Direction::k_none) return;
-    target.draw(m_draw_tri);
+void ArrowButton::on_geometry_update() {
+    Button::on_geometry_update();
+    update_points();
 }
-#endif
-/* private */ void ArrowButton::on_size_changed(int, int)
-    {}
-
-/* private */ void ArrowButton::on_location_changed(int, int)
-    {}
 
 /* private */ void ArrowButton::draw_(WidgetRenderer & target) const {
     Button::draw_(target);
@@ -80,6 +67,11 @@ void ArrowButton::on_geometry_update()
 
 /* private */ void ArrowButton::update_points() {
     using std::get;
+    if (width() < padding()*2 || height() < padding()*2) {
+        get<0>(m_tri) = get<1>(m_tri) = get<2>(m_tri) = VectorI();
+        return;
+    }
+
     VectorI anchor = location() + VectorI(width() / 2, height() / 2);
     int offset = std::min(width () / 2 - padding()*2,
                           height() / 2 - padding()*2);

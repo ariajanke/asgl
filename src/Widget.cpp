@@ -36,7 +36,8 @@ const char * const NOT_A_FRAME_MSG = "This widget is not a frame.";
 
 asgl::WidgetFlagsUpdater * s_default_flags_updater_ptr = [] () {
     class NullFlagsUpdater final : public asgl::WidgetFlagsUpdater {
-        void set_needs_geometry_update_flag() override {}
+        void receive_geometry_needs_update_flag() override {}
+        bool needs_geometry_update() const override { return false; }
         void set_needs_redraw_flag() override {}
     };
     static NullFlagsUpdater inst;
@@ -102,7 +103,7 @@ void Widget::draw(WidgetRenderer & target) const {
 { target.render_triangle(tri, key, this); }
 
 /* protected */ void Widget::set_needs_geometry_update_flag()
-    { m_flags_updater->set_needs_geometry_update_flag(); }
+    { m_flags_updater->receive_geometry_needs_update_flag(); }
 
 /* protected */ void Widget::set_needs_redraw_flag()
     { m_flags_updater->set_needs_redraw_flag(); }

@@ -38,7 +38,7 @@ class FocusWidget;
 class WidgetAdder {
 public:
     WidgetAdder() {}
-    WidgetAdder(Frame *, const StyleMap *, detail::LineSeperator *);
+    WidgetAdder(Frame *, detail::LineSeperator *);
     WidgetAdder(const WidgetAdder &) = delete;
     WidgetAdder(WidgetAdder &&);
 
@@ -58,7 +58,7 @@ private:
     std::vector<Widget *> m_widgets;
     std::vector<detail::HorizontalSpacer> m_horz_spacers;
     detail::LineSeperator * m_the_line_sep = nullptr;
-    const StyleMap * m_styles = nullptr;
+
     Frame * m_parent = nullptr;
 };
 
@@ -148,7 +148,7 @@ public:
  *  requires switch on type for geometric computations to work for Frame
  *  old-solution used switch-on type with enums
  */
-class Frame : public Widget, public WidgetFlagsUpdater {
+class Frame : public FlagsReceivingWidget {
 public:
     // refactoring notes:
     // I may need to rewrite this entire class... :c
@@ -160,24 +160,20 @@ public:
     // - for everything else
     using UString = std::u32string;
     enum StyleEnum {
-        k_title_bar_style, k_title_size_style, k_title_color_style,
+        k_title_bar_style,
+#       if 0
+        k_title_size_style, k_title_color_style,
+#       endif
         k_widget_body_style, k_border_size_style,
+
+        k_widget_text_style, k_title_text_style,
+
         k_style_count
     };
     using DefaultStyles = styles::StyleKeysEnum<StyleEnum, k_style_count>;
     inline static StyleKey to_key(StyleEnum e)
         { return DefaultStyles::to_key(e); }
 
-#   if 0
-    static constexpr const char * const k_background_color  = "frame-background";
-    static constexpr const char * const k_title_bar_color   = "frame-title-bar-color";
-    static constexpr const char * const k_title_size        = "frame-title-size";
-    static constexpr const char * const k_title_color       = "frame-title-color";
-    static constexpr const char * const k_widget_body_color = "frame-body";
-    static constexpr const char * const k_border_size       = "frame-border-size";
-
-    static constexpr const float k_default_padding = 5.f;
-#   endif
     Frame & operator = (const Frame &);
     Frame & operator = (Frame &&);
 
@@ -213,20 +209,9 @@ public:
      *  @param w width in pixels
      *  @param h height in pixels
      */
-    void set_size(float w, float h);
+    void set_size(int w, int h);
 
     // <------------------ Frame specific functionality ---------------------->
-
-    /** @brief Provides an interface where all widgets maybe added. It is
-     *         possible to call this function multiple times if the need be.
-     *  @note  This clears all previously stored widgets.
-     *  @param styles_ These are styles to be used on all member widgets.
-     *                 Maybe changed before the widget adder is destroyed so
-     *                 long as the address doesn't change.
-     *  @returns an object that can add widgets to this frame. When the returned
-     *           object is destroyed, the widgets will be finalized.
-     */
-    WidgetAdder begin_adding_widgets(const StyleMap & styles_);
 
     /** @brief Provides an interface where all widgets maybe added.
      *  @see   Frame::begin_adding_widgets(const StyleMap &)
@@ -245,7 +230,7 @@ public:
      */
     void finalize_widgets(
         std::vector<Widget *> &&, std::vector<detail::HorizontalSpacer> &&,
-        detail::LineSeperator * the_line_sep, const StyleMap *);
+        detail::LineSeperator * the_line_sep);
 
     /** Sets the function/functor to call in the event that the mouse is
      *  clicked inside the frame.
@@ -301,12 +286,7 @@ protected:
 
     Frame(const Frame &);
     Frame(Frame &&);
-#   if 0
-    /** Draws the frame and all it's constintuate widgets.
-     *  @param target the SFML rendering target
-     */
-    void draw(sf::RenderTarget & target, sf::RenderStates) const override;
-#   endif
+
     void draw_(WidgetRenderer &) const override;
     /** @brief Sometimes the most derived frame class will have it's own auto
      *         resize behavior.
@@ -326,9 +306,7 @@ private:
     using WidgetItr = std::vector<Widget *>::iterator;
     using LineSeperator = detail::LineSeperator;
     using HorizontalSpacer = detail::HorizontalSpacer;
-#   if 0
-    void set_style(const StyleMap &) override;
-#   endif
+
     void stylize(const StyleMap &) override;
 
     WidgetItr set_horz_spacer_widths
@@ -355,16 +333,12 @@ private:
 
     void on_geometry_update() final;
 
-    void set_needs_geometry_update_flag() final
-        { m_geo_needs_update = true; }
-
-    // not sure...
-    void set_needs_redraw_flag() final {}
-
     /** Updates sizes and locations for all member widgets including this frame.
      *  Also sets up focus widgets.
      */
     void finalize_widgets();
+
+    void place_widgets_to_locations();
 
     void check_invarients() const;
 
@@ -379,8 +353,6 @@ private:
     FrameBorder m_border;
 
     detail::FrameFocusHandler m_focus_handler;
-
-    bool m_geo_needs_update = false;
 };
 
 /** A Simple Frame allows creation of frames without being inherited. This can
