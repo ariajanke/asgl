@@ -75,6 +75,8 @@ public:
 
     void swap(OptionsSlider &);
 
+    void set_wrap_enabled(bool);
+
 private:
     void draw_(WidgetRenderer &) const override;
 
@@ -91,6 +93,8 @@ private:
     void set_arrow_events();
 
     void update_selections();
+
+    int padding() const;
 
     ArrowButton m_left_arrow;
     ArrowButton m_right_arrow;

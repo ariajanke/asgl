@@ -56,8 +56,7 @@ void TextButton::stylize(const StyleMap & stylemap) {
 const UString & TextButton::string() const { return m_text.string(); }
 
 /* private */ void TextButton::issue_auto_resize() {
-    set_size(int(std::round( m_text.width () )) + padding()*2,
-             int(std::round( m_text.height() )) + padding()*2);
+    set_size(m_text.width() + padding()*2, m_text.height() + padding()*2);
 }
 
 /* private */ void TextButton::draw_(WidgetRenderer & target) const {

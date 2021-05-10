@@ -61,9 +61,17 @@ public:
 
     const UString & string() const { return m_draw_text.string(); }
 
-    void set_max_width(int w);
+    /** @copydoc asgl::Text::set_limiting_line(int) */
+    void set_limiting_line(int x_limit);
 
-    void set_max_height(int h);
+    /** @copydoc asgl::Text::set_viewport(const sf::IntRect&) */
+    void set_viewport(const sf::IntRect &);
+
+    /** @copydoc asgl::Text::reset_viewport() */
+    void reset_viewport();
+
+    /** @copydoc asgl::Text::viewport() */
+    const sf::IntRect & viewport() const;
 
     static void set_required_text_fields
         (Text &, const StyleField * font, const StyleField * style_key,

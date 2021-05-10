@@ -53,10 +53,6 @@ public:
     inline static StyleKey to_key(ButtonStyleEnum e)
         { return ButtonStyles::to_key(e); }
 
-private:
-    void set_location_(int x, int y) final;
-
-public:
     VectorI location() const final;
 
     /** Allows the setting of the width and height of Button
@@ -105,7 +101,7 @@ public:
      *        know this widget's padding for consistency
      *  @return padding amount in pixels
      */
-    int padding() const noexcept { return m_padding; }
+    int padding() const noexcept { return std::max(0, m_padding); }
 
 protected:
     /** Creates a zero-sized, white colored button. Pending setting of styles.
@@ -136,6 +132,8 @@ private:
     void notify_focus_gained() override;
 
     void notify_focus_lost() override;
+
+    void set_location_(int x, int y) final;
 
     template <typename T>
     struct KeyPairImpl {

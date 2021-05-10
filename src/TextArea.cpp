@@ -37,16 +37,14 @@ using UString = asgl::TextArea::UString;
 
 namespace asgl {
 
-VectorI TextArea::location() const {
-    return VectorI( int(std::round(m_draw_text.location().x)),
-                    int(std::round(m_draw_text.location().y)) );
-}
+VectorI TextArea::location() const
+    { return m_draw_text.location(); }
 
 int TextArea::width() const
-    { return int(std::round(m_draw_text.width())); }
+    { return m_draw_text.width(); }
 
 int TextArea::height() const
-    { return int(std::round(m_draw_text.height())); }
+    { return m_draw_text.height(); }
 
 void TextArea::stylize(const StyleMap & stylemap) {
     set_required_text_fields(
@@ -64,12 +62,23 @@ void TextArea::set_string(UString && str)
 UString TextArea::give_cleared_string()
     { return m_draw_text.give_cleared_string(); }
 
-// most of the demos I think, let text set its own size
-void TextArea::set_max_width(int w)
-    { m_draw_text.set_limiting_line(w);/* m_draw_text.set_limiting_width(float(w)); */}
+void TextArea::set_limiting_line(int x_limit) {
+    m_draw_text.set_limiting_line(x_limit);
+    set_needs_geometry_update_flag();
+}
 
-void TextArea::set_max_height(int /*h*/)
-    { /*m_draw_text.set_limiting_height(float(h));*/ }
+void TextArea::set_viewport(const sf::IntRect & rect) {
+    m_draw_text.set_viewport(rect);
+    set_needs_geometry_update_flag();
+}
+
+void TextArea::reset_viewport() {
+    m_draw_text.reset_viewport();
+    set_needs_geometry_update_flag();
+}
+
+const sf::IntRect & TextArea::viewport() const
+    { return m_draw_text.viewport(); }
 
 /* static */ void TextArea::set_required_text_fields
     (Text & text, const StyleField * font, const StyleField * style_key,
@@ -100,9 +109,8 @@ void TextArea::set_max_height(int /*h*/)
 /* private */ void TextArea::set_location_(int x, int y)
     { m_draw_text.set_location(float(x), float(y)); }
 
-/* private */ void TextArea::draw_(WidgetRenderer & target) const {
-    m_draw_text.draw_to(target);
-}
+/* private */ void TextArea::draw_(WidgetRenderer & target) const
+    { m_draw_text.draw_to(target); }
 
 /* private */ void TextArea::issue_auto_resize() {}
 

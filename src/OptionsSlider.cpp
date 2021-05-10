@@ -64,7 +64,7 @@ OptionsSlider & OptionsSlider::operator = (OptionsSlider && rhs) {
 }
 
 void OptionsSlider::process_event(const Event & evnt) {
-    m_left_arrow.process_event(evnt);
+    m_left_arrow .process_event(evnt);
     m_right_arrow.process_event(evnt);
 }
 
@@ -77,7 +77,7 @@ int OptionsSlider::width() const
 int OptionsSlider::height() const { return m_inner_bounds.height; }
 
 void OptionsSlider::stylize(const StyleMap & stylemap) {
-    m_left_arrow.stylize(stylemap);
+    m_left_arrow .stylize(stylemap);
     m_right_arrow.stylize(stylemap);
     TextArea::set_required_text_fields(
         m_text, stylemap.find(styles::k_global_font),
@@ -91,6 +91,8 @@ void OptionsSlider::stylize(const StyleMap & stylemap) {
         make_tuple(&m_back, "regular back style",
                    stylemap.find(m_back_style, Button::to_key(Button::k_regular_back_style))),
     });
+    m_padding = Helpers::verify_padding(
+        stylemap.find(styles::k_global_padding), "OptionsSlider::stylize");
 }
 
 void OptionsSlider::set_options(const std::vector<UString> & options) {
@@ -145,35 +147,34 @@ void OptionsSlider::swap(OptionsSlider & rhs) {
     swap(m_wrap_enabled  , rhs.m_wrap_enabled  );
 }
 
+void OptionsSlider::set_wrap_enabled(bool b) {
+    if (m_wrap_enabled == b) return;
+    m_wrap_enabled = b;
+    update_selections();
+}
+
 /* private */ void OptionsSlider::draw_(WidgetRenderer & target) const {
     draw_to(target, m_inner_bounds, m_back);
     auto front = m_inner_bounds;
-    front.top += m_padding;
-    front.height -= m_padding;
+    front.top    += padding();
+    front.height -= padding()*2;
     draw_to(target, front, m_front);
 
-    m_left_arrow.draw(target);
+    m_left_arrow .draw(target);
     m_right_arrow.draw(target);
-#   if 0
-    target.render_text(m_text);
-#   endif
     m_text.draw_to(target);
 }
 
 /* private */ void OptionsSlider::issue_auto_resize() {
     int width_ = 0, height_ = 0;
     for (const auto & str : m_options) {
-#       if 0
-        auto gv = m_text.measure_text(str);
-#       endif
         auto gv = m_text.measure_text(str.begin(), str.end());
         width_  = std::max(width_ , gv.width );
         height_ = std::max(height_, gv.height);
     }
 
-    //float height_ = m_text./*line_*/height() + 2.f*float(std::max(m_padding, 0));
-    m_inner_bounds.width  = int(std::round( width_ ));
-    m_inner_bounds.height = int(std::round( height_));
+    m_inner_bounds.width  = width_ + padding()*2;
+    m_inner_bounds.height = height_;
 
     assert(m_inner_bounds.width  >= 0);
     assert(m_inner_bounds.height >= 0);
@@ -199,8 +200,8 @@ void OptionsSlider::swap(OptionsSlider & rhs) {
     // center text
     float center_offset = std::max(0.f, float(m_inner_bounds.width) - m_text.width()) / 2;
     m_text.set_location(
-        float(m_left_arrow.location().x + m_left_arrow.width()) + center_offset,
-        float(m_left_arrow.location().y) + float(m_padding));
+        float(m_left_arrow.location().x + m_left_arrow.width() + padding()) + center_offset,
+        float(m_left_arrow.location().y) + float(padding()));
 
     m_inner_bounds.left = m_left_arrow.location().x + m_left_arrow.width();
     m_inner_bounds.top  = m_left_arrow.location().y;
@@ -246,5 +247,8 @@ void OptionsSlider::swap(OptionsSlider & rhs) {
         m_right_arrow.set_direction(idx == last_idx ? Dir::k_none : Dir::k_right);
     }
 }
+
+/* private */ int OptionsSlider::padding() const
+    { return std::max(0, m_padding); }
 
 } // end of asgl namespace

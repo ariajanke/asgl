@@ -41,6 +41,13 @@ constexpr const int k_top_right_index    = 1;
 constexpr const int k_bottom_right_index = 2;
 constexpr const int k_bottom_left_index  = 3;
 
+inline bool inclusive_contains(VectorF r, const sf::FloatRect & rect) {
+    return    r.x >= rect.left && r.y >= rect.top
+           && r.x <= rect.left + rect.width
+           && r.y <= rect.top  + rect.height;
+
+}
+
 } // end of <anonymous> namespace
 
 namespace detail {
@@ -146,17 +153,20 @@ void DrawableCharacter::cut_outside_of(const sf::FloatRect & rect) {
         assert(idx < m_verticies.size());
         return m_verticies[idx].position;
     };
-
-    if (   rect.contains( get_pos(k_top_left_index    ) )
-        && rect.contains( get_pos(k_bottom_right_index) ))
-    { return; }
-
-    if (   !rect.contains( get_pos(k_top_left_index    ) )
-        && !rect.contains( get_pos(k_bottom_right_index) ))
-    {
-        // whipe character out
+    auto whipe_out_char = [&get_pos]() {
         get_pos(k_top_right_index) = get_pos(k_bottom_left_index)
             = get_pos(k_bottom_right_index) = get_pos(k_top_left_index);
+    };
+
+    if (   inclusive_contains(get_pos(k_top_left_index    ), rect)
+        && inclusive_contains(get_pos(k_bottom_right_index), rect))
+    { return; }
+
+    if (   !inclusive_contains(get_pos(k_top_left_index    ), rect)
+        && !inclusive_contains(get_pos(k_bottom_right_index), rect))
+    {
+        // whipe character out
+        whipe_out_char();
         return;
     }
 
@@ -166,8 +176,12 @@ void DrawableCharacter::cut_outside_of(const sf::FloatRect & rect) {
         return m_verticies[idx].texCoords;
     };
     auto diff = VectorF(rect.left, rect.top) - get_pos(k_top_left_index);
-    if (diff.x > 0.f) {
-        assert(diff.x > width());
+    // exactly equals has to be accounted for
+    if (std::equal_to<float>()(diff.x, width())) {
+        return whipe_out_char();
+    } else if (diff.x > 0.f) {
+        auto w = width();
+        assert(diff.x < width());
         auto ratio_forward = diff.x / width();
         auto tx_width      =   m_verticies[k_top_right_index].texCoords.x
                              - m_verticies[k_top_left_index ].texCoords.x;
@@ -176,8 +190,10 @@ void DrawableCharacter::cut_outside_of(const sf::FloatRect & rect) {
         get_tx_pos(k_top_left_index   ).x += ratio_forward*tx_width;
         get_tx_pos(k_bottom_left_index).x += ratio_forward*tx_width;
     }
-    if (diff.y > 0.f) {
-        assert(diff.y > height());
+    if (std::equal_to<float>()(diff.y, height())) {
+        return whipe_out_char();
+    } else if (diff.y > 0.f) {
+        assert(diff.y < height());
         auto ratio_downward = diff.y / height();
         auto tx_height      =   m_verticies[k_bottom_left_index].texCoords.y
                               - m_verticies[k_top_left_index   ].texCoords.y;
@@ -189,7 +205,7 @@ void DrawableCharacter::cut_outside_of(const sf::FloatRect & rect) {
 
     cut_on_right (rect.left + rect.width );
     cut_on_bottom(rect.top  + rect.height);
-}
+  }
 
 void DrawableCharacter::set_location(float x, float y) {
     float w = width(), h = height();

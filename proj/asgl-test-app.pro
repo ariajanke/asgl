@@ -23,7 +23,7 @@ debug {
     LIBS   += -lcommon
 }
 
-SOURCES += ../demos/demo.cpp
+SOURCES += ../demos/textarea-tests.cpp
 
 
 SOURCES += \

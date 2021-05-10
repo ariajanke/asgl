@@ -346,13 +346,13 @@ void Frame::swap(Frame & lhs) {
     for (Widget * widget_ptr : m_widgets) {
         assert(widget_ptr);
         if (is_horizontal_spacer(widget_ptr)) {
-            pad_fix = -m_padding;
+            pad_fix = -padding();
             continue;
         }
         if (is_line_seperator(widget_ptr)) {
             total_width   = std::max(line_width, total_width);
             line_width    = 0;
-            total_height += line_height + m_padding;
+            total_height += line_height + padding();
             line_height   = 0;
             pad_fix       = 0;
             continue;
@@ -375,19 +375,21 @@ void Frame::swap(Frame & lhs) {
 
     if (line_width != 0) {
         total_width   = std::max(total_width, line_width);
-        total_height += line_height + m_padding;
+        total_height += line_height + padding();
     }
     // we want to fit for the title's width and height also
     // accommodate for the title
     total_height += (m_border.widget_start() - m_border.location()).y;
-    total_width = std::max(total_width, m_border.title_width_accommodation() + m_padding*2);
+    total_width = std::max(total_width, m_border.title_width_accommodation() + padding()*2);
 
     if (!m_widgets.empty()) {
         // padding for borders + padding on end
         // during normal iteration we include only one
-        total_width  += m_padding*3;
-        total_height += m_padding*3;
+        total_width  += padding()*3;
+        total_height += padding()*3;
     }
+    assert(total_width  >= 0);
+    assert(total_height >= 0);
     return VectorI(total_width, total_height);
 }
 

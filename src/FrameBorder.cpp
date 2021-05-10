@@ -179,7 +179,7 @@ void FrameBorder::update_geometry() {
         m_title_bar.left = loc.x - outer_padding();
         m_title_bar.top  = loc.y - outer_padding();
         m_title_bar.width = w - outer_padding()*2;
-        m_title_bar.height = h - outer_padding()*2;
+        m_title_bar.height = title_height();// h - outer_padding()*2;
 
         update_title_geometry(loc, m_title_bar, &m_title);
     }

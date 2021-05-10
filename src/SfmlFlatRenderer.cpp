@@ -82,7 +82,7 @@ static SfmlRenderItem to_field(sf::Color color) {
 void SfmlFlatEngine::setup_default_styles() {
     using namespace flat_colors;
     static constexpr const int k_chosen_padding = 3;
-
+    if (m_first_setup_done) return;
     if (m_style_map.has_same_map_pointer(StyleMap())) {
         m_style_map = StyleMap::construct_new_map();
     }
@@ -107,8 +107,8 @@ void SfmlFlatEngine::setup_default_styles() {
     auto add_button_field = [&stylemap](Button::ButtonStyleEnum style, const StyleField & field)
         { stylemap.add(Button::to_key(style), field); };
     add_button_field(Button::k_button_padding     , to_field(k_chosen_padding));
-    add_button_field(Button::k_regular_front_style, to_field(k_secondary_dark));
-    add_button_field(Button::k_regular_back_style , to_field(k_secondary_mid));
+    add_button_field(Button::k_regular_front_style, to_field(k_secondary_mid));
+    add_button_field(Button::k_regular_back_style , to_field(k_secondary_dark));
     add_button_field(Button::k_hover_back_style   , to_field(k_secondary_mid));
     add_button_field(Button::k_hover_front_style  , to_field(k_secondary_light));
     // arrow button
@@ -142,10 +142,15 @@ void SfmlFlatEngine::setup_default_styles() {
         return SfmlRenderItem(dtri);
     }();// to_field(Color(0xFF, 0xFF, 0xFF));
     m_items[to_item_key(k_text_color_dark)] = to_field(Color(0x40,    0,    0));
+
+    m_first_setup_done = true;
 }
 
-void SfmlFlatEngine::add_rectangle_style(sf::Color, StyleKey) {
-
+ItemKey SfmlFlatEngine::add_rectangle_style(sf::Color color, StyleKey stylekey) {
+    auto item_key = m_item_key_creator.make_key();
+    m_items[item_key] = to_field(color);
+    m_style_map.add(stylekey, StyleField(item_key));
+    return item_key;
 }
 
 /* static */ const sf::Texture * SfmlFlatEngine::dynamic_cast_to_texture
@@ -195,14 +200,16 @@ void SfmlFlatEngine::add_rectangle_style(sf::Color, StyleKey) {
         throw RtError("SfmlFlatEngine::render_rectangle: Bad branch.");
     }
 }
-#if 0
-/* private */ void SfmlFlatEngine::render_text(const SfmlTextObject & text) {
-    m_target_ptr->draw(text, m_states);
-}
-#endif
+
 /* private */ void SfmlFlatEngine::render_text(const TextBase & text_base) {
     const auto * dc_text = dynamic_cast<const SfmlTextN *>(&text_base);
     if (!dc_text) return;
+#   if 0
+    auto & drect = m_items.find(to_item_key(flat_colors::k_text_color_dark))->second.as<DrawRectangle>();
+    drect = DrawRectangle(dc_text->location().x, dc_text->location().y,
+                          dc_text->width(), dc_text->height(), drect.color());
+    m_target_ptr->draw(drect, m_states);
+#   endif
     m_target_ptr->draw(*dc_text, m_states);
 }
 

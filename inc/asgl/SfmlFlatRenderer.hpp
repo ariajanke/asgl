@@ -53,8 +53,8 @@ public:
     ItemKey     item;
 };
 
-using SfmlImageResPtr = std::shared_ptr<SfmlImageResource>;
-using SfmlRenderItem = MultiType<DrawRectangle, DrawTriangle, SfmlImageResPtr>;
+using SfmlImageResPtr   = std::shared_ptr<SfmlImageResource>;
+using SfmlRenderItem    = MultiType<DrawRectangle, DrawTriangle, SfmlImageResPtr>;
 using SfmlRenderItemMap = std::map<ItemKey, SfmlRenderItem>;
 
 namespace flat_colors {
@@ -90,11 +90,12 @@ public:
 
     void setup_default_styles();
 
-    void add_rectangle_style(sf::Color, StyleKey);
+    ItemKey add_rectangle_style(sf::Color, StyleKey);
 
     void load_global_font(const std::string & filename) {
         m_font_handler = std::make_shared<SfmlFont>();
         m_font_handler->load_font(filename);
+        setup_default_styles();
     }
 
     static const sf::Texture * dynamic_cast_to_texture(SharedImagePtr);
@@ -105,9 +106,6 @@ private:
 
     void render_rectangle(const sf::IntRect   &, ItemKey, const void *) final;
     void render_triangle (const TriangleTuple &, ItemKey, const void *) final;
-#   if 0
-    void render_text     (const SfmlTextObject &) final;
-#   endif
     void render_text(const TextBase &) final;
 
     void render_rectangle(const sf::IntRect &, DrawRectangle &) const;
@@ -128,8 +126,7 @@ private:
     styles::ItemKeyCreator m_item_key_creator;
 
     std::shared_ptr<SfmlFont> m_font_handler;
-
-    mutable int m_counter = 0;
+    bool m_first_setup_done = false;
 };
 
 } // end of asgl namespace

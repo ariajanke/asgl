@@ -340,8 +340,10 @@ private:
 
     void check_invarients() const;
 
+    int padding() const { return std::max(0, m_padding); }
+
     std::vector<Widget *> m_widgets;
-    int m_padding = styles::k_uninit_size;//styles::get_unset_value<float>();
+    int m_padding = styles::k_uninit_size;
     // anything related to the frame's border
 
     //! unique per instance

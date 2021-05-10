@@ -40,7 +40,7 @@ using VectorI  = asgl::Widget::VectorI;
 
 namespace asgl {
 
-void Button::process_event(const /*sf::*/Event & evnt) {
+void Button::process_event(const Event & evnt) {
     switch (evnt.type_id()) {
     case k_mouse_release_id:
         if (m_is_highlighted && m_back.contains(to_vector(evnt.as<MouseRelease>()))) {
@@ -82,11 +82,6 @@ void Button::process_event(const /*sf::*/Event & evnt) {
 #   endif
 }
 
-/* private */ void Button::set_location_(int x, int y) {
-    m_back.left = x;
-    m_back.top  = y;
-}
-
 void Button::stylize(const StyleMap & smap) {
     m_padding = Helpers::verify_padding
         (smap.find(to_key(k_button_padding), styles::k_global_padding),
@@ -107,14 +102,11 @@ void Button::stylize(const StyleMap & smap) {
     m_active_items = m_regular_items;
 }
 
-void Button::set_press_event(BlankFunctor && func) {
-    m_press_functor = std::move(func);
-}
+void Button::set_press_event(BlankFunctor && func)
+    { m_press_functor = std::move(func); }
 
-void Button::press() {
-    if (m_press_functor)
-        m_press_functor();
-}
+void Button::press()
+    { m_press_functor(); }
 
 VectorI Button::location() const
     { return VectorI(m_back.left, m_back.top); }
@@ -162,7 +154,7 @@ int Button::height() const { return m_back.height; }
     if (has_focus()) {
         m_active_items.back = m_hover_items.front;
     } else {
-        m_active_items.front = m_regular_items.back;
+        m_active_items.back = m_regular_items.back;
     }
 
     set_needs_redraw_flag();
@@ -194,6 +186,11 @@ int Button::height() const { return m_back.height; }
 
 /* private */ void Button::notify_focus_lost() {
     m_active_items.back = m_regular_items.back;
+}
+
+/* private */ void Button::set_location_(int x, int y) {
+    m_back.left = x;
+    m_back.top  = y;
 }
 
 } // end of ksg namespace

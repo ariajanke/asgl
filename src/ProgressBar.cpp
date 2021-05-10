@@ -127,8 +127,8 @@ float ProgressBar::fill_amount() const { return m_fill_amount; }
     m_inner_bounds.left = m_bounds.left + m_padding;
     m_inner_bounds.top  = m_bounds.top  + m_padding;
 
-    m_inner_bounds.width  = m_bounds.left - m_padding*2;
-    m_inner_bounds.height = m_bounds.top  - m_padding*2;
+    m_inner_bounds.width  = m_bounds.width  - m_padding*2;
+    m_inner_bounds.height = m_bounds.height - m_padding*2;
 }
 
 /* private */ void ProgressBar::draw_(WidgetRenderer & renderer) const {
