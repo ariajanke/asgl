@@ -1,3 +1,27 @@
+/****************************************************************************
+
+    Copyright 2021 Aria Janke
+
+    Permission is hereby granted, free of charge, to any person obtaining a
+    copy of this software and associated documentation files (the "Software"),
+    to deal in the Software without restriction, including without limitation
+    the rights to use, copy, modify, merge, publish, distribute, sublicense,
+    and/or sell copies of the Software, and to permit persons to whom the
+    Software is furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in
+    all copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+    FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+    DEALINGS IN THE SOFTWARE.
+
+*****************************************************************************/
+
 #include <asgl/SfmlFlatRenderer.hpp>
 
 // use most controls
@@ -171,15 +195,15 @@ void SfmlFlatEngine::add_rectangle_style(sf::Color, StyleKey) {
         throw RtError("SfmlFlatEngine::render_rectangle: Bad branch.");
     }
 }
-
+#if 0
 /* private */ void SfmlFlatEngine::render_text(const SfmlTextObject & text) {
     m_target_ptr->draw(text, m_states);
 }
-
+#endif
 /* private */ void SfmlFlatEngine::render_text(const TextBase & text_base) {
     const auto * dc_text = dynamic_cast<const SfmlTextN *>(&text_base);
     if (!dc_text) return;
-    m_target_ptr->draw(dc_text->text_object(), m_states);
+    m_target_ptr->draw(*dc_text, m_states);
 }
 
 

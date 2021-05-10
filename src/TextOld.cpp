@@ -1,21 +1,24 @@
 /****************************************************************************
 
-    File: Text.cpp
-    Author: Aria Janke
-    License: GPLv3
+    Copyright 2021 Aria Janke
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
+    Permission is hereby granted, free of charge, to any person obtaining a
+    copy of this software and associated documentation files (the "Software"),
+    to deal in the Software without restriction, including without limitation
+    the rights to use, copy, modify, merge, publish, distribute, sublicense,
+    and/or sell copies of the Software, and to permit persons to whom the
+    Software is furnished to do so, subject to the following conditions:
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+    The above copyright notice and this permission notice shall be included in
+    all copies or substantial portions of the Software.
 
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+    FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+    DEALINGS IN THE SOFTWARE.
 
 *****************************************************************************/
 
@@ -52,17 +55,23 @@
 #include <memory>
 #include <algorithm>
 
+#include <cmath>
 #include <cassert>
-
+#if 0
 using UChar                  = asgl::SfmlTextObject::UString::value_type;
-using LineBreakList          = std::vector<int>;
-using VertexContainer        = std::vector<sf::Vertex>;
 using UString                = asgl::SfmlTextObject::UString;
-using FontMtPtr              = asgl::detail::FontMtPtr;
 using TextSize               = asgl::SfmlTextObject::TextSize;
 using VectorF                = asgl::SfmlTextObject::VectorF;
-using InvalidArg             = std::invalid_argument;
-using DrawableCharacter      = asgl::detail::DrawableCharacter;
+#endif
+using UChar             = asgl::SfmlTextN::UString::value_type;
+using UString           = asgl::SfmlTextN::UString;
+using TextSize          = asgl::SfmlTextN::TextSize;
+using VectorF           = sf::Vector2f;
+using LineBreakList     = std::vector<int>;
+using VertexContainer   = std::vector<sf::Vertex>;
+using FontMtPtr         = asgl::detail::FontMtPtr;
+using InvalidArg        = std::invalid_argument;
+using DrawableCharacter = asgl::detail::DrawableCharacter;
 
 namespace {
 
@@ -73,9 +82,21 @@ bool is_newline   (UChar c) { return c == '\n'; }
 // we can and SHOULD test this! :)
 std::vector<UString::const_iterator> find_chunks_dividers(const UString &);
 
+class RenderablesPlacer {
+public:
+    virtual ~RenderablesPlacer() {}
+    virtual void prepare() = 0;
+    virtual void reserve(std::size_t amt) = 0;
+    virtual void operator () (VectorF loc, const sf::Glyph & glyph) = 0;
+};
+
 void place_renderables(const sf::Font & font, const UString & ustr,
        float width_constraint, int char_size, sf::Color color,
        std::vector<DrawableCharacter> & renderables);
+
+void place_renderables(const sf::Font & font, const UString & ustr,
+       float width_constraint, int char_size,
+       RenderablesPlacer & placer);
 
 void cut_renderables(float width_constraint, float height_constraint,
                      std::vector<DrawableCharacter> & renderables);
@@ -83,7 +104,7 @@ void cut_renderables(float width_constraint, float height_constraint,
 } // end of <anonymous> namespace
 
 namespace asgl {
-
+#if 0
 /* static */ constexpr const int   SfmlTextObject::k_max_string_length;
 /* static */ constexpr const float SfmlTextObject::k_inf;
 
@@ -345,16 +366,18 @@ void SfmlTextObject::update_geometry() {
 
     place_renderables(m_renderables);
     cut_renderables  (m_renderables);
-
+#   if 0
     m_bounds.width = m_bounds.height = 0.f;
-
+#   endif
     float right_most  = -k_inf;
     float bottom_most = -k_inf;
     for (const auto & dc : m_renderables) {
         right_most  = std::max(right_most , dc.location().x + dc.width ());
         bottom_most = std::max(bottom_most, dc.location().y + dc.height());
         assert(is_real(right_most) && is_real(bottom_most));
+#       if 0
         assert(&dc >= &m_renderables.front() && &dc <= &m_renderables.back());
+#       endif
     }
     m_bounds.width  = std::max(0.f, right_most );
     m_bounds.height = std::max(0.f, bottom_most);
@@ -368,6 +391,216 @@ void SfmlTextObject::place_renderables(std::vector<detail::DrawableCharacter> & 
 void SfmlTextObject::cut_renderables(std::vector<detail::DrawableCharacter> & renderables) const {
     ::cut_renderables(m_width_constraint, m_height_constraint, renderables);
 }
+#endif
+// ----------------------------------------------------------------------------
+
+const UString & SfmlTextN::string() const { return m_string; }
+
+void SfmlTextN::set_location(int x, int y) {
+    m_full_bounds.left = float(x);
+    m_full_bounds.top  = float(y);
+}
+
+SfmlTextN::VectorI SfmlTextN::location() const {
+    return VectorI(int(std::round(m_full_bounds.left)), int(std::round(m_full_bounds.top)));
+}
+
+int SfmlTextN::width() const { return full_width(); }// m_viewport.width; }
+
+int SfmlTextN::height() const { return full_height(); }// m_viewport.height; }
+
+int SfmlTextN::full_width() const
+    { return int(std::round(m_full_bounds.width)); }
+
+int SfmlTextN::full_height() const
+    { return int(std::round(m_full_bounds.height)); }
+
+void SfmlTextN::set_limiting_line(int x_limit) {
+    m_limiting_line = float(x_limit);
+}
+
+SfmlTextN::TextSize SfmlTextN::measure_text(UStringConstIter beg, UStringConstIter end) const {
+    if (!m_font_ptr || m_char_size == 0) {
+        return TextSize();
+    }
+    return SfmlFont::measure_text(*m_font_ptr, m_char_size, beg, end);
+#   if 0
+    int width_ = []
+        (const sf::Font & font, int character_size,
+         UStringConstIter beg, UStringConstIter end)
+    {
+        if (character_size < 1) return 0;
+        assert(beg <= end);
+        float w = 0.f;
+        for (auto itr = beg; itr != end; ++itr) {
+            const auto & glyph = font.getGlyph(*itr, character_size, false);
+            w += glyph.advance;
+            if (itr + 1 != end) {
+                w += font.getKerning(*itr, *(itr + 1), character_size);
+            }
+        }
+        return int(std::round(w));
+    } (*m_font_ptr, m_char_size, beg, end);
+    TextSize rv2;
+    rv2.width  = width_;
+    rv2.height = int(std::round(m_font_ptr->getLineSpacing(m_char_size)));
+#   if 0
+    auto rv = asgl::SfmlTextObject::measure_text(*m_font_ptr, m_char_size, beg, end);
+    TextSize rv2;
+    rv2.width  = rv.width;
+    rv2.height = rv.height;
+#   endif
+    return rv2;
+#   endif
+}
+
+int SfmlTextN::limiting_line() const { return int(std::round(m_limiting_line)); }
+
+const sf::IntRect & SfmlTextN::viewport() const { return m_viewport; }
+
+void SfmlTextN::assign_font(const sf::Font & font) {
+    m_font_ptr = &font;
+}
+
+void SfmlTextN::update_geometry() {
+    if (!m_font_ptr || m_char_size == 0) {
+        m_renderables.clear();
+        return;
+    }
+    class AlgoPlacer final : public RenderablesPlacer {
+    public:
+        void prepare() {
+            renderables->clear();
+        }
+        void reserve(std::size_t amt) {
+            renderables->reserve(amt);
+        }
+        void operator () (VectorF loc, const sf::Glyph & glyph) {
+            renderables->emplace_back(loc, glyph, color);
+            auto & new_dc = renderables->back();
+            full_bounds->width  = std::max(full_bounds->width , new_dc.location().x + new_dc.width ());
+            full_bounds->height = std::max(full_bounds->height, new_dc.location().y + new_dc.height());
+#           if 1
+            new_dc.cut_outside_of(viewport);
+            if (new_dc.whiped_out()) {
+                renderables->pop_back();
+            }
+#           endif
+        }
+        std::vector<DrawableCharacter> * renderables = nullptr;
+        sf::Color color;
+        sf::FloatRect * full_bounds = nullptr;
+        sf::FloatRect viewport;
+    };
+
+    // the "min" height
+    m_full_bounds.height = 0.f;//m_font_ptr->getLineSpacing(m_char_size);
+    m_full_bounds.width  = 0.f;
+
+    AlgoPlacer placer;
+    placer.color       = m_color;
+    placer.full_bounds = &m_full_bounds;
+    placer.viewport    = sf::FloatRect(m_viewport);
+    placer.renderables = &m_renderables;
+
+    ::place_renderables(*m_font_ptr, m_string, m_limiting_line, m_char_size, placer);
+}
+
+/* private */ void SfmlTextN::set_viewport_(const sf::IntRect & rect) {
+    m_viewport = rect;
+}
+
+/* private */ void SfmlTextN::swap_string(UString & str) {
+    m_string.swap(str);
+    update_geometry();
+}
+
+/* private */ UString SfmlTextN::give_string_() {
+    m_renderables.clear();
+    return std::move(m_string);
+}
+
+/* private */ void SfmlTextN::draw(sf::RenderTarget & target, sf::RenderStates states) const {
+    if (!m_font_ptr) return;
+    states.texture = &m_font_ptr->getTexture(unsigned(m_char_size));
+    states.transform.translate(m_full_bounds.left, m_full_bounds.top);
+    for (const auto & dc : m_renderables) {
+        target.draw(dc, states);
+    }
+}
+
+/* private */ void SfmlTextN::set_character_size_and_color
+    (int char_size, sf::Color color)
+{
+    m_char_size = char_size;
+    m_color     = color;
+    update_geometry();
+}
+
+// ----------------------------------------------------------------------------
+
+SfmlFont::TextPointer SfmlFont::fit_pointer_to_adaptor(TextPointer && ptr) const {
+    if (!m_font || !m_font_styles) {
+        throw std::runtime_error("");
+    }
+    // no idea what to do with the rv
+    auto & text = check_and_transform_text<SfmlTextN>(ptr);
+    text.assign_font(*m_font);
+    text.set_font_styles_map(m_font_styles);
+
+    return std::move(ptr);
+}
+
+TextSize SfmlFont::measure_text
+    (ItemKey fontstyle, UStringConstIter beg, UStringConstIter end) const
+{
+    auto make_not_found_error = []() { return std::runtime_error(""); };
+    if (!m_font_styles) throw make_not_found_error();
+    auto itr = m_font_styles->find(fontstyle);
+    if (itr == m_font_styles->end()) throw make_not_found_error();
+    auto rv1t = measure_text(*m_font, itr->second.character_size, beg, end);
+    TextSize rv2t;
+    rv2t.width = rv1t.width;
+    rv2t.height = rv1t.height;
+    return rv2t;
+}
+
+void SfmlFont::load_font(const std::string & filename) {
+    if (!m_font) {
+        m_font = std::make_unique<sf::Font>();
+    }
+    m_font->loadFromFile(filename);
+}
+
+void SfmlFont::add_font_style(ItemKey key, int char_size, sf::Color color) {
+    m_font_styles = (m_font_styles ? m_font_styles : std::make_shared<FontStyleMap>());
+    auto gv = m_font_styles->insert(std::make_pair(key, FontStyle(char_size, color) ));
+    if (gv.second) return;
+    throw std::runtime_error("");
+}
+
+/* static */ TextSize SfmlFont::measure_text(const sf::Font & font, int character_size,
+                             UStringConstIter beg, UStringConstIter end) {
+
+        if (character_size < 1) return TextSize();
+        assert(beg <= end);
+        float w = 0.f;
+        for (auto itr = beg; itr != end; ++itr) {
+            const auto & glyph = font.getGlyph(*itr, character_size, false);
+            w += glyph.advance;
+            if (itr + 1 != end) {
+                w += font.getKerning(*itr, *(itr + 1), character_size);
+            }
+        }
+
+
+    TextSize rv2;
+    rv2.width  = int(std::round(w));
+    rv2.height = int(std::round(font.getLineSpacing(character_size)));
+    return rv2;
+}
+
+// ----------------------------------------------------------------------------
 
 } // end of asgl namespace
 
@@ -396,6 +629,25 @@ void place_renderables(const sf::Font & font, const UString & ustr,
        float width_constraint, int char_size, sf::Color color,
        std::vector<DrawableCharacter> & renderables)
 {
+    class AlgoPlacer final : public RenderablesPlacer {
+    public:
+        void prepare() {
+            renderables->clear();
+        }
+        void reserve(std::size_t amt) {
+            renderables->reserve(amt);
+        }
+        void operator () (VectorF loc, const sf::Glyph & glyph) {
+            renderables->emplace_back(loc, glyph, color);
+        }
+        std::vector<DrawableCharacter> * renderables = nullptr;
+        sf::Color color;
+    };
+    AlgoPlacer placer;
+    placer.renderables = &renderables;
+    placer.color = color;
+    place_renderables(font, ustr, width_constraint, char_size, placer);
+#   if 0
     renderables.clear();
 
     if (ustr.empty()) {
@@ -425,6 +677,51 @@ void place_renderables(const sf::Font & font, const UString & ustr,
             const auto & glyph = font.getGlyph(*jtr, char_size, false);
             VectorF p(write_pos.x + glyph.bounds.left, write_pos.y + glyph.bounds.top + char_size);
             renderables.emplace_back(p, glyph, color);
+            write_pos.x += glyph.advance;
+            if (jtr + 1 != ustr.end()) {
+                write_pos.x += font.getKerning(*jtr, *(jtr + 1), char_size);
+            }
+        }
+        itr = chunk_end;
+    }
+#   endif
+}
+
+void place_renderables(const sf::Font & font, const UString & ustr,
+       float width_constraint, int char_size,
+       RenderablesPlacer & placer)
+{
+    placer.prepare();
+
+    if (ustr.empty()) {
+        // nothing to render
+        return;
+    }
+
+    placer.reserve(ustr.size());
+    VectorF write_pos;
+    auto itr = ustr.begin();
+    for (auto chunk_end : find_chunks_dividers(ustr)) {
+        assert(itr <= chunk_end);
+        if (is_newline(*itr)) {
+            write_pos.x = 0.f;
+            write_pos.y += font.getLineSpacing(char_size);
+
+            itr = chunk_end;
+            continue;
+        }
+#       if 0
+        auto chunk_width = asgl::SfmlTextObject::measure_width(font, char_size, itr, chunk_end);
+#       endif
+        auto chunk_width = float( asgl::SfmlFont::measure_text(font, char_size, itr, chunk_end).width );
+        if (write_pos.x + chunk_width > width_constraint) {
+            write_pos.x = 0.f;
+            write_pos.y += font.getLineSpacing(char_size);
+        }
+        for (auto jtr = itr; jtr != chunk_end; ++jtr) {
+            const auto & glyph = font.getGlyph(*jtr, char_size, false);
+            VectorF p(write_pos.x + glyph.bounds.left, write_pos.y + glyph.bounds.top + char_size);
+            placer(p, glyph);// renderables.emplace_back(p, glyph, color);
             write_pos.x += glyph.advance;
             if (jtr + 1 != ustr.end()) {
                 write_pos.x += font.getKerning(*jtr, *(jtr + 1), char_size);

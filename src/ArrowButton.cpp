@@ -62,7 +62,9 @@ void ArrowButton::on_geometry_update() {
 
 /* private */ void ArrowButton::draw_(WidgetRenderer & target) const {
     Button::draw_(target);
-    draw_to(target, m_tri, m_triangle_style);
+    if (m_dir != Direction::k_none) {
+        draw_to(target, m_tri, m_triangle_style);
+    }
 }
 
 /* private */ void ArrowButton::update_points() {

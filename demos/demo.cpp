@@ -1,13 +1,29 @@
+/****************************************************************************
+
+    Copyright 2021 Aria Janke
+
+    Permission is hereby granted, free of charge, to any person obtaining a
+    copy of this software and associated documentation files (the "Software"),
+    to deal in the Software without restriction, including without limitation
+    the rights to use, copy, modify, merge, publish, distribute, sublicense,
+    and/or sell copies of the Software, and to permit persons to whom the
+    Software is furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in
+    all copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+    FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+    DEALINGS IN THE SOFTWARE.
+
+*****************************************************************************/
+
 // a possible way to compile this application:
 // g++ -std=c++17 demo.cpp -lcommon-d -lksg -lsfml-graphics -lsfml-window -lsfml-system -lz -L/media/ramdisk/ksg/demos -I../inc -I../lib/cul/inc -o demo
-#if 0
-#include <ksg/Frame.hpp>
-#include <ksg/TextArea.hpp>
-#include <ksg/TextButton.hpp>
-#include <ksg/OptionsSlider.hpp>
-#include <ksg/ImageWidget.hpp>
-#include <ksg/EditableText.hpp>
-#endif
 
 #include <asgl/Frame.hpp>
 #include <asgl/Text.hpp>
@@ -23,7 +39,7 @@
 #include <SFML/Graphics/RenderWindow.hpp>
 #include <SFML/Graphics/Font.hpp>
 
-using UString = asgl::SfmlTextObject::UString;
+using UString = asgl::Text::UString;
 
 namespace {
 
@@ -53,19 +69,9 @@ private:
 } // end of <anonymous>
 
 int main() {
-#   if 0
-    ksg::Text::run_tests();
-#   endif
     asgl::SfmlFlatEngine engine;
     engine.load_global_font("font.ttf");
     engine.setup_default_styles();
-#   if 0
-    {
-    auto font_ptr = std::make_shared<sf::Font>();
-    font_ptr->loadFromFile("font.ttf");
-    engine.add_global_font(font_ptr);
-    }
-#   endif
 
 #   if 1
     DemoText dialog;
@@ -87,14 +93,11 @@ int main() {
             if (event.type == sf::Event::Closed)
                 window.close();
         }
-        //dialog.check_for_geometry_updates();
+        dialog.check_for_geometry_updates();
         if (dialog.requesting_to_close())
             window.close();
         if (has_events) {
             window.clear();
-#           if 0
-            window.draw(dialog);
-#           endif
             dialog.draw(engine);
             window.display();
             has_events = false;
@@ -108,7 +111,6 @@ int main() {
 namespace {
 
 void FruitFrame::setup_frame(asgl::ImageLoader & loader) {
-#   if 1
     begin_adding_widgets().
         add(m_image_widget).
         add_line_seperator().
@@ -116,7 +118,7 @@ void FruitFrame::setup_frame(asgl::ImageLoader & loader) {
         add_horizontal_spacer().
         add(m_slider).
         add_horizontal_spacer();
-#   endif
+
     const auto image_files_c =
         { "images/orange.jpg", "images/apple.jpg", "images/bananas.jpg" };
 
@@ -151,25 +153,17 @@ void DemoText::setup_frame(asgl::ImageLoader & loader) {
         "(3.0) license.");
 
     m_text_button.set_string(U"Close Application");
-#   if 0
-    auto styles_ = ksg::styles::construct_system_styles();
-    styles_[ksg::styles::k_global_font] = ksg::styles::load_font("font.ttf");
-    styles_[Frame::k_border_size] = ksg::StylesField(0.f);
-#   endif
-#   if 1
+
     m_embeded_frame.setup_frame(loader);
 
     begin_adding_widgets().
         add(m_text_area).
         add_horizontal_spacer().
-#       if 1
         add(m_embeded_frame).
         add_line_seperator().
         add_horizontal_spacer().
-#       endif
         add(m_text_button).
         add_horizontal_spacer();
-#   endif
 }
 
 } // end of <anonymous> namespace

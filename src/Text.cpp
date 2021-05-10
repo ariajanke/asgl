@@ -1,3 +1,27 @@
+/****************************************************************************
+
+    Copyright 2021 Aria Janke
+
+    Permission is hereby granted, free of charge, to any person obtaining a
+    copy of this software and associated documentation files (the "Software"),
+    to deal in the Software without restriction, including without limitation
+    the rights to use, copy, modify, merge, publish, distribute, sublicense,
+    and/or sell copies of the Software, and to permit persons to whom the
+    Software is furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in
+    all copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+    FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+    DEALINGS IN THE SOFTWARE.
+
+*****************************************************************************/
+
 #include <asgl/Text.hpp>
 #include <asgl/Widget.hpp>
 
@@ -6,6 +30,8 @@ namespace {
 using TextBase = asgl::TextBase;
 using UString  = TextBase::UString;
 using ItemKey  = asgl::ItemKey;
+
+constexpr const int k_int_max = std::numeric_limits<int>::max();
 
 /* anonymous */ class NullTextN final : public TextBase {
 public:
@@ -47,14 +73,13 @@ public:
     void swap_string(UString &) override
         { throw make_cannot_call_error("swap_string"); }
 
-    const sf::IntRect & viewport() const override {
-        static const sf::IntRect inst;
-        return inst;
-    }
+    const sf::IntRect & viewport() const override
+        { return TextBase::k_default_viewport; }
 
     UString give_string_() override { return UString(); }
 
-    int limiting_line() const override { return 0; }
+    int limiting_line() const override
+        { return TextBase::k_default_limiting_line; }
 
 private:
     using RtError = std::runtime_error;
@@ -113,9 +138,9 @@ public:
 
 private:
     VectorI m_location;
-    sf::IntRect m_viewport;
+    sf::IntRect m_viewport = TextBase::k_default_viewport;
     UString m_string;
-    int m_limiting_line = 0;
+    int m_limiting_line = TextBase::k_default_limiting_line;
 };
 
 } // end of <anonymous> namespace
@@ -154,12 +179,17 @@ UString TextBase::give_string()
     { return give_string_(); }
 
 void TextBase::set_viewport(const sf::IntRect & port) {
-    auto right = port.left + port.width;
-    auto bottom = port.top + port.height;
-    bool valid_port = port.left >= 0 && port.left <= full_width ()
-                   && port.top  >= 0 && port.top  <= full_height()
-                   && right     >= 0 && right     <= full_width ()
-                   && bottom    >= 0 && bottom    <= full_height();
+    bool valid_port =    port.left >= 0 && port.left <= full_width ()
+                      && port.top  >= 0 && port.top  <= full_height();
+    if (port.width != k_default_viewport.width) {
+        auto right = port.left + port.width;
+        valid_port = valid_port && right >= 0 && right <= full_width();
+    }
+    if (port.height != k_default_viewport.height) {
+        auto bottom = port.top + port.height;
+        valid_port = valid_port && bottom >= 0 && bottom <= full_height();
+    }
+
     using InvArg = std::invalid_argument;
     if (!valid_port) {
         throw InvArg("TextN::set_viewport: invalid viewport supplied, must "
@@ -170,8 +200,13 @@ void TextBase::set_viewport(const sf::IntRect & port) {
 }
 
 void TextBase::reset_viewport() {
-    set_viewport(sf::IntRect(0, 0, full_width(), full_height()));
+    set_viewport(k_default_viewport);
 }
+
+/* static */ const sf::IntRect TextBase::k_default_viewport =
+    sf::IntRect(0, 0, k_int_max, k_int_max);
+
+/* static */ const int TextBase::k_default_limiting_line = k_int_max;
 
 // ----------------------------------------------------------------------------
 

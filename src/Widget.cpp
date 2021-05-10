@@ -30,9 +30,6 @@ namespace {
 
 using RtError = std::runtime_error;
 using InvArg  = std::invalid_argument;
-#if 0
-const char * const NOT_A_FRAME_MSG = "This widget is not a frame.";
-#endif
 
 asgl::WidgetFlagsUpdater * s_default_flags_updater_ptr = [] () {
     class NullFlagsUpdater final : public asgl::WidgetFlagsUpdater {
@@ -181,45 +178,3 @@ void Widget::draw(WidgetRenderer & target) const {
 }
 
 } // end of asgl namespace
-
-#if 0
-namespace ksg {
-
-ChildWidgetIterator::~ChildWidgetIterator() {}
-
-Widget::Widget(): m_visible(true) {}
-
-Widget::~Widget() {}
-
-/* experimental */ void Widget::iterate_children(ChildWidgetIterator && itr)
-    { iterate_children_(itr); }
-
-/* experimental */ void Widget::iterate_children(ChildWidgetIterator && itr) const
-    { iterate_const_children_(itr); }
-
-/* experimental */ void Widget::iterate_children(ChildWidgetIterator & itr)
-    { iterate_children_(itr); }
-
-/* experimental */ void Widget::iterate_children(ChildWidgetIterator & itr) const
-    { iterate_const_children_(itr); }
-#if 0
-void Widget::add_widget(Widget *)
-    { throw Error(NOT_A_FRAME_MSG); }
-#endif
-/* protected experimental */ void Widget::iterate_children_(ChildWidgetIterator &)
-    {}
-
-/* protected experimental */ void Widget::iterate_const_children_(ChildWidgetIterator &) const
-    {}
-
-#if 0
-void Widget::add_children_to(ChildWidgetIterator &) {}
-
-void Widget::add_focus_widgets_to(std::vector<FocusWidget *> &)
-    {}
-#endif
-
-void Widget::issue_auto_resize() {}
-
-} // end of ksg namespace
-#endif

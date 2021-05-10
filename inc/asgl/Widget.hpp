@@ -67,7 +67,9 @@ public:
     virtual void set_needs_redraw_flag() = 0;
 };
 
+#if 0
 class SfmlTextObject;
+#endif
 class TextBase;
 using TriangleTuple = std::tuple<sf::Vector2i, sf::Vector2i, sf::Vector2i>;
 
@@ -77,7 +79,9 @@ public:
 
     virtual void render_rectangle(const sf::IntRect   &, ItemKey, const void * widget_spec_ptr) = 0;
     virtual void render_triangle (const TriangleTuple &, ItemKey, const void * widget_spec_ptr) = 0;
+#   if 0
     [[deprecated]] virtual void render_text(const SfmlTextObject &) = 0;
+#   endif
     virtual void render_text(const TextBase &) = 0;
 };
 
