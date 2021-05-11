@@ -9,6 +9,6 @@
 msvc/erfindung.VC.db
 html/*
 *libcommon-d.a
-*libksg-d.a
+*libasg-d.a
 *libcommon.a
-*libksg.a
+*libasg.a

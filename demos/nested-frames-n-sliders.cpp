@@ -24,20 +24,13 @@
 
 #include <SFML/Graphics/RenderWindow.hpp>
 #include <SFML/Window/Event.hpp>
-#if 0
-#include <ksg/Frame.hpp>
-
-#include <ksg/TextArea.hpp>
-#include <ksg/TextButton.hpp>
-#include <ksg/OptionsSlider.hpp>
-#endif
 
 #include <asgl/Frame.hpp>
 #include <asgl/TextArea.hpp>
 #include <asgl/TextButton.hpp>
 #include <asgl/OptionsSlider.hpp>
 
-#include <asgl/SfmlFlatRenderer.hpp>
+#include <asgl/sfml/SfmlEngine.hpp>
 
 #include <thread>
 
@@ -95,7 +88,7 @@ int main() {
     while (win.isOpen()) {
         sf::Event event;
         while (win.pollEvent(event)) {
-            frame.process_event(asgl::convert( event ));
+            frame.process_event(asgl::SfmlFlatEngine::convert( event ));
             if (event.type == sf::Event::Closed || frame.requesting_exit()) {
                 win.close();
             }
@@ -121,7 +114,7 @@ void FurthestNested::setup() {
     m_furthest_nested_notice.set_string
         (U"Text area in the furthest nested frame.");
     begin_adding_widgets().add(m_furthest_nested_notice);
-    if (!k_enable_borders) set_frame_border_size(0.f);
+    //if (!k_enable_borders) set_frame_border_size(0.f);
 }
 
 void NestedWithSliders::setup() {
@@ -132,7 +125,7 @@ void NestedWithSliders::setup() {
     m_three.set_options(options_from_range(19, 26));
     m_three.set_wrap_enabled(true);
 
-    if (!k_enable_borders) set_frame_border_size(0.f);
+    //if (!k_enable_borders) set_frame_border_size(0.f);
 
     begin_adding_widgets()
         .add(m_nested).add_line_seperator()
@@ -142,10 +135,6 @@ void NestedWithSliders::setup() {
 }
 
 void TopLevelFrame::setup() {
-#   if 0
-    auto styles_ = ksg::styles::construct_system_styles();
-    styles_[ksg::styles::k_global_font] = ksg::styles::load_font("font.ttf");
-#   endif
     set_title(U"Nested Frames Test App");
     set_drag_enabled(false);
 

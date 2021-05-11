@@ -23,7 +23,7 @@ debug {
     LIBS   += -lcommon
 }
 
-SOURCES += ../demos/drag_frames.cpp
+SOURCES += ../demos/textarea-tests.cpp
 
 SOURCES += \
     \ # SFML Engine

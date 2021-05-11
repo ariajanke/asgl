@@ -22,21 +22,13 @@
 
 *****************************************************************************/
 
-#if 0
-#include <ksg/Frame.hpp>
-#include <ksg/TextArea.hpp>
-#include <ksg/TextButton.hpp>
-#include <ksg/ArrowButton.hpp>
-#include <ksg/ProgressBar.hpp>
-#endif
-
 #include <asgl/Frame.hpp>
 #include <asgl/TextArea.hpp>
 #include <asgl/TextButton.hpp>
 #include <asgl/ArrowButton.hpp>
 #include <asgl/ProgressBar.hpp>
 
-#include <asgl/SfmlFlatRenderer.hpp>
+#include <asgl/sfml/SfmlEngine.hpp>
 
 #include <SFML/Window.hpp>
 #include <SFML/Graphics/Font.hpp>
@@ -109,7 +101,7 @@ int main() {
         sf::Event event;
         while (window.pollEvent(event)) {
             has_events = true;
-            dialog.process_event(asgl::convert( event ));
+            dialog.process_event(asgl::SfmlFlatEngine::convert( event ));
             if (event.type == sf::Event::Closed)
                 window.close();
         }

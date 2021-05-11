@@ -33,7 +33,7 @@
 #include <asgl/TextButton.hpp>
 
 #include <asgl/Event.hpp>
-#include <asgl/SfmlFlatRenderer.hpp>
+#include <asgl/sfml/SfmlEngine.hpp>
 
 #include <SFML/Window.hpp>
 #include <SFML/Graphics/RenderWindow.hpp>
@@ -89,7 +89,7 @@ int main() {
         sf::Event event;
         while (window.pollEvent(event)) {
             has_events = true;
-            dialog.process_event(asgl::convert(event));
+            dialog.process_event(asgl::SfmlFlatEngine::convert(event));
             if (event.type == sf::Event::Closed)
                 window.close();
         }
@@ -143,7 +143,7 @@ void DemoText::setup_frame(asgl::ImageLoader & loader) {
     m_text_button.set_press_event([this]() { m_close_flag = true; });
 
     m_text_area.set_string(U"Hello World");
-    m_text_area.set_max_width(200);
+    m_text_area.set_limiting_line(200);
 
     m_text_area.set_string(U"Hello World.\n"
         "Images of fruit were graciously "
