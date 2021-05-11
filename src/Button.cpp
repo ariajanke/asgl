@@ -23,11 +23,6 @@
 *****************************************************************************/
 
 #include <asgl/Button.hpp>
-#include <asgl/Frame.hpp>
-
-#include <SFML/Graphics/RenderTarget.hpp>
-
-#include <cassert>
 
 namespace {
 
@@ -105,8 +100,7 @@ void Button::stylize(const StyleMap & smap) {
 void Button::set_press_event(BlankFunctor && func)
     { m_press_functor = std::move(func); }
 
-void Button::press()
-    { m_press_functor(); }
+void Button::press() { m_press_functor(); }
 
 VectorI Button::location() const
     { return VectorI(m_back.left, m_back.top); }
@@ -120,24 +114,24 @@ int Button::width() const { return m_back.width; }
 
 int Button::height() const { return m_back.height; }
 
-/* protected */ Button::Button() {}
+void Button::on_geometry_update() {
+    if (m_back.width > padding()*2) {
+        m_front.left  = m_back.left  + padding();
+        m_front.width = m_back.width - padding()*2;
+    }
+    if (m_back.height > padding()*2) {
+        m_front.top    = m_back.top    + padding();
+        m_front.height = m_back.height - padding()*2;
+    }
+}
 
-/* protected */ void Button::draw_(WidgetRenderer & target) const {
+void Button::draw(WidgetRenderer & target) const {
     draw_to(target, m_back , m_active_items.back );
     if (m_front.width <= 0 || m_front.height <= 0) return;
     draw_to(target, m_front, m_active_items.front);
 }
 
-/* protected */ void Button::on_geometry_update() {
-    if (m_back.width > m_padding*2) {
-        m_front.left  = m_back.left  + m_padding;
-        m_front.width = m_back.width - m_padding*2;
-    }
-    if (m_back.height > m_padding*2) {
-        m_front.top    = m_back.top    + m_padding;
-        m_front.height = m_back.height - m_padding*2;
-    }
-}
+/* protected */ Button::Button() {}
 
 /* protected */ void Button::set_button_frame_size
     (int width_, int height_)
@@ -193,4 +187,4 @@ int Button::height() const { return m_back.height; }
     m_back.top  = y;
 }
 
-} // end of ksg namespace
+} // end of asgl namespace

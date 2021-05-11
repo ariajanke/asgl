@@ -41,6 +41,7 @@ namespace {
 using VectorI = asgl::Widget::VectorI;
 using Text    = asgl::Text;
 using InvArg  = std::invalid_argument;
+using RtError = std::runtime_error;
 
 void update_title_geometry(VectorI location,
                            const sf::IntRect & title_bar, Text * title);
@@ -75,9 +76,65 @@ void HorizontalSpacer::set_width(int w) {
 } // end of detail namespace
 
 // ----------------------------------------------------------------------------
+
+void FrameDecoration::assign_flags_updater(WidgetFlagsUpdater * ptr)
+    { m_flags_receiver = ptr ? ptr : &WidgetFlagsUpdater::null_instance(); }
+
+/* static */ FrameDecoration & FrameDecoration::null_decoration() {
+    static constexpr const int k_int_max = std::numeric_limits<int>::max();
+    static auto make_calling_null_except = []() {
+        return RtError("[From NullDecoration]: frame needs another decorator.");
+    };
+    class NullDecoration final : public FrameDecoration {
+        VectorI widget_start() const override
+            { throw make_calling_null_except(); }
+
+        VectorI location() const override
+            { return VectorI(k_int_max, k_int_max); }
+
+        int width() const override { return 0; }
+
+        int height() const override { return 0; }
+
+        EventResponseSignal process_event(const Event &) override
+            { return EventResponseSignal(); }
+
+        void set_location(int, int) override {}
+
+        void stylize(const StyleMap &) override {}
+
+        void request_size(int, int) override
+            { throw make_calling_null_except(); }
+
+        void on_geometry_update() override {}
+
+        void draw(WidgetRenderer &) const override {}
+
+        int minimum_width() const override { return 0; }
+
+        int width_available_for_widgets() const override
+            { throw make_calling_null_except(); }
+
+        void set_click_inside_event(ClickFunctor &&) override
+            { throw make_calling_null_except(); }
+    };
+    static NullDecoration inst;
+    return inst;
+}
+
+/* protected */ void FrameDecoration::update_drag_position(int x, int y) {
+    set_location(x, y);
+    set_needs_geometry_update_flag();
+}
+
+/* protected */ void FrameDecoration::set_needs_geometry_update_flag() {
+    m_flags_receiver->receive_geometry_needs_update_flag();
+}
+
+// ----------------------------------------------------------------------------
 // ---                             FrameBorder                              ---
 
-VectorI FrameBorder::widget_start() const noexcept {
+VectorI FrameBorder::widget_start() const {
     VectorI offset(outer_padding(), outer_padding() + title_height());
     if (!m_title.string().empty()) {
         offset.y += outer_padding();
@@ -85,13 +142,13 @@ VectorI FrameBorder::widget_start() const noexcept {
     return location() + offset;
 }
 
-VectorI FrameBorder::location() const noexcept
+VectorI FrameBorder::location() const
     { return VectorI(m_back.left, m_back.top); }
 
-int FrameBorder::width() const noexcept
+int FrameBorder::width() const
     { return m_back.width; }
 
-int FrameBorder::height() const noexcept
+int FrameBorder::height() const
     { return m_back.height; }
 
 FrameBorder::EventResponseSignal FrameBorder::process_event
@@ -100,8 +157,10 @@ FrameBorder::EventResponseSignal FrameBorder::process_event
     check_should_update_drag(event);
 
     EventResponseSignal rv;
+    // no obvious replacement, though the field maybe obsoleted
+#   if 0
     rv.should_update_geometry = m_recently_dragged;
-
+#   endif
     if (   event.is_type<MousePress>()
         && m_back.contains(to_vector(event.as<MousePress>()))
         )
@@ -127,6 +186,7 @@ void FrameBorder::set_location(int x, int y) {
 
 void FrameBorder::stylize(const StyleMap & smap) {
     using namespace styles;
+    using Frame = Frame;
     TextArea::set_required_text_fields(
         m_title, smap.find(styles::k_global_font),
         smap.find(Frame::to_key(Frame::k_title_text_style)),
@@ -194,17 +254,8 @@ void FrameBorder::update_geometry() {
 int FrameBorder::title_width_accommodation() const noexcept
     { return m_title.string().empty() ? 0 : m_title.width(); }
 
-int FrameBorder::width_available_for_widgets() const noexcept
+int FrameBorder::width_available_for_widgets() const
     { return m_widget_body.width; }
-
-void FrameBorder::set_border_size(float pixels) {
-    if (pixels < 0.f) {
-        throw std::invalid_argument(
-            "FrameBorder::set_border_size: border size must be a "
-            "non-negative real number.");
-    }
-    m_outer_padding = pixels;
-}
 
 void FrameBorder::draw(WidgetRenderer & renderer) const {
     auto title_is_visible = [this] () { return !m_title.string().empty(); };
@@ -217,22 +268,12 @@ void FrameBorder::draw(WidgetRenderer & renderer) const {
     }
 }
 
-/* private */ void FrameBorder::update_drag_position
-    (int drect_x, int drect_y)
-{
-    set_location(float(drect_x), float(drect_y));
-    // save and later send signal for geo update to frame, not the most clean
-    // solution, just the least worst given the circumstances
-    m_recently_dragged = true;
-}
-
 /* private */ int FrameBorder::title_height() const noexcept
     { return m_title.string().empty() ? 0 : /*m_title.character_size()*2*/(m_title.height() * 3) / 2; }
 
 /* private */ void FrameBorder::check_should_update_drag
     (const Event & event)
 {
-    m_recently_dragged = false;
     switch (event.type_id()) {
     case k_mouse_press_id:
         mouse_click(event.as<MousePress>().x, event.as<MousePress>().y, m_title_bar);
@@ -254,7 +295,7 @@ void FrameBorder::draw(WidgetRenderer & renderer) const {
 /* private */ int FrameBorder::outer_padding() const noexcept
     { return std::max(0, m_outer_padding); }
 
-} // end of ksg namespace
+} // end of asgl namespace
 
 namespace {
 

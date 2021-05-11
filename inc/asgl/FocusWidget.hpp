@@ -28,11 +28,9 @@
 
 #include <functional>
 
-namespace sf { class Event; }
-
 namespace asgl {
 
-class FocusWidget;
+class FocusReceiver;
 
 namespace detail {
 
@@ -40,11 +38,11 @@ class FrameFocusHandler;
 
 class FocusWidgetAtt {
     friend class asgl::detail::FrameFocusHandler;
-    static void notify_focus_gained(FocusWidget &);
-    static void notify_focus_lost  (FocusWidget &);
+    static void notify_focus_gained(FocusReceiver &);
+    static void notify_focus_lost  (FocusReceiver &);
 };
 
-}
+} // end of detail namespace -> into ::asgl
 
 /** A focus widget is a widget which receives special attention (usually from
  *  the keyboard). An example of a focus widget is a textbox.
@@ -57,10 +55,10 @@ class FocusWidgetAtt {
  *  member on the call to notify_focus_lost.
  *  @see notify_focus_lost
  */
-class FocusWidget : public Widget {
+class FocusReceiver {
 public:
     friend class detail::FocusWidgetAtt;
-    ~FocusWidget() override;
+    virtual ~FocusReceiver();
 
     /** This function is called for any special event processing specific for
      *  to this widget being the focus widget.
@@ -89,6 +87,8 @@ private:
     bool m_request_focus = false;
     bool m_has_focus     = false;
 };
+
+class FocusWidget : public FocusReceiver, public Widget {};
 
 namespace detail {
 
@@ -125,7 +125,7 @@ public:
     /** This function provides a point for Frames to deposit all focus widgets
      *  to.
      */
-    void take_widgets_from(std::vector<FocusWidget *> &);
+    void take_widgets_from(std::vector<FocusReceiver *> &);
 
     /** @brief Clears all focus widgets, essentially disabling focus events.
      *         Useful for nested frames.
@@ -148,10 +148,10 @@ private:
     FocusChangeFunc m_advance_func = default_focus_advance;
     FocusChangeFunc m_regress_func = default_focus_regress;
 
-    std::vector<FocusWidget *> m_focus_widgets;
-    std::vector<FocusWidget *>::iterator m_current_position;
+    std::vector<FocusReceiver *> m_focus_widgets;
+    std::vector<FocusReceiver *>::iterator m_current_position;
 };
 
-} // end of detail namespace
+} // end of detail namespace -> into ::asgl
 
 } // end of asgl namespace

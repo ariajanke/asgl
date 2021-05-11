@@ -24,55 +24,66 @@
 
 #pragma once
 
-#include <functional>
-
 #include <asgl/FocusWidget.hpp>
+
+#include <functional>
 
 namespace asgl {
 
-/** A button is any widget which has a click event. It may also be highlighted,
- *  which is nothing more than a visual tell that the user may trigger the
- *  click event by clicking or by pressing the Return key.
+/** A button is any widget which has a click event.
  *
- *  === NON VIRTUAL INTERFACE ===
+ *  It may also be highlighted, which is nothing more than a visual tell that
+ *  the user may trigger the click event by clicking or by pressing the Return
+ *  key.
  *
  *  This class uses a non-virtual interface for changes applied to it whether
  *  its size, highlight, deselect ("anti-highlight").
  */
 class Button : public FocusWidget {
 public:
-    using BlankFunctor = std::function<void()>;
-
     enum ButtonStyleEnum {
         k_regular_back_style, k_regular_front_style,
         k_hover_back_style  , k_hover_front_style  ,
         k_button_padding    ,
         k_style_count
     };
-    using ButtonStyles = styles::StyleKeysEnum<ButtonStyleEnum, k_style_count>;
-    inline static StyleKey to_key(ButtonStyleEnum e)
-        { return ButtonStyles::to_key(e); }
 
+    inline static StyleKey to_key(ButtonStyleEnum e)
+        { return styles::StyleKeysEnum<ButtonStyleEnum, k_style_count>::to_key(e); }
+
+    /** Void returning parameterless functors are used to respond to events. */
+    using BlankFunctor = std::function<void()>;
+
+    /** @returns pixel location of the button. */
     VectorI location() const final;
 
-    /** Allows the setting of the width and height of Button
-     *  @note the virtual on_size_changed method is available for any
-     *        resize events if inheriting classes wishes to resize their
-     *        internals
+    /** Allows the setting of the width and height of Button.
+     *
+     *  (what about TextButton??)
      *  @param w width  in pixels
      *  @param h height in pixels
      */
     void set_size(int w, int h);
 
-    //! @return This returns width of the button in pixels.
+    /** @return This returns width of the button in pixels. */
     int width() const final;
 
-    //! @return This returns height of the button in pixels.
+    /** @return This returns height of the button in pixels. */
     int height() const final;
 
-    void process_event(const Event & evnt) override;
+    /** Listens for events that would press the button, and changes its
+     *  appearance.
+     *
+     *  Buttons responds to movement of the cursor, and will change its style
+     *  as the mouse hovers and leaves. Any mouse button release will "press"
+     *  the button.
+     *
+     *  @see process_focus_event(const Event &)
+     */
+    void process_event(const Event &) override;
 
     /** Sets the press event which is called whenever the button is pressed.
+     *
      *  That is when the user clicks/presses the Return key when the button is
      *  selected.
      *  @param func the callback function to call when the button is pressed
@@ -84,14 +95,13 @@ public:
      */
     void press();
 
-    /** @brief Sets button's styles.
+    /** Sets button's foreground and background appearance.
      *
      *  Sets the following styles:
      *  - hover background color
      *  - hover foreground color
      *  - regular background color
      *  - regular foreground color
-     *  @note when overriding, please don't forget to make this call
      */
     void stylize(const StyleMap &) override;
 
@@ -103,14 +113,16 @@ public:
      */
     int padding() const noexcept { return std::max(0, m_padding); }
 
+    void process_focus_event(const Event &) final;
+
+    void on_geometry_update() override;
+
+    void draw(WidgetRenderer &) const override;
+
 protected:
     /** Creates a zero-sized, white colored button. Pending setting of styles.
      */
     Button();
-
-    void draw_(WidgetRenderer &) const override;
-
-    void on_geometry_update() override;
 
     /** Sets the size of the button's frame.
      *  @note Make sure to adjust for padding if necessary so that the button
@@ -126,15 +138,16 @@ protected:
     /** Change button aesthetics to denote a selected button. */
     void highlight();
 
-private:
-    void process_focus_event(const Event &) override;
+    /** When called, changes button's appearance. */
+    void notify_focus_gained() final;
 
-    void notify_focus_gained() override;
+    /** When called, changes button's appearance. */
+    void notify_focus_lost() final;
 
-    void notify_focus_lost() override;
-
+    /** When called, changes button's location. */
     void set_location_(int x, int y) final;
 
+private:
     template <typename T>
     struct KeyPairImpl {
         KeyPairImpl() {}
@@ -159,4 +172,4 @@ private:
     BlankFunctor m_press_functor = [](){};
 };
 
-} // end of ksg namespace
+} // end of asgl namespace

@@ -27,7 +27,7 @@
 #include <SFML/Window/Event.hpp>
 
 namespace {
-
+#if 0
 using asgl::keys::KeyEventImpl;
 using asgl::mouse::MouseEventImpl;
 using asgl::MouseMove;
@@ -35,7 +35,7 @@ using asgl::MouseMove;
 KeyEventImpl convert(const sf::Event::KeyEvent &);
 MouseEventImpl convert(const sf::Event::MouseButtonEvent &);
 MouseMove convert(const sf::Event::MouseMoveEvent &);
-
+#endif
 } // end of <anonymous> namespace
 
 namespace asgl {
@@ -144,7 +144,7 @@ char to_char(const keys::KeyEventImpl & key_event) {
     default: return k_no_char_map;
     }
 }
-
+#if 0
 Event convert(const sf::Event & sfevent) {
     switch (sfevent.type) {
     case sf::Event::KeyPressed:
@@ -162,11 +162,11 @@ Event convert(const sf::Event & sfevent) {
     default: return Event();
     }
 }
-
+#endif
 } // end of asgl namespace
 
 namespace {
-
+#if 0
 using asgl::Key;
 using asgl::MouseButton;
 
@@ -290,5 +290,5 @@ MouseMove convert(const sf::Event::MouseMoveEvent & mme) {
     rv.y = mme.y;
     return rv;
 }
-
+#endif
 } // end of <anonymous> namespace

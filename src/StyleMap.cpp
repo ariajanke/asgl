@@ -23,15 +23,11 @@
 *****************************************************************************/
 
 #include <asgl/StyleMap.hpp>
-#include <asgl/TextArea.hpp>
 
 #include <stdexcept>
 
-#include <cassert>
-
 namespace {
 
-using Error  = std::runtime_error;
 using InvArg = std::invalid_argument;
 
 } // end of <anonymous> namespace
@@ -96,15 +92,6 @@ ItemKey ItemKeyCreator::make_key() {
         push_new_array();
     }
     return ItemKey(std::hash<const uint8_t *>()(&(*m_pos++)));
-}
-
-StyleField load_font(const std::string & filename) {
-    auto sptr = std::make_shared<sf::Font>();
-    if (sptr->loadFromFile(filename)) {
-        return StyleField(std::shared_ptr<const sf::Font>(sptr));
-    } else {
-        return StyleField();
-    }
 }
 
 } // end of styles namespace

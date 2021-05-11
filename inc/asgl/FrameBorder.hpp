@@ -35,7 +35,7 @@ namespace asgl {
 // ----------------------------------------------------------------------------
 // ---                  Frame Helpers (FrameBorder Below)                   ---
 
-class Frame;
+class BareFrame;
 
 namespace detail {
 
@@ -61,10 +61,11 @@ public:
 
     void stylize(const StyleMap &) override {}
 
+    void draw(WidgetRenderer &) const override {}
+
 private:
     void set_location_(int, int) override {}
     void on_geometry_update() override {}
-    void draw_(WidgetRenderer &) const override {}
 };
 
 class HorizontalSpacer final : public Widget {
@@ -83,11 +84,12 @@ public:
 
     void stylize(const StyleMap &) override {}
 
+    void draw(WidgetRenderer &) const override {}
+
 private:
     void set_location_(int x, int y) override;
 
     void on_geometry_update() override {}
-    void draw_(WidgetRenderer &) const override {}
 
     VectorI m_location;
     int m_width;
@@ -97,39 +99,127 @@ private:
 
 // ----------------------------------------------------------------------------
 
-/** A helper class for Frame. The object manages the border graphics, events,
- *  and provides information for widget placement.
- *  Naturally the client only needs to concern themselves mostly with the
- *  title, styling, and click event function.
- */
-class FrameBorder final : public Draggable {
+class FrameDecoration : public Draggable {
 public:
     using VectorI = Widget::VectorI;
     using UString = Text::UString;
+
     enum ClickResponse {
         k_skip_other_events,
         k_continue_other_events
     };
+    using ClickFunctor = std::function<ClickResponse()>;
 
     struct EventResponseSignal {
         bool skip_other_events      = false;
+        // maybe omitted
         bool should_update_geometry = false;
     };
 
-    VectorI widget_start() const noexcept;
+    /** Each decoration object must tell the frame where to start placing
+     *  widgets.
+     *
+     *  @returns the actual location for placement, not an offset
+     */
+    virtual VectorI widget_start() const = 0;
 
-    VectorI location() const noexcept;
+    /** @returns the top left location of the decoration.
+     *
+     *  @note The frame identifies its location by the highest leftmost point
+     *  between this decoration object and its own highest leftmost widget.
+     */
+    virtual VectorI location() const = 0;
 
-    int width() const noexcept;
+    /** @returns the width of the decoration.
+     *
+     *  @note The frame identifies its width by whichever is greatest, the
+     *        total occupying width of its widgets or the decoration's width.
+     */
+    virtual int width() const = 0;
 
-    int height() const noexcept;
+    /** @returns the width of the decoration.
+     *
+     *  @note The frame identifies its height by whichever is greatest, the
+     *        total occupying height of its widgets or the decoration's height.
+     */
+    virtual int height() const = 0;
 
-    EventResponseSignal process_event(const Event &);
+    virtual EventResponseSignal process_event(const Event &) = 0;
 
-    void set_location(int x, int y);
+    /** Called by frame whenever relocating, values given will be the frames
+     *  location.
+     */
+    virtual void set_location(int frame_x, int frame_y) = 0;
+
+    /** Decoration may take any styles it needs.
+     *
+     *  @note "Non-optional" since I can't think of more than one case where
+     *        frame decoration does not take styles.
+     */
+    virtual void stylize(const StyleMap &) = 0;
+
+    /** Called by frame with the smallest need width and height.
+     *
+     * @note Values given to this function depend on previous feedback from
+     *       this instance.
+     */
+    virtual void request_size(int w, int h) = 0;
+
+    /** Called by frame, whenever it's time for resizing/relocating widgets. */
+    virtual void on_geometry_update() = 0;
+
+    /** All frame decoration needs to specify how it's drawn. */
+    virtual void draw(WidgetRenderer &) const = 0;
+
+    /** @returns the minimum width for the decoration */
+    virtual int minimum_width() const = 0;
+
+    /** @returns the number of pixels available for widgets.
+     *
+     *  @note This function is used for widget placement computations.
+     */
+    virtual int width_available_for_widgets() const = 0;
+
+    virtual void set_click_inside_event(ClickFunctor &&) = 0;
+
+    void assign_flags_updater(WidgetFlagsUpdater *);
+
+    /** @returns the default decoration used by frames, which will throw
+     *           exceptions complaining about it decoration being unset.
+     */
+    static FrameDecoration & null_decoration();
+
+protected:
+    void update_drag_position(int x, int y) final;
+
+    void set_needs_geometry_update_flag();
+
+private:
+    WidgetFlagsUpdater * m_flags_receiver = &WidgetFlagsUpdater::null_instance();
+};
+
+/** A helper class for Frame. The object manages the border graphics, events,
+ *  and provides information for widget placement.
+ *
+ *  Naturally the client only needs to concern themselves mostly with the
+ *  title, styling, and click event function.
+ */
+class FrameBorder final : public FrameDecoration {
+public:
+    VectorI widget_start() const override;
+
+    VectorI location() const override;
+
+    int width() const override;
+
+    int height() const override;
+
+    EventResponseSignal process_event(const Event &) override;
+
+    void set_location(int x, int y) override;
 
     // takes styles from frame
-    void stylize(const StyleMap &);
+    void stylize(const StyleMap &) override;
 
     void set_size(int w, int h);
 
@@ -161,6 +251,10 @@ public:
     /** Resets the register click event function back to its default value. */
     void reset_register_click_event();
 
+    void set_click_inside_event(ClickFunctor && bfunc) override {
+        set_register_click_event(std::move(bfunc));
+    }
+
     void update_geometry();
 
     /** @return the pixels needed to be set aside for rendering the title's
@@ -171,15 +265,20 @@ public:
     int title_width_accommodation() const noexcept;
 
     /** @return the pixel width available for widgets */
-    int width_available_for_widgets() const noexcept;
+    int width_available_for_widgets() const override;
 
-    void set_border_size(float pixels);
+    void draw(WidgetRenderer &) const override;
 
-    void draw(WidgetRenderer &) const;
+    void request_size(int w, int h) override
+        { set_size(w, h); }
+
+    void on_geometry_update() override
+        { update_geometry(); }
+
+    int minimum_width() const override
+        { return title_width_accommodation(); }
 
 private:
-    void update_drag_position(int drect_x, int drect_y) override;
-
     int title_height() const noexcept;
 
     void check_should_update_drag(const Event &);
@@ -189,7 +288,6 @@ private:
     int outer_padding() const noexcept;
 
     int m_outer_padding = styles::k_uninit_size;
-    bool m_recently_dragged = false;
 
     sf::IntRect m_back, m_title_bar, m_widget_body;
     ItemKey m_back_style, m_title_bar_style, m_widget_body_style;
@@ -206,4 +304,4 @@ void FrameBorder::set_register_click_event(Func && f) {
     m_click_in_frame = std::move(f);
 }
 
-} // end of ksg namespace
+} // end of asgl namespace

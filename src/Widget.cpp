@@ -31,16 +31,6 @@ namespace {
 using RtError = std::runtime_error;
 using InvArg  = std::invalid_argument;
 
-asgl::WidgetFlagsUpdater * s_default_flags_updater_ptr = [] () {
-    class NullFlagsUpdater final : public asgl::WidgetFlagsUpdater {
-        void receive_geometry_needs_update_flag() override {}
-        bool needs_geometry_update() const override { return false; }
-        void set_needs_redraw_flag() override {}
-    };
-    static NullFlagsUpdater inst;
-    return &inst;
-} ();
-
 } // end of <anonymous> namespace
 
 namespace asgl {
@@ -48,6 +38,16 @@ namespace asgl {
 ChildWidgetIterator::~ChildWidgetIterator() {}
 
 WidgetRenderer::~WidgetRenderer() {}
+
+/* static */ WidgetFlagsUpdater & WidgetFlagsUpdater::null_instance() {
+    class NullFlagsUpdater final : public asgl::WidgetFlagsUpdater {
+        void receive_geometry_needs_update_flag() override {}
+        bool needs_geometry_update() const override { return false; }
+        void set_needs_redraw_flag() override {}
+    };
+    static NullFlagsUpdater inst;
+    return inst;
+}
 
 WidgetFlagsUpdater::~WidgetFlagsUpdater() {}
 
@@ -75,16 +75,11 @@ void Widget::iterate_children(ChildWidgetIterator & itr) const
     { iterate_children_const_(itr); }
 
 void Widget::assign_flags_updater(WidgetFlagsUpdater * ptr) {
-    m_flags_updater = (ptr == nullptr) ? s_default_flags_updater_ptr : ptr;
-}
-
-void Widget::draw(WidgetRenderer & target) const {
-    if (!is_visible()) return;
-    draw_(target);
+    m_flags_updater = (ptr == nullptr) ? &WidgetFlagsUpdater::null_instance() : ptr;
 }
 
 /* protected */ Widget::Widget():
-    m_flags_updater(s_default_flags_updater_ptr)
+    m_flags_updater(&WidgetFlagsUpdater::null_instance())
 {}
 
 /* protected */ void Widget::iterate_children_(ChildWidgetIterator &) {}
@@ -159,22 +154,6 @@ void Widget::draw(WidgetRenderer & target) const {
         throw make_error("padding must be a non-negative integer.");
     }
     return field->as<int>();
-}
-
-/* static */ std::shared_ptr<const sf::Font> Widget::Helpers::verify_required_font
-    (const StyleField * field, const char * full_caller)
-{
-    using FontPtr = std::shared_ptr<const sf::Font>;
-    auto make_error = [full_caller](const char * msg)
-        { return RtError(std::string(full_caller) + ": " + msg); };
-    if (!field) {
-        throw make_error("could not find required font in style map.");
-    } else if (!field->is_type<FontPtr>()) {
-        throw make_error("specified style field is not a font.");
-    } else if (!field->as<FontPtr>()) {
-        throw make_error("font field must point to a font (is nullptr).");
-    }
-    return field->as<FontPtr>();
 }
 
 } // end of asgl namespace

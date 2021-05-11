@@ -111,6 +111,23 @@ void ProgressBar::set_fill_amount(float fill_amount) {
 
 float ProgressBar::fill_amount() const { return m_fill_amount; }
 
+void ProgressBar::draw(WidgetRenderer & renderer) const {
+    verify_padding_set("draw");
+    renderer.render_rectangle(m_bounds, m_outer_style, this);
+    if (m_inner_bounds.width == 0) return;
+
+    int fill_len = int(std::round( float(m_inner_bounds.width)*m_fill_amount ));
+    int void_len = m_inner_bounds.width - fill_len;
+
+    auto inner_copy = m_inner_bounds;
+    inner_copy.width = fill_len;
+    renderer.render_rectangle(inner_copy, m_fill_style, this);
+
+    inner_copy.left += fill_len;
+    inner_copy.width = void_len;
+    renderer.render_rectangle(inner_copy, m_void_style, this);
+}
+
 /* private */ void ProgressBar::set_location_(int x, int y) {
     m_bounds.left = x;
     m_bounds.top  = y;
@@ -129,23 +146,6 @@ float ProgressBar::fill_amount() const { return m_fill_amount; }
 
     m_inner_bounds.width  = m_bounds.width  - m_padding*2;
     m_inner_bounds.height = m_bounds.height - m_padding*2;
-}
-
-/* private */ void ProgressBar::draw_(WidgetRenderer & renderer) const {
-    verify_padding_set("draw");
-    renderer.render_rectangle(m_bounds, m_outer_style, this);
-    if (m_inner_bounds.width == 0) return;
-
-    int fill_len = int(std::round( float(m_inner_bounds.width)*m_fill_amount ));
-    int void_len = m_inner_bounds.width - fill_len;
-
-    auto inner_copy = m_inner_bounds;
-    inner_copy.width = fill_len;
-    renderer.render_rectangle(inner_copy, m_fill_style, this);
-
-    inner_copy.left += fill_len;
-    inner_copy.width = void_len;
-    renderer.render_rectangle(inner_copy, m_void_style, this);
 }
 
 /* private */ void ProgressBar::verify_padding_set(const char * caller) const {

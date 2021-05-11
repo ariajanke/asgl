@@ -46,6 +46,7 @@ UString TextButton::give_cleared_string()
     { return m_text.give_cleared_string(); }
 
 void TextButton::stylize(const StyleMap & stylemap) {
+    using Frame = Frame;
     Button::stylize(stylemap);
     TextArea::set_required_text_fields(
         m_text, stylemap.find(styles::k_global_font),
@@ -55,13 +56,13 @@ void TextButton::stylize(const StyleMap & stylemap) {
 
 const UString & TextButton::string() const { return m_text.string(); }
 
-/* private */ void TextButton::issue_auto_resize() {
-    set_size(m_text.width() + padding()*2, m_text.height() + padding()*2);
+void TextButton::draw(WidgetRenderer & target) const {
+    Button::draw(target);
+    m_text.draw_to(target);
 }
 
-/* private */ void TextButton::draw_(WidgetRenderer & target) const {
-    Button::draw_(target);
-    m_text.draw_to(target);
+/* private */ void TextButton::issue_auto_resize() {
+    set_size(m_text.width() + padding()*2, m_text.height() + padding()*2);
 }
 
 /* private */ void TextButton::on_geometry_update() {

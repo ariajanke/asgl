@@ -24,31 +24,31 @@
 
 #include <asgl/FocusWidget.hpp>
 
-#include <SFML/Window/Event.hpp>
-
-#include <cassert>
+namespace {
 
 using asgl::detail::FocusWidgetAtt;
+
+} // end of <anonymous> namespace
 
 namespace asgl {
 
 namespace detail {
 
-/* static */ void FocusWidgetAtt::notify_focus_gained(FocusWidget & fwidget) {
+/* static */ void FocusWidgetAtt::notify_focus_gained(FocusReceiver & fwidget) {
     fwidget.m_has_focus = true;
     fwidget.notify_focus_gained();
 }
 
-/* static */ void FocusWidgetAtt::notify_focus_lost(FocusWidget & fwidget) {
+/* static */ void FocusWidgetAtt::notify_focus_lost(FocusReceiver & fwidget) {
     fwidget.m_has_focus = false;
     fwidget.notify_focus_lost();
 }
 
-} // end of detail namespace
+} // end of detail namespace -> into ::asgl
 
-FocusWidget::~FocusWidget() {}
+FocusReceiver::~FocusReceiver() {}
 
-bool FocusWidget::reset_focus_request() {
+bool FocusReceiver::reset_focus_request() {
     bool rv = m_request_focus;
     m_request_focus = false;
     return rv;
@@ -119,7 +119,7 @@ void FrameFocusHandler::process_event(const Event & event) {
     }
 }
 
-void FrameFocusHandler::take_widgets_from(std::vector<FocusWidget *> & widgets) {
+void FrameFocusHandler::take_widgets_from(std::vector<FocusReceiver *> & widgets) {
     m_focus_widgets.clear();
     m_focus_widgets.swap(widgets);
     m_current_position = m_focus_widgets.end();
@@ -146,6 +146,6 @@ void FrameFocusHandler::clear_focus_widgets() {
     return false;
 }
 
-} // end of detail namespace
+} // end of detail namespace -> into ::asgl
 
 } // end of asgl namespace

@@ -34,7 +34,7 @@
 #include <asgl/TextButton.hpp>
 #include <asgl/OptionsSlider.hpp>
 
-#include <asgl/SfmlFlatRenderer.hpp>
+#include <asgl/sfml/SfmlEngine.hpp>
 
 #include <SFML/Graphics/RenderWindow.hpp>
 #include <SFML/Window/Event.hpp>
@@ -158,7 +158,7 @@ int main() {
         sf::Event event;
         while (window.pollEvent(event)) {
             for (auto & frame : frame_list) {
-                frame->process_event(asgl::convert(
+                frame->process_event(asgl::SfmlFlatEngine::convert(
                     frame == frame_list.back() ? event : filter_mouse_only_events(event)));
             }
             if (requesting_focus) {

@@ -30,15 +30,14 @@ namespace asgl {
 
 /** An Arrow Button is a clickable button with an arrow facing in one of four
  *  possible directions.
+ *  @note While it is up to the renderer on what to do with triangle shape,
+ *        this button will maintain its geometry regardless.
  */
 class ArrowButton final : public Button {
 public:
-    enum StylesEnum {
-        k_triangle_style, k_style_count
-    };
-    using DefaultStyles = styles::StyleKeysEnum<StylesEnum, k_style_count>;
+    enum StylesEnum { k_triangle_style, k_style_count };
     inline static StyleKey to_key(StylesEnum e)
-        { return DefaultStyles::to_key(e); }
+        { return styles::StyleKeysEnum<StylesEnum, k_style_count>::to_key(e); }
 
     enum class Direction {
         k_up, k_down, k_right, k_left,
@@ -47,21 +46,34 @@ public:
 
     ArrowButton();
 
+    /** Changes the direction of the button, a lone point of the triangle will
+     *  appear on the "nside" of the button where "n" is the direction.
+     *  @param dir_ new direction of the button
+     */
     void set_direction(Direction dir_);
 
+    /** @returns currect direction of the arrow. */
     Direction direction() const { return m_dir; }
 
-    void process_event(const Event & evnt) override;
+    /** Arrow button ignores events if its direction is "k_none". Otherwise it
+     *  behaves like a regular button.
+     */
+    void process_event(const Event &) override;
 
+    /** The arrow itself takes an ItemKey style, which is then sent to the
+     *  widget renderer/engine.
+     */
     void stylize(const StyleMap &) override;
 
-    void set_arrow_style(ItemKey);
+    // maybe "reinstated" still though, stylize will overwrite any value given!
+    [[deprecated]] void set_arrow_style(ItemKey);
 
+    /** Rearranges geometric internals. */
     void on_geometry_update() override;
 
-private:
-    void draw_(WidgetRenderer &) const override;
+    void draw(WidgetRenderer &) const override;
 
+private:
     void update_points();
 
     ItemKey m_triangle_style;
@@ -69,4 +81,4 @@ private:
     Direction m_dir;
 };
 
-} // end of ksg namespace
+} // end of asgl namespace

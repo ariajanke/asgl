@@ -55,9 +55,9 @@
 #pragma once
 
 #include <asgl/Text.hpp>
-
-#include <asgl/DrawCharacter.hpp>
 #include <asgl/StyleMap.hpp>
+
+#include "SfmlDrawCharacter.hpp"
 
 #include <common/MultiType.hpp>
 
@@ -72,6 +72,8 @@ namespace asgl {
 
 class SfmlFont;
 
+namespace detail {
+
 class TextWithFontStyle {
 public:
     struct FontStyle {
@@ -83,17 +85,7 @@ public:
     };
     using FontStyleMap = std::map<ItemKey, FontStyle>;
 
-    void stylize(ItemKey itemkey) {
-        if (m_font_styles.expired()) {
-            throw std::runtime_error("");
-        }
-        auto ptr = m_font_styles.lock();
-        auto itr = ptr->find(itemkey);
-        if (itr == ptr->end()) {
-            throw std::runtime_error("");
-        }
-        set_character_size_and_color(itr->second.character_size, itr->second.color);
-    }
+    void stylize(ItemKey itemkey);
 
     virtual void set_character_size_and_color(int char_size, sf::Color) = 0;
 
@@ -103,8 +95,6 @@ public:
 private:
     std::weak_ptr<FontStyleMap> m_font_styles;
 };
-
-namespace detail {
 
 /** This helper class is used by an internal algorithm, by the SfmlText class.
  */
@@ -122,8 +112,6 @@ public:
     virtual void take_old_container(UCharIterVector &&) {}
 };
 
-} // end of detail namespace
-
 /** The following is a rewrite/extention/retraction of Laurent Gomila's
  *  sf::Text class.
  *
@@ -136,17 +124,17 @@ public:
  *  - handles multi line text restricted by width.
  *  - automatic word wrapping (greedy) based on restricted width
  */
-class SfmlTextN final :
-    public TextBase, public TextWithFontStyle, public sf::Drawable
+class SfmlText final :
+    public TextBase, public detail::TextWithFontStyle, public sf::Drawable
 {
 public:
-    SfmlTextN() {}
-    SfmlTextN(const SfmlTextN &);
-    SfmlTextN(SfmlTextN &&) = default;
-    ~SfmlTextN() {}
+    SfmlText() {}
+    SfmlText(const SfmlText &);
+    SfmlText(SfmlText &&) = default;
+    ~SfmlText() {}
 
-    SfmlTextN & operator = (const SfmlTextN &);
-    SfmlTextN & operator = (SfmlTextN &&) = default;
+    SfmlText & operator = (const SfmlText &);
+    SfmlText & operator = (SfmlText &&) = default;
 
     void stylize(ItemKey itemkey) override
         { TextWithFontStyle::stylize(itemkey); }
@@ -170,7 +158,7 @@ public:
     TextSize measure_text(UStringConstIter beg, UStringConstIter end) const override;
 
     ProxyPointer clone() const override
-        { return make_clone<SfmlTextN>(*this); }
+        { return make_clone<SfmlText>(*this); }
 
     int limiting_line() const override;
 
@@ -210,8 +198,8 @@ private:
 
 class SfmlFont final : public Font {
 public:
-    using FontStyle = SfmlTextN::FontStyle;
-    using FontStyleMap = SfmlTextN::FontStyleMap;
+    using FontStyle = detail::SfmlText::FontStyle;
+    using FontStyleMap = detail::SfmlText::FontStyleMap;
     using UStringConstIter = TextBase::UStringConstIter;
 
     TextPointer fit_pointer_to_adaptor(TextPointer && ptr) const override;
@@ -230,5 +218,7 @@ private:
     std::unique_ptr<sf::Font> m_font;
     std::shared_ptr<FontStyleMap> m_font_styles;
 };
+
+} // end of detail namespace -> into ::asgl
 
 } // end of asgl namespace

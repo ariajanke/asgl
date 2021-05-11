@@ -26,36 +26,24 @@
 
 #include <asgl/Widget.hpp>
 #include <asgl/ImageWidget.hpp>
-#include <asgl/TextOld.hpp>
 
 #include <SFML/Graphics/Sprite.hpp>
+#include <SFML/Graphics/Texture.hpp>
+#include <SFML/Window/Event.hpp>
 
 #include <common/DrawRectangle.hpp>
 #include <asgl/DrawTriangle.hpp>
 
 namespace asgl {
 
-class SfmlImageResource final : public ImageResource {
-public:
-    int image_width() const override
-        { return int(texture.getSize().x); }
+namespace detail {
 
-    int image_height() const override
-        { return int(texture.getSize().y); }
+class SfmlFont;
+class SfmlImageResource;
 
-    void set_view_rectangle(sf::IntRect rect) override
-        { sprite.setTextureRect(rect); }
+} // end of detail namespace -> into ::asgl
 
-    ItemKey item_key() const override { return item; }
-
-    sf::Sprite  sprite;
-    sf::Texture texture;
-    ItemKey     item;
-};
-
-using SfmlImageResPtr   = std::shared_ptr<SfmlImageResource>;
-using SfmlRenderItem    = MultiType<DrawRectangle, DrawTriangle, SfmlImageResPtr>;
-using SfmlRenderItemMap = std::map<ItemKey, SfmlRenderItem>;
+// ---------------------- BEGINNING OF PUBLIC INTERFACE -----------------------
 
 namespace flat_colors {
 
@@ -63,9 +51,11 @@ enum ItemColorEnum {
     k_primary_light,
     k_primary_mid,
     k_primary_dark,
+
     k_secondary_light,
     k_secondary_mid,
     k_secondary_dark,
+
     k_text_color,
     k_text_color_dark,
 
@@ -75,15 +65,10 @@ enum ItemColorEnum {
     k_color_count
 };
 
-} // end of flat_colors namespace
+} // end of flat_colors namespace -> into ::asgl
 
-class SfmlFlatEngine final :
-    public WidgetRenderer, public ImageLoader
-{
+class SfmlFlatEngine final : public WidgetRenderer, public ImageLoader {
 public:
-    using ItemColorEnum = flat_colors::ItemColorEnum;
-    using ItemStyles = styles::ItemKeysEnum<ItemColorEnum, flat_colors::k_color_count>;
-
     void assign_target_and_states(sf::RenderTarget &, sf::RenderStates);
 
     void stylize(Widget &) const;
@@ -92,13 +77,21 @@ public:
 
     ItemKey add_rectangle_style(sf::Color, StyleKey);
 
-    void load_global_font(const std::string & filename) {
-        m_font_handler = std::make_shared<SfmlFont>();
-        m_font_handler->load_font(filename);
-        setup_default_styles();
-    }
+    void load_global_font(const std::string & filename);
 
     static const sf::Texture * dynamic_cast_to_texture(SharedImagePtr);
+
+    static Event convert(const sf::Event &);
+
+    // ----------------------- END OF PUBLIC INTERFACE ------------------------
+    //                         (     entire file     )
+
+    using SfmlImageResource = detail::SfmlImageResource;
+    using SfmlImageResPtr   = std::shared_ptr<SfmlImageResource>;
+    using SfmlRenderItem    = MultiType<DrawRectangle, DrawTriangle, SfmlImageResPtr>;
+    using SfmlRenderItemMap = std::map<ItemKey, SfmlRenderItem>;
+    using ItemColorEnum     = flat_colors::ItemColorEnum;
+    using ItemStyles        = styles::ItemKeysEnum<ItemColorEnum, flat_colors::k_color_count>;
 
 private:
     inline static ItemKey to_item_key(flat_colors::ItemColorEnum e)
@@ -125,8 +118,30 @@ private:
     StyleMap m_style_map;
     styles::ItemKeyCreator m_item_key_creator;
 
-    std::shared_ptr<SfmlFont> m_font_handler;
+    std::shared_ptr<detail::SfmlFont> m_font_handler;
     bool m_first_setup_done = false;
 };
+
+namespace detail {
+
+class SfmlImageResource final : public ImageResource {
+public:
+    int image_width() const override
+        { return int(texture.getSize().x); }
+
+    int image_height() const override
+        { return int(texture.getSize().y); }
+
+    void set_view_rectangle(sf::IntRect rect) override
+        { sprite.setTextureRect(rect); }
+
+    ItemKey item_key() const override { return item; }
+
+    sf::Sprite  sprite;
+    sf::Texture texture;
+    ItemKey     item;
+};
+
+} // end of detail namespace -> into ::asgl
 
 } // end of asgl namespace

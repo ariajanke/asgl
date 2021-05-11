@@ -29,10 +29,6 @@
 // needed for to_vector
 #include <SFML/System/Vector2.hpp>
 
-// Laurant, I love you buddy, but, I just wanna make my own, idk why tbh
-
-namespace sf { class Event; }
-
 namespace asgl {
 
 namespace keys {
@@ -107,13 +103,15 @@ struct KeyEventImpl {
 
 constexpr const char k_no_char_map = -1;
 
-} // end of keys namespace
+} // end of keys namespace -> into ::asgl
 
 using Key = keys::Key;
 
 namespace mouse {
-    constexpr const int k_mouse_no_location = -1;
-}  // end of mouse namespace
+
+constexpr const int k_mouse_no_location = -1;
+
+}  // end of mouse namespace -> into ::asgl
 
 struct MouseLocation {
     int x = mouse::k_mouse_no_location;
@@ -121,7 +119,6 @@ struct MouseLocation {
 };
 
 namespace mouse {
-
     enum Button {
         k_left,
         k_middle,
@@ -133,7 +130,7 @@ namespace mouse {
         Button button = k_count;
     };
 
-} // end of mouse namespace
+} // end of mouse namespace -> into ::asgl
 
 struct KeyTyped {
     char32_t code;
@@ -178,8 +175,6 @@ Key collapse_numerics(Key);
 Key collapse_modifiers(Key);
 inline Key collapse_all(Key k) { return collapse_numerics(collapse_modifiers(k)); }
 char to_char(const keys::KeyEventImpl &);
-
-Event convert(const sf::Event &);
 
 inline sf::Vector2i to_vector(const asgl::MouseLocation & loc)
     { return sf::Vector2i(loc.x, loc.y); }

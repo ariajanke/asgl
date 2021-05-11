@@ -47,6 +47,7 @@ int TextArea::height() const
     { return m_draw_text.height(); }
 
 void TextArea::stylize(const StyleMap & stylemap) {
+    using Frame = Frame;
     set_required_text_fields(
         m_draw_text, stylemap.find(styles::k_global_font),
         stylemap.find(Frame::to_key(Frame::k_widget_text_style)),
@@ -80,6 +81,9 @@ void TextArea::reset_viewport() {
 const sf::IntRect & TextArea::viewport() const
     { return m_draw_text.viewport(); }
 
+void TextArea::draw(WidgetRenderer & target) const
+    { m_draw_text.draw_to(target); }
+
 /* static */ void TextArea::set_required_text_fields
     (Text & text, const StyleField * font, const StyleField * style_key,
      const char * full_call)
@@ -108,9 +112,6 @@ const sf::IntRect & TextArea::viewport() const
 
 /* private */ void TextArea::set_location_(int x, int y)
     { m_draw_text.set_location(float(x), float(y)); }
-
-/* private */ void TextArea::draw_(WidgetRenderer & target) const
-    { m_draw_text.draw_to(target); }
 
 /* private */ void TextArea::issue_auto_resize() {}
 

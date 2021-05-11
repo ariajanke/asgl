@@ -77,9 +77,9 @@ public:
 
     void set_wrap_enabled(bool);
 
-private:
-    void draw_(WidgetRenderer &) const override;
+    void draw(WidgetRenderer &) const override;
 
+private:
     void issue_auto_resize() override;
 
     void iterate_children_(ChildWidgetIterator &) override;
@@ -118,4 +118,4 @@ private:
     bool m_wrap_enabled = false;
 };
 
-} // end of ksg namespace
+} // end of asgl namespace

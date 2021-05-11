@@ -75,6 +75,8 @@ public:
 
     void set_view_rectangle(sf::IntRect) override;
 
+    void draw(WidgetRenderer &) const override;
+
 private:
     void process_event(const Event &) override {}
 
@@ -88,10 +90,8 @@ private:
 
     void set_location_(int x, int y) override;
 
-    void draw_(WidgetRenderer &) const override;
-
     SharedImagePtr m_image;
     sf::IntRect m_bounds;
 };
 
-} // end of ksg namespace
+} // end of asgl namespace

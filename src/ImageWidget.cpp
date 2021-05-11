@@ -81,6 +81,10 @@ int ImageWidget::image_height() const
 void ImageWidget::set_view_rectangle(sf::IntRect rect)
     { verify_image_present().set_view_rectangle(rect); }
 
+void ImageWidget::draw(WidgetRenderer & target) const {
+    draw_to(target, m_bounds, item_key());
+}
+
 /* private */ ItemKey ImageWidget::item_key() const
     { return verify_image_present().item_key(); }
 
@@ -97,10 +101,6 @@ void ImageWidget::set_view_rectangle(sf::IntRect rect)
 /* private */ void ImageWidget::set_location_(int x, int y) {
     m_bounds.left = x;
     m_bounds.top  = y;
-}
-
-/* private */ void ImageWidget::draw_(WidgetRenderer & target) const {
-    draw_to(target, m_bounds, item_key());
 }
 
 } // end of asgl namespace

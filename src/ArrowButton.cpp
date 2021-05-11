@@ -24,10 +24,6 @@
 
 #include <asgl/ArrowButton.hpp>
 
-#include <SFML/Graphics/RenderTarget.hpp>
-
-#include <cassert>
-
 namespace asgl {
 
 ArrowButton::ArrowButton(): m_dir(Direction::k_none) {}
@@ -45,10 +41,11 @@ void ArrowButton::process_event(const Event & evnt) {
 
 void ArrowButton::stylize(const StyleMap & smap) {
     Button::stylize(smap);
+
     using std::make_tuple;
     Helpers::handle_required_fields("ArrowButton::stylize", {
         make_tuple(&m_triangle_style, "triangle style",
-                   smap.find(DefaultStyles::to_key(k_triangle_style)))
+                   smap.find(to_key(k_triangle_style)))
     });
 }
 
@@ -60,8 +57,8 @@ void ArrowButton::on_geometry_update() {
     update_points();
 }
 
-/* private */ void ArrowButton::draw_(WidgetRenderer & target) const {
-    Button::draw_(target);
+void ArrowButton::draw(WidgetRenderer & target) const {
+    Button::draw(target);
     if (m_dir != Direction::k_none) {
         draw_to(target, m_tri, m_triangle_style);
     }
@@ -104,4 +101,4 @@ void ArrowButton::on_geometry_update() {
     }
 }
 
-} // end of ksg namespace
+} // end of asgl namespace

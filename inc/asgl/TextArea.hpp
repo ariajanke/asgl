@@ -77,10 +77,10 @@ public:
         (Text &, const StyleField * font, const StyleField * style_key,
          const char * full_call);
 
+    void draw(WidgetRenderer &) const override;
+
 private:
     void set_location_(int x, int y) override;
-
-    void draw_(WidgetRenderer &) const override;
 
     void issue_auto_resize() override;
 
@@ -89,4 +89,4 @@ private:
     Text m_draw_text;
 };
 
-} // end of ksg namespace
+} // end of asgl namespace

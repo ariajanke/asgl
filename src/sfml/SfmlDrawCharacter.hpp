@@ -98,6 +98,6 @@ private:
     FixedLengthArray<sf::Vertex, 4> m_verticies;
 };
 
-} // end of detail namespace
+} // end of detail namespace -> into ::asgl
 
-} // end of ksg namespace
+} // end of asgl namespace

@@ -32,7 +32,7 @@
 #include <asgl/OptionsSlider.hpp>
 #include <asgl/TextButton.hpp>
 
-#include <asgl/SfmlFlatRenderer.hpp>
+#include <asgl/sfml/SfmlEngine.hpp>
 
 #include <common/StringUtil.hpp>
 #include <common/TestSuite.hpp>
@@ -43,7 +43,7 @@
 
 namespace {
 
-using asgl::Frame;
+using asgl::BareFrame;
 using asgl::TextArea;
 using asgl::OptionsSlider;
 using asgl::TextButton;
@@ -81,7 +81,7 @@ const int k_word_count = []() {
 
 using IntLims = std::numeric_limits<int>;
 
-class ParamFrame : public Frame {
+class ParamFrame : public asgl::Frame {
 public:
     virtual void on_update() = 0;
 };
@@ -159,7 +159,7 @@ private:
     TesterBase * m_tester_base = nullptr;
 };
 
-class TestFrame final : public TesterBase, public Frame {
+class TestFrame final : public TesterBase, public asgl::Frame {
 public:
     // I want to test restricted width
     void setup();
@@ -212,7 +212,7 @@ int main() {
     while (win.isOpen()) {
         sf::Event event;
         while (win.pollEvent(event)) {
-            frame.process_event(asgl::convert(event));
+            frame.process_event(asgl::SfmlFlatEngine::convert(event));
             if (event.type == sf::Event::Closed || frame.requesting_exit()) {
                 win.close();
             }
@@ -327,7 +327,9 @@ void LocationsParamsFrame::setup(TesterBase * base_ptr) {
 void TestFrame::setup() {
     if (m_first_setup) first_setup();
 
-    set_title(U"Text Area Tester App");
+    //set_title(U"Text Area Tester App");
+
+    /*get_border().*/set_title(U"Text Area Tester App");
 
     int num_of_words = k_min_words + int(m_amount_of_text.selected_option_index())*k_word_step;
     m_test_text_area.set_string(UString(k_ipsum, after_n_words(num_of_words, k_ipsum)));
@@ -340,7 +342,7 @@ void TestFrame::setup() {
 }
 
 void TestFrame::process_event(const Event & event) {
-    Frame::process_event(event);
+    BareFrame::process_event(event);
     if (m_redo_setup) {
         setup();
         m_redo_setup = false;

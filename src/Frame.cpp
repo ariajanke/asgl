@@ -34,14 +34,14 @@
 
 namespace {
 
-using VectorI = asgl::Frame::VectorI;
+using VectorI = asgl::BareFrame::VectorI;
 
 } // end of <anonymous> namespace
 
 namespace asgl {
 
 WidgetAdder::WidgetAdder
-    (Frame * frame_, detail::LineSeperator * sep_):
+    (BareFrame * frame_, detail::LineSeperator * sep_):
     m_the_line_sep(sep_),
     m_parent(frame_)
 {
@@ -132,40 +132,32 @@ void WidgetAdder::swap(WidgetAdder & rhs) {
 
 // ----------------------------------------------------------------------------
 
-/* protected */ Frame::Frame()
-    { check_invarients(); }
-
-/* protected */ Frame::Frame(const Frame & lhs):
-    m_padding(lhs.m_padding),
-    m_border (lhs.m_border )
-{}
-
-/* protected */ Frame::Frame(Frame && lhs) { swap(lhs); }
-
-Frame & Frame::operator = (const Frame & lhs) {
-    if (this != &lhs) {
-        Frame temp(lhs);
-        swap(temp);
-    }
-    return *this;
-}
-
-Frame & Frame::operator = (Frame && lhs) {
-    if (this != &lhs) swap(lhs);
-    return *this;
-}
-
-/* private */ void Frame::set_location_(int x, int y) {
-    m_border.set_location(x, y);
+/* protected */ BareFrame::BareFrame() {
+    // constructor needs to be very careful, many methods rely on decoration()
+    // which at this point, that further derived "shell" of the instance hasn't
+    // been instantiated yet
     check_invarients();
 }
 
-void Frame::process_event(const Event & event) {
-    auto gv = m_border.process_event(event);
+/* protected */ BareFrame::BareFrame(const BareFrame & lhs):
+    m_padding(lhs.m_padding)
+{}
+
+/* protected */ BareFrame::BareFrame(BareFrame && lhs)
+    { swap(lhs); }
+
+/* protected */ BareFrame::~BareFrame() {}
+
+/* protected */ void BareFrame::set_location_(int x, int y) {
+    decoration().set_location(x, y);
+    check_invarients();
+}
+
+void BareFrame::process_event(const Event & event) {
+    auto gv = decoration().process_event(event);
     if (!gv.skip_other_events) {
         for (Widget * widget_ptr : m_widgets) {
-            if (widget_ptr->is_visible())
-                widget_ptr->process_event(event);
+            widget_ptr->process_event(event);
         }
         // perhaps I should process focus requests after the fact to give
         // widgets the opportunity to make a request after an event
@@ -178,8 +170,9 @@ void Frame::process_event(const Event & event) {
     check_invarients();
 }
 
-void Frame::stylize(const StyleMap & smap) {
-    m_border.stylize(smap);
+void BareFrame::stylize(const StyleMap & smap) {
+
+    decoration().stylize(smap);
     m_padding = Helpers::verify_padding(
         smap.find(styles::k_global_padding), "Frame::stylize");
 
@@ -191,21 +184,16 @@ void Frame::stylize(const StyleMap & smap) {
     check_invarients();
 }
 
-VectorI Frame::location() const { return m_border.location(); }
+VectorI BareFrame::location() const { return decoration().location(); }
 
-int Frame::width() const { return m_border.width(); }
+int BareFrame::width() const { return decoration().width(); }
 
-int Frame::height() const { return m_border.height(); }
+int BareFrame::height() const { return decoration().height(); }
 
-void Frame::set_size(int w, int h) {
-    m_border.set_size(w, h);
-    check_invarients();
-}
-
-WidgetAdder Frame::begin_adding_widgets()
+WidgetAdder BareFrame::begin_adding_widgets()
     { return WidgetAdder(this, &m_the_line_seperator); }
 
-void Frame::finalize_widgets(std::vector<Widget *> && widgets,
+void BareFrame::finalize_widgets(std::vector<Widget *> && widgets,
     std::vector<detail::HorizontalSpacer> && spacers,
     detail::LineSeperator * the_line_sep)
 {
@@ -219,7 +207,7 @@ void Frame::finalize_widgets(std::vector<Widget *> && widgets,
     static constexpr const char * k_cannot_contain_this =
         "Frame::finalize_widgets: This frame may not contain itself.";
     for (auto * widget : widgets) {
-        if (auto * frame_widget = dynamic_cast<Frame *>(widget)) {
+        if (auto * frame_widget = dynamic_cast<BareFrame *>(widget)) {
             if (frame_widget->contains(this)) {
                 throw std::invalid_argument(k_cannot_contain_this);
             }
@@ -238,10 +226,16 @@ void Frame::finalize_widgets(std::vector<Widget *> && widgets,
     check_invarients();
 }
 
-void Frame::set_padding(float pixels)
+void BareFrame::set_register_click_event(ClickFunctor && f)
+    { decoration().set_click_inside_event(std::move(f)); }
+
+void BareFrame::reset_register_click_event()
+    { decoration().set_click_inside_event([]() { return FrameDecoration::ClickResponse(); }); }
+
+void BareFrame::set_padding(int pixels)
     { m_padding = pixels; }
 
-void Frame::check_for_geometry_updates() {
+void BareFrame::check_for_geometry_updates() {
     if (!needs_geometry_update()) return;
 
     finalize_widgets();
@@ -249,17 +243,14 @@ void Frame::check_for_geometry_updates() {
     unset_needs_geometry_update_flag();
 }
 
-void Frame::set_frame_border_size(float pixels)
-    { m_border.set_border_size(pixels); }
-
-/* protected */ void Frame::draw_(WidgetRenderer & target) const {
-    m_border.draw(target);
+void BareFrame::draw(WidgetRenderer & target) const {
+    decoration().draw(target);
     for (const auto * widget_ptr : m_widgets) {
         widget_ptr->draw(target);
     }    
 }
 
-/* private */ void Frame::finalize_widgets() {
+/* private */ void BareFrame::finalize_widgets() {
     // all size work (needed to be done first so we know where to place widgets)
     issue_auto_resize();
 
@@ -272,12 +263,12 @@ void Frame::set_frame_border_size(float pixels)
     // note: there is no consideration given to "vertical overflow"
     // not considering if additional widgets overflow the frame's
     // height
-    std::vector<FocusWidget *> focus_widgets;
+    std::vector<FocusReceiver *> focus_widgets;
     iterate_children_f([&focus_widgets](Widget & widget) {
-        if (auto * frame = dynamic_cast<Frame *>(&widget)) {
+        if (auto * frame = dynamic_cast<BareFrame *>(&widget)) {
             frame->m_focus_handler.clear_focus_widgets();
         }
-        if (auto * focwid = dynamic_cast<FocusWidget *>(&widget)) {
+        if (auto * focwid = dynamic_cast<FocusReceiver *>(&widget)) {
             focus_widgets.push_back(focwid);
         }
     });
@@ -288,15 +279,16 @@ void Frame::set_frame_border_size(float pixels)
     check_invarients();
 }
 
-void Frame::place_widgets_to_locations() {
-    const int start_x = m_border.widget_start().x + m_padding;
+void BareFrame::place_widgets_to_locations() {
+    auto & deco = decoration();
+    const int start_x = deco.widget_start().x + padding();
     int x = start_x;
-    int y = m_border.widget_start().y + m_padding;
+    int y = deco.widget_start().y + padding();
 
     int line_height = 0;
     int pad_fix     = 0;
     auto advance_locals_to_next_line = [&]() {
-        y += line_height + m_padding;
+        y += line_height + padding();
         x = start_x;
         line_height = 0;
         pad_fix = 0;
@@ -326,17 +318,16 @@ void Frame::place_widgets_to_locations() {
     }
 
     for (Widget * widget_ptr : m_widgets) {
-        if (auto * frame_ptr = dynamic_cast<Frame *>(widget_ptr))
+        if (auto * frame_ptr = dynamic_cast<BareFrame *>(widget_ptr))
             frame_ptr->place_widgets_to_locations();
     }
 }
 
-void Frame::swap(Frame & lhs) {
+void BareFrame::swap(BareFrame & lhs) {
     std::swap(m_padding, lhs.m_padding);
-    std::swap(m_border , lhs.m_border );
 }
 
-/* private */ VectorI Frame::compute_size_to_fit() const {
+/* private */ VectorI BareFrame::compute_size_to_fit() const {
     int total_width  = 0;
     int line_width   = 0;
     int total_height = 0;
@@ -359,10 +350,10 @@ void Frame::swap(Frame & lhs) {
         }
         int width  = widget_ptr->width ();
         int height = widget_ptr->height();
-        Frame * widget_as_frame = nullptr;
+        BareFrame * widget_as_frame = nullptr;
         // should I issue auto-resize here?
         if (   width == 0 && height == 0
-            && (widget_as_frame = dynamic_cast<Frame *>(widget_ptr)))
+            && (widget_as_frame = dynamic_cast<BareFrame *>(widget_ptr)))
         {
             auto gv = widget_as_frame->compute_size_to_fit();
             width  = gv.x;
@@ -379,9 +370,9 @@ void Frame::swap(Frame & lhs) {
     }
     // we want to fit for the title's width and height also
     // accommodate for the title
-    total_height += (m_border.widget_start() - m_border.location()).y;
-    total_width = std::max(total_width, m_border.title_width_accommodation() + padding()*2);
-
+    auto & deco = decoration();
+    total_height += (deco.widget_start() - deco.location()).y;
+    total_width = std::max(total_width, deco.minimum_width() + padding()*2);
     if (!m_widgets.empty()) {
         // padding for borders + padding on end
         // during normal iteration we include only one
@@ -393,23 +384,23 @@ void Frame::swap(Frame & lhs) {
     return VectorI(total_width, total_height);
 }
 
-/* private */ bool Frame::is_horizontal_spacer
+/* private */ bool BareFrame::is_horizontal_spacer
     (const Widget * widget) const
 {
     if (m_horz_spacers.empty()) return false;
     return !(widget < &m_horz_spacers.front() || widget > &m_horz_spacers.back());
 }
 
-/* private */ bool Frame::is_line_seperator(const Widget * widget) const
+/* private */ bool BareFrame::is_line_seperator(const Widget * widget) const
     { return widget == &m_the_line_seperator; }
 
-/* private */ int Frame::get_widget_advance(const Widget * widget_ptr) const {
+/* private */ int BareFrame::get_widget_advance(const Widget * widget_ptr) const {
     bool is_special_widget = is_line_seperator(widget_ptr) ||
                              is_horizontal_spacer(widget_ptr);
     return widget_ptr->width() + (is_special_widget ? 0 : m_padding);
 }
 
-/* private */ void Frame::issue_auto_resize() {
+/* private */ void BareFrame::issue_auto_resize() {
     // ignore auto resize if the frame as a width/height already set
     for (Widget * widget_ptr : m_widgets)
         widget_ptr->issue_auto_resize();
@@ -417,56 +408,57 @@ void Frame::swap(Frame & lhs) {
     issue_auto_resize_for_frame();
 
     auto size_ = compute_size_to_fit();
-    m_border.set_size(size_.x, size_.y);
-
-    // must come before horizontal spacer updates
-    m_border.update_geometry();
+    auto & deco = decoration();
+    deco.request_size(size_.x, size_.y);
+    deco.on_geometry_update();
 
     // update horizontal spacer sizes
     update_horizontal_spacers();
 }
 
-/* private */ bool Frame::contains(const Widget * wptr) const noexcept {
+/* private */ bool BareFrame::contains(const Widget * wptr) const noexcept {
     for (const auto * widget : m_widgets) {
         if (widget == wptr) return true;
-        if (const auto * frame = dynamic_cast<const Frame *>(widget)) {
+        if (const auto * frame = dynamic_cast<const BareFrame *>(widget)) {
             if (frame->contains(wptr)) return true;
         }
     }
     return false;
 }
 
-/* private */ void Frame::iterate_children_(ChildWidgetIterator & itr) {
+/* private */ void BareFrame::iterate_children_(ChildWidgetIterator & itr) {
     for (auto * widget : m_widgets) {
         itr.on_child(*widget);
         widget->iterate_children(itr);
     }
 }
 
-/* private */ void Frame::iterate_children_const_(ChildWidgetIterator & itr) const {
+/* private */ void BareFrame::iterate_children_const_(ChildWidgetIterator & itr) const {
     for (const auto * widget : m_widgets) {
         itr.on_child(*widget);
         widget->iterate_children(itr);
     }
 }
 
-/* private */ void Frame::on_geometry_update() {
+/* private */ void BareFrame::on_geometry_update() {
     // this means there are two calls to this function during the course
     // of geometric computations
-    m_border.update_geometry();
+    decoration().on_geometry_update();
     for (auto * widget : m_widgets) {
         widget->on_geometry_update();
     }
     unset_needs_geometry_update_flag();
 }
 
-/* private */ void Frame::check_invarients() const {
+/* private */ void BareFrame::check_invarients() const {
+#   if 0
     assert(/*!is_nan(width ()) &&*/ width () >= 0.f);
     assert(/*!is_nan(height()) &&*/ height() >= 0.f);
+#   endif
 }
 
-/* private */ void Frame::update_horizontal_spacers() {
-    const int k_horz_space = m_border.width_available_for_widgets();
+/* private */ void BareFrame::update_horizontal_spacers() {
+    const int k_horz_space = decoration().width_available_for_widgets();
     const int k_start_x    = 0;
     assert(k_horz_space >= 0);
     // horizontal spacers:
@@ -511,8 +503,8 @@ void Frame::swap(Frame & lhs) {
         (line_begin, m_widgets.end(), std::max(k_horz_space - x, 0), m_padding);
 }
 
-/* private */ Frame::WidgetItr Frame::set_horz_spacer_widths
-    (WidgetItr beg, WidgetItr end, float left_over_space, float padding)
+/* private */ BareFrame::WidgetItr BareFrame::set_horz_spacer_widths
+    (WidgetItr beg, WidgetItr end, int left_over_space, int padding)
 {
     assert(left_over_space >= 0.f);
     int horz_spacer_count = 0;
@@ -525,8 +517,8 @@ void Frame::swap(Frame & lhs) {
     if (horz_spacer_count == 0) return end;
 
     // distribute left over space to spacers
-    float width_per_spacer = (left_over_space / horz_spacer_count) - padding;
-    width_per_spacer = std::max(0.f, width_per_spacer);
+    int width_per_spacer = (left_over_space / horz_spacer_count) - padding;
+    width_per_spacer = std::max(0, width_per_spacer);
     for (auto jtr = beg; jtr != end; ++jtr) {
         if (!is_horizontal_spacer(*jtr)) continue;
         auto horz_spacer = dynamic_cast<HorizontalSpacer *>(*jtr);
@@ -543,4 +535,4 @@ void Frame::swap(Frame & lhs) {
 // anchor vtable for clang
 SimpleFrame::~SimpleFrame() {}
 
-} // end of ksg namespace
+} // end of asgl namespace

@@ -75,12 +75,12 @@ public:
 
     float fill_amount() const;
 
+    void draw(WidgetRenderer &) const override;
+
 private:
     void set_location_(int x, int y) override;
 
     void on_geometry_update() override;
-
-    void draw_(WidgetRenderer &) const override;
 
     void verify_padding_set(const char * caller) const;
 
@@ -99,4 +99,4 @@ private:
     ItemKey m_outer_style;
 };
 
-} // end of ksg namespace
+} // end of asgl namespace

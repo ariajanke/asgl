@@ -22,7 +22,7 @@
 
 *****************************************************************************/
 
-#include <asgl/DrawCharacter.hpp>
+#include "SfmlDrawCharacter.hpp"
 
 #include <SFML/Graphics/RenderTarget.hpp>
 
@@ -180,7 +180,6 @@ void DrawableCharacter::cut_outside_of(const sf::FloatRect & rect) {
     if (std::equal_to<float>()(diff.x, width())) {
         return whipe_out_char();
     } else if (diff.x > 0.f) {
-        auto w = width();
         assert(diff.x < width());
         auto ratio_forward = diff.x / width();
         auto tx_width      =   m_verticies[k_top_right_index].texCoords.x
@@ -249,6 +248,6 @@ bool DrawableCharacter::whiped_out() const {
     }
 }
 
-} // end of detail namespace
+} // end of detail namespace -> into ::asgl
 
-} // end of ksg namespace
+} // end of asgl namespace

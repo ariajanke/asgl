@@ -77,6 +77,7 @@ int OptionsSlider::width() const
 int OptionsSlider::height() const { return m_inner_bounds.height; }
 
 void OptionsSlider::stylize(const StyleMap & stylemap) {
+    using Frame = Frame;
     m_left_arrow .stylize(stylemap);
     m_right_arrow.stylize(stylemap);
     TextArea::set_required_text_fields(
@@ -153,7 +154,7 @@ void OptionsSlider::set_wrap_enabled(bool b) {
     update_selections();
 }
 
-/* private */ void OptionsSlider::draw_(WidgetRenderer & target) const {
+void OptionsSlider::draw(WidgetRenderer & target) const {
     draw_to(target, m_inner_bounds, m_back);
     auto front = m_inner_bounds;
     front.top    += padding();

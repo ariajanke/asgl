@@ -54,6 +54,8 @@ public:
     bool is_watching_for_drag_events() const { return m_watch_drag_events; }
 
 protected:
+    Draggable() {}
+
     virtual ~Draggable();
 
     /** @brief mouse_move updates the Draggable with the current mouse
@@ -100,10 +102,10 @@ protected:
      *  the rectangle object that was used when calling mouse_click(), should
      *  be placed now.
      *  @see mouse_move()
-     *  @param drect_x New "should-be" X-coordinate of the rectangle object.
-     *  @param drect_y New "should-be" Y-coordinate of the rectangle object.
+     *  @param x New "should-be" X-coordinate of the rectangle object.
+     *  @param y New "should-be" Y-coordinate of the rectangle object.
      */
-    virtual void update_drag_position(int drect_x, int drect_y) = 0;
+    virtual void update_drag_position(int x, int y) = 0;
 
 private:
     bool has_position_contraints() const;

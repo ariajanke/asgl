@@ -23,21 +23,23 @@ debug {
     LIBS   += -lcommon
 }
 
-SOURCES += ../demos/textarea-tests.cpp
-
+SOURCES += ../demos/drag_frames.cpp
 
 SOURCES += \
+    \ # SFML Engine
+    ../src/sfml/SfmlEngine.cpp        \
+    ../src/sfml/SfmlDrawCharacter.cpp \
+    ../src/sfml/SfmlFontAndText.cpp   \
+    \ # main sources
     ../src/ArrowButton.cpp      \
     ../src/Button.cpp           \
     ../src/Draggable.cpp        \
-    ../src/DrawCharacter.cpp    \
     ../src/DrawTriangle.cpp     \
     ../src/Frame.cpp            \
     ../src/FrameBorder.cpp      \
     ../src/ImageWidget.cpp      \
     ../src/OptionsSlider.cpp    \
     ../src/ProgressBar.cpp      \
-    ../src/SfmlFlatRenderer.cpp \
     ../src/StyleMap.cpp         \
     ../src/TextArea.cpp         \
     ../src/TextButton.cpp       \
@@ -46,14 +48,15 @@ SOURCES += \
     ../src/EditableText.cpp     \
     ../src/FocusWidget.cpp      \
     ../src/Event.cpp            \
-    ../src/TextOld.cpp
+    ../src/SelectionMenu.cpp
 
 HEADERS += \
-    ../inc/asgl/SfmlFlatRenderer.hpp \
-    \ # private headers
-    # <none>
+    \ # private (SFML Engine) headers
+    ../src/sfml/SfmlDrawCharacter.hpp \
+    ../src/sfml/SfmlFontAndText.hpp   \
+    \ # SFML Engine
+    ../inc/asgl/sfml/SfmlEngine.hpp \
     \ # public headers
-    ../inc/asgl/DrawCharacter.hpp  \
     ../inc/asgl/ArrowButton.hpp    \
     ../inc/asgl/Button.hpp         \
     ../inc/asgl/Draggable.hpp      \
@@ -70,11 +73,11 @@ HEADERS += \
     ../inc/asgl/Text.hpp           \
     ../inc/asgl/Widget.hpp         \
     ../inc/asgl/Visitor.hpp        \
-    ../inc/asgl/ForwardWidgets.hpp \
+    ../inc/asgl/SelectionMenu.hpp  \
+    \#../inc/asgl/ForwardWidgets.hpp \
     ../inc/asgl/EditableText.hpp   \
     ../inc/asgl/FocusWidget.hpp    \
-    ../inc/asgl/Event.hpp          \
-    ../inc/asgl/TextOld.hpp
+    ../inc/asgl/Event.hpp
 
 INCLUDEPATH += \
     ../inc           \

@@ -25,16 +25,10 @@
 #pragma once
 
 #include <common/MultiType.hpp>
-#include <common/DrawRectangle.hpp>
-
-#include <SFML/Graphics/Color.hpp>
-#include <SFML/Graphics/Font.hpp>
-
-#include <asgl/Text.hpp>
 
 #include <map>
-#include <string>
 #include <memory>
+#include <vector>
 
 namespace asgl {
 
@@ -158,11 +152,11 @@ private:
     explicit ItemKey(std::size_t val): IdObject(val) {}
 };
 
+class Font;
+
 // ItemKey and StyleKey should not be considered to be the same type
 using StyleField = MultiType<
-    sf::Color, // made necessary by font/text classes
     int,
-    std::shared_ptr<const sf::Font>,
     std::weak_ptr<const Font>,
     styles::AutomaticSize
     // not ready for this
@@ -258,14 +252,6 @@ extern const StyleKey k_global_padding;
 extern const StyleKey k_global_font   ;
 
 constexpr const int k_uninit_size = -1;
-
-/** @brief  Attempts to load a font, add store it into a styles field directly.
- *  @param  filename of the font to load
- *  @return a style field, which stores a shared_ptr to the loaded font,
- *          if loading the font failed, an empty styles field is returned
- *          instead
- */
-StyleField load_font(const std::string & filename);
 
 } // end of styles namespace
 

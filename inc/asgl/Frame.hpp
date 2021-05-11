@@ -31,17 +31,10 @@
 
 namespace asgl {
 
-/** Much like the Frame class, only this one maybe instantiated, and added as
- *  a member of a class.
- */
-class SimpleFrame;
-
-class FocusWidget;
-
 class WidgetAdder {
 public:
     WidgetAdder() {}
-    WidgetAdder(Frame *, detail::LineSeperator *);
+    WidgetAdder(BareFrame *, detail::LineSeperator *);
     WidgetAdder(const WidgetAdder &) = delete;
     WidgetAdder(WidgetAdder &&);
 
@@ -62,18 +55,20 @@ private:
     std::vector<detail::HorizontalSpacer> m_horz_spacers;
     detail::LineSeperator * m_the_line_sep = nullptr;
 
-    Frame * m_parent = nullptr;
+    BareFrame * m_parent = nullptr;
 };
 
-/** @brief A frame is a collection of widgets. This class is meant to provide
- *  an interface which allows controling the entire collection as one group
- *  rather than individuals.
+/** @brief A frame is a collection of widgets. This class provides an interface
+ *         which allows controling the entire collection widgets as one group.
  *
- *  The Frame class controls widget's placement and
- *  resources. The exact size of the frame is mostly out of conrol and is
- *  subject to the constraints set by the individual widgets.
- *  By default a frame is at position (0, 0) and has no title. It will become
- *  draggable if a title is set. @n
+ *  @warning This is not intented for regular bordered, top level frames. For
+ *           a class that serves that purpose, @see the asgl::Frame class.
+ *
+ *  The Frame class controls widget's placement. The exact size of the frame
+ *  is mostly out of conrol and is subject to the constraints set by the
+ *  individual widgets.
+ *
+ *  By default a frame is at position (0, 0).
  *  @n
  *  Widget organization: @n
  *  Widgets are placed into "lines" from left to right in the order that they
@@ -84,17 +79,19 @@ private:
  *    affect the size of other widgets
  *
  *  Ownership Model: @n
- *  Frame does not own any widget (except special types spacers and line
- *  seperators). Anything that adds a widget to the Frame is responsilble for
- *  it's deletion. This class is designed, so that inheritors may have widgets
- *  as concrete fields (like any field declared as part of a class). It is
- *  however, quite possible to widgets which are dynamically allocated, they
- *  are just not owned (only 'observed'). @n
+ *  BareFrame does not own any widget (except special types spacers and line
+ *  seperators). All widgets must exist for the duration that the frame does,
+ *  with one exception. The widgets maybe deleted only as the frame is being
+ *  destroyed. For example, and inheriting class whose direct members are being
+ *  used as its widget (for this base class). @n
+ *  @n
+ *  It is quite possible to add widgets which are dynamically allocated, they
+ *  are just not owned. @n
  *  @n
  *  The following is example code showing how frame can be used compose widgets
  *  into a gui. @n
  *  @code
-class DialogBox final : public ksg::Frame {
+class DialogBox final : public asgl::Frame {
 public:
     DialogBox() {
         begin_adding_widgets()
@@ -110,7 +107,7 @@ public:
     // ...
 
 private:
-    // ... some type aliases to get rid of needing ksg::
+    // ... some type aliases to get rid of needing asgl::
     ImageWidget m_face;
     TextArea m_dialog;
     TextButton m_ok;
@@ -123,10 +120,11 @@ private:
  *        suggestion is to include a call where the widgets are added following
  *        that copy/swap construction.
  * @code
-class DialogBox final : public ksg::Frame {
+class DialogBox final : public asgl::Frame {
 public:
     DialogBox()
         { init_widgets(); }
+
     DialogBox(const DialogBox & lhs):
         Frame(lhs)
         { init_widgets(); }
@@ -151,39 +149,18 @@ public:
  *  requires switch on type for geometric computations to work for Frame
  *  old-solution used switch-on type with enums
  */
-class Frame : public FlagsReceivingWidget {
+class BareFrame : public FlagsReceivingWidget {
 public:
-    // refactoring notes:
-    // I may need to rewrite this entire class... :c
-    // logical seperations
-    // widget container
-    // frame's graphical wrapper
-    // there is also a matter of event processing
-    // - for the focus object
-    // - for everything else
-    using UString = std::u32string;
-    enum StyleEnum {
-        k_title_bar_style,
-        k_widget_body_style, k_border_size_style,
-        k_widget_text_style, k_title_text_style,
-        k_style_count
-    };
-    using DefaultStyles = styles::StyleKeysEnum<StyleEnum, k_style_count>;
-    inline static StyleKey to_key(StyleEnum e)
-        { return DefaultStyles::to_key(e); }
+    using UString      = std::u32string;
+    using ClickFunctor = FrameDecoration::ClickFunctor;
 
-    Frame & operator = (const Frame &);
-    Frame & operator = (Frame &&);
+    // style stuff should be pushed into "BorderedFrame"
+
+    BareFrame & operator = (const BareFrame &);
+    BareFrame & operator = (BareFrame &&);
 
     // <---------------------- Frame as a component -------------------------->
-private:
-    /** Sets the pixel location of the frame.
-     *  @param x the x coordinate
-     *  @param y the y coordinate
-     */
-    void set_location_(int x, int y) override;
 
-public:
     /** Processes an event. If the frame is draggable and has a title it can
      *  move with the user's mouse cursor. This function also sends events to
      *  all its widgets.
@@ -199,15 +176,6 @@ public:
     int width() const override;
 
     int height() const override;
-
-    void automatically_set_size() { set_size(0.f, 0.f); }
-
-    /** Sets the size of the containing frame. This also happens to be the
-     *  frame's border (and title) also.
-     *  @param w width in pixels
-     *  @param h height in pixels
-     */
-    void set_size(int w, int h);
 
     // <------------------ Frame specific functionality ---------------------->
 
@@ -237,55 +205,28 @@ public:
      *  may occur with this frame will fire. If function f returns
      *  k_continue_other_events, then event processing will continue normally
      *  after f returns.
-     *  @see Frame::ClickResponse
      */
-    template <typename Func>
-    void set_register_click_event(Func && f);
+    void set_register_click_event(ClickFunctor && f);
 
     /** Resets the register click event function back to its default value. */
     void reset_register_click_event();
 
-    void set_padding(float pixels);
+    void set_padding(int pixels);
 
     void check_for_geometry_updates();
 
-    // <---------------------- Frame border/title stuff ---------------------->
+    void swap(BareFrame &);
 
-    /** Sets the title of the frame.
-     *  @param str the new title of the frame
-     */
-    void set_title(const UString &);
-
-    /** @brief Sets the font size for the border title.
-     *  @param font_size font size in points
-     */
-    void set_title_size(int font_size);
-
-    /** @brief Sets frame's border size (the margins at the extremes of the
-     *         frame). Default is five pixels.
-     *  @param pixels size in pixels
-     */
-    void set_frame_border_size(float pixels);
-
-    /** @brief enable/disables the drag frame by title feature, enabled by
-     *         default if a title is present.
-     */
-    void set_drag_enabled(bool);
-
-    /** @returns true if dragging is enabled (only available if a title is
-     *           set!)
-     */
-    bool has_drag_enabled() const;
-
-    void swap(Frame &);
+    void draw(WidgetRenderer &) const override;
 
 protected:
-    Frame();
+    BareFrame();
 
-    Frame(const Frame &);
-    Frame(Frame &&);
+    BareFrame(const BareFrame &);
+    BareFrame(BareFrame &&);
 
-    void draw_(WidgetRenderer &) const override;
+    ~BareFrame();
+
     /** @brief Sometimes the most derived frame class will have it's own auto
      *         resize behavior.
      *
@@ -300,6 +241,18 @@ protected:
      */
     virtual void issue_auto_resize_for_frame() {}
 
+    /** Sets the pixel location of the frame.
+     *  @param x the x coordinate
+     *  @param y the y coordinate
+     */
+    void set_location_(int x, int y) final;
+
+    // this seems like 1000x better solution
+    // should be made private in derived class
+    virtual FrameDecoration & decoration() = 0;
+
+    virtual const FrameDecoration & decoration() const = 0;
+
 private:
     using WidgetItr = std::vector<Widget *>::iterator;
     using LineSeperator = detail::LineSeperator;
@@ -308,7 +261,7 @@ private:
     void stylize(const StyleMap &) override;
 
     WidgetItr set_horz_spacer_widths
-        (WidgetItr beg, WidgetItr end, float left_over_space, float padding);
+        (WidgetItr beg, WidgetItr end, int left_over_space, int padding);
 
     void update_horizontal_spacers();
 
@@ -344,15 +297,70 @@ private:
 
     std::vector<Widget *> m_widgets;
     int m_padding = styles::k_uninit_size;
-    // anything related to the frame's border
 
     //! unique per instance
     LineSeperator m_the_line_seperator;
     std::vector<HorizontalSpacer> m_horz_spacers;
 
-    FrameBorder m_border;
-
     detail::FrameFocusHandler m_focus_handler;
+};
+
+/** This class is intended as a top level, bordered frame, possibly with a
+ *  title.
+ *
+ *  When a title is added to a frame, it becomes draggble by default.
+ *
+ *  This class also defines many default styles used by serveral widgets.
+ */
+class Frame : public BareFrame {
+public:
+    enum StyleEnum {
+        k_title_bar_style,
+        k_widget_body_style, k_border_size_style,
+        k_widget_text_style, k_title_text_style,
+        k_style_count
+    };
+
+    inline static StyleKey to_key(StyleEnum e)
+        { return styles::StyleKeysEnum<StyleEnum, k_style_count>::to_key(e); }
+
+    /** Sets the title of the frame. */
+    void set_title(const UString &);
+
+    /** @brief enable/disables the drag frame by title feature, enabled by
+     *         default if a title is present.
+     */
+    void set_drag_enabled(bool);
+
+    /** @returns true if dragging is enabled (only available if a title is
+     *           set!)
+     */
+    bool has_drag_enabled() const;
+
+protected:
+    Frame()
+        { m_border.assign_flags_updater(this); }
+
+    Frame(const Frame & rhs):
+        BareFrame(rhs), m_border(rhs.m_border)
+    { m_border.assign_flags_updater(this); }
+
+    Frame(Frame && rhs):
+        BareFrame(std::move(static_cast<BareFrame &&>(rhs))),
+        m_border(std::move(rhs.m_border))
+    { m_border.assign_flags_updater(this); }
+
+    Frame & operator = (const Frame &) = delete;
+    Frame & operator = (Frame &&) = delete;
+
+    ~Frame() {}
+
+private:
+    FrameDecoration & decoration() final { return m_border; }
+
+    const FrameDecoration & decoration() const final { return m_border; }
+
+    FrameBorder m_border;
 };
 
 /** A Simple Frame allows creation of frames without being inherited. This can
@@ -365,27 +373,15 @@ public:
     ~SimpleFrame() override;
 };
 
-// ----------------------------------------------------------------------------
-
-inline void Frame::set_title(const UString & title)
-    { m_border.set_title(title); }
-
-inline void Frame::set_title_size(int font_size)
-    { m_border.set_title_size(font_size); }
+inline void Frame::set_title(const UString & str)
+    { m_border.set_title(str); }
 
 inline void Frame::set_drag_enabled(bool b) {
     if (b) m_border.watch_for_drag_events();
-    else m_border.ignore_drag_events();
+    else   m_border.ignore_drag_events   ();
 }
 
 inline bool Frame::has_drag_enabled() const
     { return m_border.is_watching_for_drag_events(); }
 
-template <typename Func>
-void Frame::set_register_click_event(Func && f)
-    { m_border.set_register_click_event(std::move(f)); }
-
-inline void Frame::reset_register_click_event()
-    { m_border.reset_register_click_event(); }
-
-} // end of ksg namespace
+} // end of asgl namespace

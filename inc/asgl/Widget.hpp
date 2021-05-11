@@ -27,16 +27,13 @@
 #include <asgl/StyleMap.hpp>
 #include <asgl/Event.hpp>
 
-#include <vector>
+#include <SFML/Graphics/Rect.hpp>
 
-namespace sf {
-    class Font;
-    class Event;
-}
+#include <vector>
 
 namespace asgl {
 
-class FocusWidget;
+class StyleMap;
 class Widget;
 
 /** @brief Child widget iterator enables a way to iterate all the child widgets
@@ -65,12 +62,14 @@ public:
     virtual void receive_geometry_needs_update_flag() = 0;
     virtual bool needs_geometry_update() const = 0;
     virtual void set_needs_redraw_flag() = 0;
+
+    static WidgetFlagsUpdater & null_instance();
 };
 
-#if 0
-class SfmlTextObject;
-#endif
 class TextBase;
+
+// ----------------------------------------------------------------------------
+
 using TriangleTuple = std::tuple<sf::Vector2i, sf::Vector2i, sf::Vector2i>;
 
 class WidgetRenderer {
@@ -79,9 +78,6 @@ public:
 
     virtual void render_rectangle(const sf::IntRect   &, ItemKey, const void * widget_spec_ptr) = 0;
     virtual void render_triangle (const TriangleTuple &, ItemKey, const void * widget_spec_ptr) = 0;
-#   if 0
-    [[deprecated]] virtual void render_text(const SfmlTextObject &) = 0;
-#   endif
     virtual void render_text(const TextBase &) = 0;
 };
 
@@ -102,6 +98,7 @@ public:
 
     void set_location(int x, int y);
 
+    /** @returns the top left location of the widget */
     virtual VectorI location() const = 0;
 
     virtual int width() const = 0;
@@ -130,6 +127,8 @@ public:
      */
     virtual void issue_auto_resize();
 
+    virtual void draw(WidgetRenderer &) const = 0;
+
     template <typename Func>
     void iterate_children_f(Func &&);
 
@@ -141,13 +140,8 @@ public:
 
     void iterate_children(ChildWidgetIterator &);
     void iterate_children(ChildWidgetIterator &) const;
-    void set_visible(bool v) { m_visible = v; }
-
-    bool is_visible() const { return m_visible; }
 
     void assign_flags_updater(WidgetFlagsUpdater *);
-
-    void draw(WidgetRenderer &) const;
 
     struct Helpers {
         using FieldFindTuple = std::tuple<ItemKey *, const char *, const StyleField *>;
@@ -161,10 +155,8 @@ public:
         static void verify_non_negative(int, const char * full_caller, const char * dim_name);
 
         static int verify_padding(const StyleField *, const char * full_caller);
-
-        static std::shared_ptr<const sf::Font> verify_required_font
-            (const StyleField *, const char * full_caller);
     };
+
 protected:
     Widget();
 
@@ -173,8 +165,6 @@ protected:
     virtual void iterate_children_const_(ChildWidgetIterator &) const;
 
     virtual void set_location_(int x, int y) = 0;
-
-    virtual void draw_(WidgetRenderer &) const = 0;
 
     void draw_to(WidgetRenderer &, const sf::IntRect &, ItemKey) const;
 
@@ -185,8 +175,6 @@ protected:
     void set_needs_redraw_flag();
 
 private:
-    bool m_visible = true; // I'm questioning the usefulness of this
-                           // especially this this would end up on *all* controls
     WidgetFlagsUpdater * m_flags_updater = nullptr; // safety set
 };
 
@@ -200,23 +188,13 @@ public:
 
     void unset_needs_geometry_update_flag()
         { m_geo_update_flag = false; }
+
 private:
     bool m_geo_update_flag = false;
 };
 
-#if 0
-class ResizableWidget : public Widget {
-public:
-    static constexpr const int k_widget_chooses_size = -1;
-    void set_size(int width, int height) {
-        set_needs_geometry_update_flag();
-        set_size_(width, height);
-    }
+// ----------------------------------------------------------------------------
 
-protected:
-    virtual void set_size_(int width, int height) = 0;
-};
-#endif
 template <typename Func>
 class ChildIteratorFunctor final : public ChildWidgetIterator {
 public:

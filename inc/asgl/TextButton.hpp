@@ -44,14 +44,14 @@ public:
 
     const UString & string() const;
 
+    void draw(WidgetRenderer &) const override;
+
 private:
     void issue_auto_resize() override;
-
-    void draw_(WidgetRenderer &) const override;
 
     void on_geometry_update() override;
 
     Text m_text;
 };
 
-} // end of ksg namespace
+} // end of asgl namespace
