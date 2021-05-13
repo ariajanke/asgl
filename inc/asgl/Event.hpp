@@ -179,4 +179,6 @@ char to_char(const keys::KeyEventImpl &);
 inline sf::Vector2i to_vector(const asgl::MouseLocation & loc)
     { return sf::Vector2i(loc.x, loc.y); }
 
+std::string to_string(const Event &);
+
 } // end of asgl namespace

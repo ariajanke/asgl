@@ -47,7 +47,6 @@ int TextArea::height() const
     { return m_draw_text.height(); }
 
 void TextArea::stylize(const StyleMap & stylemap) {
-    using Frame = Frame;
     set_required_text_fields(
         m_draw_text, stylemap.find(styles::k_global_font),
         stylemap.find(Frame::to_key(Frame::k_widget_text_style)),

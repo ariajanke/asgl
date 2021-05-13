@@ -122,8 +122,17 @@ void TextWithFontStyle::stylize(ItemKey itemkey) {
         throw make_error("Font styles map is missing.");
     }
     auto ptr = m_font_styles.lock();
+
     auto itr = ptr->find(itemkey);
     if (itr == ptr->end()) {
+        std::vector<ItemKey> v;
+        std::vector<FontStyle> fs;
+        for (const auto & [key, style] : *ptr) {
+            v.emplace_back(key);
+            fs.emplace_back(style);
+        }
+        int k = 0;
+        ++k;
         throw make_error("Itemkey is not found on map.");
     }
     set_character_size_and_color(itr->second.character_size, itr->second.color);
@@ -225,6 +234,14 @@ void SfmlText::update_geometry() {
     ::place_renderables(*m_font_ptr, m_string, m_limiting_line, m_char_size, *m_placer_ptr);
 }
 
+void SfmlText::set_character_size_and_color
+    (int char_size, sf::Color color)
+{
+    m_char_size = char_size;
+    m_color     = color;
+    update_geometry();
+}
+
 /* private */ void SfmlText::set_viewport_(const sf::IntRect & rect) {
     m_viewport = rect;
 }
@@ -247,14 +264,6 @@ void SfmlText::update_geometry() {
     for (const auto & dc : m_renderables) {
         target.draw(dc, states);
     }
-}
-
-/* private */ void SfmlText::set_character_size_and_color
-    (int char_size, sf::Color color)
-{
-    m_char_size = char_size;
-    m_color     = color;
-    update_geometry();
 }
 
 // ----------------------------------------------------------------------------

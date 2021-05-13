@@ -168,6 +168,8 @@ public:
 
     void update_geometry();
 
+    void set_character_size_and_color(int char_size, sf::Color) override;
+
 private:
     void set_viewport_(const sf::IntRect &) override;
 
@@ -176,8 +178,6 @@ private:
     UString give_string_() override;
 
     void draw(sf::RenderTarget & target, sf::RenderStates states) const override;
-
-    void set_character_size_and_color(int char_size, sf::Color) override;
 
     static constexpr const int   k_default_font_size = 12;
     static constexpr const float k_inf               = std::numeric_limits<float>::infinity();

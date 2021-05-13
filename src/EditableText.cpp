@@ -22,299 +22,384 @@
 
 *****************************************************************************/
 
-// !!! KEEP THIS !!!
-#if 0
-#include <ksg/EditableText.hpp>
-#include <ksg/Button.hpp>
-#include <ksg/Frame.hpp>
-#include <ksg/TextArea.hpp>
+#include <asgl/EditableText.hpp>
+#include <asgl/Frame.hpp>
+#include <asgl/TextArea.hpp>
+#include <asgl/Button.hpp>
 
-#include <SFML/Window/Event.hpp>
-#include <SFML/Graphics/RenderTarget.hpp>
+#include <cassert>
 
 namespace {
 
-using VectorF = ksg::EditableText::VectorF;
-using UString = ksg::EditableText::UString;
+using UString          = asgl::Text::UString;
+using RtError          = std::runtime_error;
+using InvArg           = std::invalid_argument;
+using UStringConstIter = asgl::Text::UStringConstIter;
+using OutOfRange       = std::out_of_range;
+using UChar            = asgl::Text::UString::value_type;
+using Text             = asgl::Text;
 
-sf::FloatRect to_rect(const DrawRectangle &);
+template <typename ... Types>
+using Tuple = std::tuple<Types...>;
+
+Tuple<bool, UStringConstIter> find_display_position
+    (const UString & display_string, const UString & entered_string);
+
+Tuple<bool, UStringConstIter> find_display_position
+    (const UString & display_string, const UString & entered_string,
+     std::size_t pos);
+
+inline bool is_control_char(UChar chr)
+    { return (chr < 32 || (chr >= 127 && chr < 256)); }
+
+inline void set_string(Text & text, UStringConstIter beg, UStringConstIter end) {
+    auto ustr = text.give_cleared_string();
+    ustr.insert(ustr.begin(), beg, end);
+    text.set_string(std::move(ustr));
+}
 
 } // end of <anonymous> namespace
 
-namespace ksg {
+namespace asgl {
 
-namespace detail {
-
-void Ellipsis::set_size(float w, float h) {
-    m_back.set_size(w, h);
-    update_dots();
+void EditableText::set_text_width(int new_width) {
+    Helpers::verify_non_negative(
+        new_width, "EditableText::set_text_width", "text width");
+    m_text_width = new_width;
+    set_needs_geometry_update_flag();
+    check_invarients();
 }
 
-void Ellipsis::set_location(float x, float y) {
-    m_back.set_position(x, y);
-    update_dots();
+void EditableText::set_text_width_to_match_empty_text() {
+    m_text_width = styles::k_uninit_size;
+    set_needs_geometry_update_flag();
+    check_invarients();
 }
 
-/* static */ VectorF Ellipsis::point_a_for(int i) {
-    float y = (i / 3) ? k_bottom_line : k_top_line;
-    switch (i % 3) {
-    case 0: return VectorF(k_hmargin + 1*k_inner_step, y);
-    case 1: return VectorF(k_hmargin + 4*k_inner_step, y);
-    case 2: return VectorF(k_hmargin + 7*k_inner_step, y);
-    }
-    throw; // reaching here is not possible, but the compiler thinks so
-}
+void EditableText::set_check_string_event(StringCheckFunc && func)
+    { m_string_check_func = std::move(func); }
 
-/* static */ VectorF Ellipsis::point_b_for(int i) {
-    switch (i % 3) {
-    case 0: return VectorF(k_hmargin + 0*k_inner_step, 0.5f);
-    case 1: return VectorF(k_hmargin + 3*k_inner_step, 0.5f);
-    case 2: return VectorF(k_hmargin + 6*k_inner_step, 0.5f);
-    }
-    throw; // reaching here is not possible, but the compiler thinks so
-}
-
-/* static */ VectorF Ellipsis::point_c_for(int i) {
-    switch (i % 3) {
-    case 0: return VectorF(k_hmargin + 2*k_inner_step, 0.5f);
-    case 1: return VectorF(k_hmargin + 5*k_inner_step, 0.5f);
-    case 2: return VectorF(k_hmargin + 8*k_inner_step, 0.5f);
-    }
-    throw; // reaching here is not possible, but the compiler thinks so
-}
-
-/* private */ void Ellipsis::update_dots() {
-    m_back.set_color(sf::Color(100, 100, 100));
-
-    auto denormalize = [this](VectorF r) {
-        r.x *= m_back.width();
-        r.y *= m_back.height();
-        return r + m_back.position();
-    };
-    for (int i = 0; i != k_dot_shape_count; ++i) {
-        m_dots[i].set_color(sf::Color(30, 40, 10));
-        m_dots[i].set_point_a(denormalize(point_a_for(i)));
-        m_dots[i].set_point_b(denormalize(point_b_for(i)));
-        m_dots[i].set_point_c(denormalize(point_c_for(i)));
-    }
-}
-
-/* private */ void Ellipsis::draw
-    (sf::RenderTarget & target, sf::RenderStates states) const
-{
-    target.draw(m_back, states);
-    for (const auto & tri : m_dots) {
-        target.draw(tri);
-    }
-}
-
-} // end of detail namespace
-
-// ----------------------------------------------------------------------------
-
-/* static */ constexpr const char * const EditableText::k_background_color   ;
-/* static */ constexpr const char * const EditableText::k_ellipsis_back_color;
-
-EditableText::EditableText() {}
-
-void EditableText::process_event(const sf::Event & event) {
-    if (event.type == sf::Event::MouseButtonPressed) {
-        VectorF pos(float(event.mouseButton.x), float(event.mouseButton.y));
-        if (to_rect(m_outer).contains(pos)) {
+void EditableText::process_event(const Event & event) {
+    switch (event.type_id()) {
+    case k_mouse_release_id:
+        if (bounds().contains(to_vector(event.as<MouseRelease>()))) {
             request_focus();
         }
+        break;
+    default: break;
     }
+    check_invarients();
 }
 
-void EditableText::set_location(float x, float y) {
-    m_outer.set_position(x, y);
-    update_geometry();
+int EditableText::width() const
+    { return text_width() + cursor_width() + m_padding*2; }
+
+int EditableText::height() const
+    { return text_height() + m_padding*2; }
+
+void EditableText::stylize(const StyleMap & stylemap) {
+    auto set_fields_for_fill_text = [&stylemap]
+        (decltype(k_style_count) style, Text & text)
+    {
+        TextArea::set_required_text_fields(
+            text, stylemap.find(styles::k_global_font),
+            stylemap.find(to_key(style), Frame::to_key(Frame::k_widget_text_style)),
+            "EditableText::stylize");
+    };
+    set_fields_for_fill_text(k_fill_text_style , m_display_left );
+    set_fields_for_fill_text(k_fill_text_style , m_display_right);
+    set_fields_for_fill_text(k_empty_text_style, m_empty_text   );
+
+    m_padding = Helpers::verify_padding
+        (stylemap.find(styles::k_global_padding), "EditableText::stylize");
+
+    using std::make_tuple;
+    Helpers::handle_required_fields("EditableText::stylize", {
+        make_tuple(&m_border_appearance, "border",
+                   stylemap.find(to_key(k_widget_border_style),
+                                 Button::to_key(Button::k_regular_back_style))),
+        make_tuple(&m_border_hover_appearance, "border (hover)",
+                   stylemap.find(to_key(k_widget_border_on_hover),
+                                 Button::to_key(Button::k_hover_back_style))),
+        make_tuple(&m_area_appearance, "text area",
+                   stylemap.find(to_key(k_text_background_style),
+                                 Frame::to_key(Frame::k_widget_text_style))),
+        make_tuple(&m_cursor_appearance, "cursor",
+                   stylemap.find(to_key(k_cursor_style),
+                                 Frame::to_key(Frame::k_widget_text_style)))
+    });
+
+    set_needs_geometry_update_flag();
 }
 
-VectorF EditableText::location() const
-    { return m_outer.position(); }
+void EditableText::on_geometry_update() {
+    const auto & any_display_text = m_display_left;
+    const auto & disp             = m_display_string;
 
-float EditableText::width() const
-    { return m_outer.width(); }
+    auto itr     = find_display_position(disp, m_entered_string, m_edit_position);
+    int on_left  = any_display_text.measure_text(disp.begin(), itr).width;
+    int on_right = any_display_text.measure_text(itr, disp.end()).width;
 
-float EditableText::height() const
-    { return m_outer.height(); }
+    m_cursor.width  = cursor_width();
+    m_cursor.height = text_height ();
 
-void EditableText::set_style(const StyleMap & map) {
-    using namespace styles;
-    if (!set_if_color_found(map, k_background_color, m_inner)) {
-        m_inner.set_color(sf::Color::White);
-    }
-    set_if_color_found(map, Button::k_regular_back_color, m_outer);
-    set_if_found(map, Button::k_regular_front_color, m_reg_color);
-    set_if_found(map, Button::k_hover_front_color, m_focus_color);
-#   if 0
-    temp = m_outer.color();
-    if (set_if_found(map, , temp)) {
-        m_outer.set_color(temp);
-    }
-    if (auto * color = find<sf::Color>(map, k_background_color)) {
-        m_inner.set_color(*color);
-    }
-    if (auto * color = find<sf::Color>(map, Button::k_regular_back_color)) {
-        m_outer.set_color(*color);
-    }
-    if (auto * color = find<sf::Color>(map, Button::k_regular_front_color)) {
-        m_reg_color = *color;
-    }
-    if (auto * color = find<sf::Color>(map, Button::k_hover_front_color)) {
-        m_focus_color = *color;
-    }
+    auto set_cursor_location = [this](int x_offset) {
+        m_cursor.left = m_location.x + x_offset + m_padding,
+        m_cursor.top  = m_location.y + m_padding;
+    };
 
-    if (auto * pad = find<float>(map, k_global_padding)) {
-        m_padding = *pad;
-    }
-    if (auto * text_size = find<float>(map, TextArea::k_text_size)) {
-        m_text.set_character_size(int(*text_size));
-    }
-#   endif
-    set_if_found(map, k_global_padding, m_padding);
-    m_inner_padding = 2.f;
-    set_if_numeric_found(map, TextArea::k_text_size, m_text);
-#   if 0
-    float text_size = styles::get_unset_value<float>();
-    set_if_found(map, TextArea::k_text_size, text_size);
-#   endif
-    m_text.assign_font(map, k_global_font);
-    update_geometry();
-}
-
-void EditableText::set_width(float w) {
-    m_outer.set_width(w);
-    update_geometry();
-}
-
-void EditableText::set_text(const UString & str) {
-    m_text.set_string(str);
-    update_geometry();
-}
-
-void EditableText::set_string(const UString & ustr) {
-    m_text.set_string(ustr);
-    update_geometry();
-}
-
-void EditableText::set_cursor_position(int) {
-
-}
-
-int EditableText::character_count() const
-    { return m_text.character_size(); }
-
-const UString & EditableText::text() const
-    { return m_text.string(); }
-
-const UString & EditableText::string() const
-    { return m_text.string(); }
-
-void EditableText::set_character_size(int size)
-    { m_text.set_character_size(size); }
-
-void EditableText::set_character_filter(CharFilterFunc && f)
-    { m_filter_func = std::move(f); }
-
-void EditableText::set_text_change_event(BlankFunc && f)
-    { m_change_text_func = std::move(f); }
-
-float EditableText::max_text_width() const
-    { return width() - padding()*2.f - inner_padding()*2.f; }
-
-void EditableText::process_focus_event(const sf::Event & event) {
-    if (event.type == sf::Event::TextEntered) {
-        if (event.text.unicode < 10) return;
-
-        bool needed_ellipsis = need_ellipsis();
-        UString new_string;
-        new_string.reserve(1 + m_text.string().size());
-        new_string = m_text.string();
-        new_string.push_back(event.text.unicode);
-
-        if (m_filter_func(new_string)) {
-            m_text.set_string(new_string);
-            update_cursor();
-            if (need_ellipsis() != needed_ellipsis) {
-                update_geometry();
-            }
-            m_change_text_func();
+    set_string(m_display_left , disp.begin(), itr);
+    set_string(m_display_right, itr, disp.end());
+    m_display_left.set_location( m_location + VectorI(1, 1)*m_padding );
+    if (on_left + on_right <= text_width()) {
+        // no ellipse
+        set_cursor_location(on_left);
+        m_display_right.set_location(
+            m_display_left.location() + VectorI(on_left + cursor_width(), 0) );
+    } else {
+        int set_aside_right = on_right;
+        if (on_right > text_width() / 2) {
+            set_aside_right = text_width() / 2;
         }
+
+        int set_aside_left = text_width() - set_aside_right;
+        sf::IntRect left_viewport((on_left + on_right) - set_aside_left, 0,
+                                  set_aside_left, text_height());
+        sf::IntRect right_viewport(0, 0, set_aside_right, text_height());
+
+        set_cursor_location(set_aside_left);
+        m_display_right.set_location(
+            m_display_left.location() + VectorI(set_aside_left + cursor_width(), 0) );
+        m_display_left .set_viewport(left_viewport );
+        m_display_right.set_viewport(right_viewport);
     }
-    if (event.type == sf::Event::KeyPressed) {
-        if (event.key.code == sf::Keyboard::BackSpace && !m_text.string().empty()) {
-            auto new_string = m_text.string();
-            new_string.pop_back();
-            m_text.set_string(new_string);
-            update_cursor();
-        }
+
+    check_invarients();
+}
+
+void EditableText::draw(WidgetRenderer & target) const {
+    draw_to(target, bounds(),
+            has_focus() ? m_border_hover_appearance : m_border_appearance);
+    auto inner = bounds();
+    set_top_left(inner, m_location + VectorI(1, 1)*m_padding);
+    inner.width -= m_padding*2;
+    inner.height -= m_padding*2;
+    draw_to(target, inner, m_area_appearance);
+    if (m_display_left.string().empty() && m_display_right.string().empty()) {
+        m_empty_text.draw_to(target);
+    } else {
+        m_display_left.draw_to(target);
+        m_display_right.draw_to(target);
+    }
+    if (has_focus()) {
+        draw_to(target, m_cursor, m_cursor_appearance);
     }
 }
 
-void EditableText::notify_focus_gained()
-    { m_outer.set_color(m_focus_color); }
+void EditableText::set_empty_string(const UString & empt_str) {
+    m_empty_text.set_string(empt_str);
+}
 
-void EditableText::notify_focus_lost()
-    { m_outer.set_color(m_reg_color); }
+void EditableText::set_entered_string(const UString & new_string) {
+    auto disp = std::move(m_display_string);
+    bool all_good = false;
+    if (( all_good = m_string_check_func(new_string, disp) )) {
+        m_display_string = std::move(disp);
+        m_entered_string = new_string;
+    }
 
-/* private */ void EditableText::draw
-    (sf::RenderTarget & target, sf::RenderStates states) const
+    set_needs_geometry_update_flag();
+    check_invarients();
+    if (!all_good) {
+        throw InvArg("EditableText::set_entered_string: string entered was "
+                     "not accepted by the set string checker function."     );
+    }
+}
+
+const UString & EditableText::entered_string() const
+    { return m_entered_string; }
+
+/* static */ bool EditableText::default_check_string_event
+    (const UString & new_string, UString & display_string)
 {
-    target.draw(m_outer, states);
-    target.draw(m_inner, states);
-    target.draw(m_text , states);
-    if (need_ellipsis()) { target.draw(m_ellipsis, states); }
-    if (has_focus    ()) { target.draw(m_cursor  , states); }
-}
-
-/* private */ void EditableText::update_geometry() {
-    if (width() == 0.f || !m_text.has_font_assigned()) {
-        return;
+    if (std::any_of(new_string.begin(), new_string.end(), is_control_char)) {
+        return false;
     }
-
-    auto total_height = padding()*2.f + inner_padding()*2.f + m_text.line_height();
-    m_outer.set_height(total_height);
-    m_inner.set_size(width() - padding()*2.f, total_height - padding()*2.f);
-    m_text.set_limiting_height(m_text.line_height());    
-    m_text.set_limiting_width(
-        max_text_width() - (need_ellipsis() ? m_ellipsis.width() : 0.f));
-
-    auto inner_loc = location() + padding()*VectorF(1.f, 1.f);
-    m_inner.set_position(inner_loc);
-    m_text .set_location(inner_loc + inner_padding()*VectorF(1.f, 1.f));
-
-    m_ellipsis.set_location(inner_loc.x, inner_loc.y);
-    m_ellipsis.set_size(m_inner.height() * 1.5f, m_inner.height());
-
-    update_cursor();
+    display_string = new_string;
+    return true;
 }
 
-/* private */ void EditableText::update_cursor() {
-    m_cursor.set_position(m_text.character_location(m_text.string().size()));
-    m_cursor.set_size    (m_text.line_height() / 3.f, m_text.line_height());
-    m_cursor.set_color   (sf::Color::Black);
+/* static */ bool EditableText::is_display_string_ok
+    (const UString & display_string, const UString & entered_string)
+{ return std::get<0>(::find_display_position(display_string, entered_string)); }
+
+/* static */ UStringConstIter EditableText::find_display_position
+    (const UString & display_string, const UString & entered_string,
+     std::size_t pos)
+{
+    auto gv = ::find_display_position(display_string, entered_string, pos);
+    if (!std::get<0>(gv)) {
+        throw InvArg("EditableText::find_display_position: provided display "
+                     "string does not contain an in-order sub-sequence that "
+                     "is equivalent to the entered string.");
+    }
+    return std::get<1>(gv);
 }
 
-/* private */ float EditableText::padding() const noexcept
-    { return std::max(0.f, m_padding); }
+/* private */ void EditableText::process_focus_event(const Event & event) {
+    switch (event.type_id()) {
+    case k_key_typed_id:
+        handle_focused_key_typed(event.as<KeyTyped>());
+        break;
+    case k_key_press_id:
+        handle_focused_key_press(event.as<KeyPress>());
+        break;
+    default: break;
+    }
+    check_invarients();
+}
 
-/* private */ float EditableText::inner_padding() const noexcept
-    { return std::max(0.f, m_inner_padding); }
+/* private */ void EditableText::notify_focus_gained() {}
 
-} // end of ksg namespace
+/* private */ void EditableText::notify_focus_lost() {}
+
+/* private */ int EditableText::text_width() const {
+    if (m_text_width == styles::k_uninit_size) {
+        return m_empty_text.full_width();
+    }
+    return m_text_width;
+}
+
+/* private */ int EditableText::text_height() const {
+    const static UString k_sample_text = U"a";
+    const auto & any_display_text = m_display_left;
+    return any_display_text.measure_text(
+        k_sample_text.begin(), k_sample_text.end()).height;
+}
+
+/* private */ void EditableText::check_invarients() const {
+    assert(is_display_string_ok(m_display_string, m_entered_string));
+    assert(m_padding >= 0);
+    assert(m_text_width >= 0 || m_text_width == styles::k_uninit_size);
+}
+
+/* private */ void EditableText::handle_focused_key_typed(const KeyTyped & keytyped) {
+    auto ustr = std::move(m_entered_string);
+    {
+    auto disp = m_display_string;
+    ustr.insert(ustr.begin() + m_edit_position, keytyped.code);
+    if (m_string_check_func(ustr, disp)) {
+        ++m_edit_position;
+        m_display_string = std::move(disp);
+    } else {
+        ustr.erase(ustr.begin() + m_edit_position);
+    }
+    }
+    set_needs_geometry_update_flag();
+    if (!is_display_string_ok(m_display_string, ustr)) {
+        m_display_string = U"";
+        check_invarients();
+        throw RtError("EditableText::process_focus_event: string check "
+                      "function returned a display string which does not "
+                      "contain the entered string's character in the same "
+                      "sequence.");
+    }
+    m_entered_string = std::move(ustr);
+}
+
+/* private */ void EditableText::handle_focused_key_press(const KeyPress & keypress) {
+    switch (keypress.key) {
+    case keys::k_delete:
+        if (m_entered_string.size() != m_edit_position) {
+            (void)delete_character_at(m_edit_position);
+            set_needs_geometry_update_flag();
+        }
+        break;
+    case keys::k_backspace:
+        if (0 != m_edit_position) {
+            if (delete_character_at(m_edit_position - 1))
+                --m_edit_position;
+            set_needs_geometry_update_flag();
+        }
+        break;
+    case keys::k_end:
+        m_edit_position = m_entered_string.size();
+        set_needs_geometry_update_flag();
+        break;
+    case keys::k_home:
+        m_edit_position = 0;
+        set_needs_geometry_update_flag();
+        break;
+    case keys::k_left:
+        if (m_edit_position != 0) {
+            --m_edit_position;
+            set_needs_geometry_update_flag();
+        }
+        break;
+    case keys::k_right:
+        if (m_edit_position != m_entered_string.size()) {
+            ++m_edit_position;
+            set_needs_geometry_update_flag();
+        }
+        break;
+    default: break;
+    }
+}
+
+/* private */ bool EditableText::delete_character_at(std::size_t p) {
+    assert(p < m_entered_string.size());
+    auto chr_deleted = m_entered_string[p];
+    m_entered_string.erase(m_entered_string.begin() + p);
+    auto disp = m_display_string;
+    if (!m_string_check_func(m_entered_string, disp)) {
+        m_entered_string.insert(m_entered_string.begin() + p, chr_deleted);
+        assert(m_string_check_func(m_entered_string, disp));
+        return false;
+    }
+    m_display_string = std::move(disp);
+    return true;
+}
+
+/* private */ sf::IntRect EditableText::bounds() const
+    { return sf::IntRect(location().x, location().y, width(), height()); }
+
+} // end of asgl namespace
 
 namespace {
 
-sf::FloatRect to_rect(const DrawRectangle & drect) {
-    sf::FloatRect rv;
-    rv.top    = drect.y     ();
-    rv.left   = drect.x     ();
-    rv.width  = drect.width ();
-    rv.height = drect.height();
-    return rv;
+Tuple<bool, UStringConstIter> find_display_position
+    (const UString & display_string, const UString & entered_string)
+{
+    return find_display_position(display_string, entered_string,
+                                 entered_string.size());
+}
+
+Tuple<bool, UStringConstIter> find_display_position
+    (const UString & display_string, const UString & entered_string,
+     std::size_t pos)
+{
+    using std::make_tuple;
+    if (pos > entered_string.size()) {
+        throw OutOfRange("EditableText::right_before_next: given position is "
+                         "outside the string.");
+    }
+
+    assert(display_string.size() >= entered_string.size());
+    auto disp_itr = display_string.begin();
+    auto entr_itr = entered_string.begin();
+    for (; entr_itr != entered_string.end(); ++entr_itr) {
+        while (*entr_itr != *disp_itr) {
+            ++disp_itr;
+            if (disp_itr == display_string.end()) {
+                return make_tuple(false, UStringConstIter());
+            }
+        }
+        if (pos == 0) return make_tuple(true, disp_itr);
+        --pos;
+        ++disp_itr;
+    }
+    if (pos == 0) return make_tuple(true, disp_itr);
+    return make_tuple(false, UStringConstIter());
 }
 
 } // end of <anonymous> namespace
-#endif

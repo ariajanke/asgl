@@ -186,7 +186,6 @@ void FrameBorder::set_location(int x, int y) {
 
 void FrameBorder::stylize(const StyleMap & smap) {
     using namespace styles;
-    using Frame = Frame;
     TextArea::set_required_text_fields(
         m_title, smap.find(styles::k_global_font),
         smap.find(Frame::to_key(Frame::k_title_text_style)),

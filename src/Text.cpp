@@ -33,10 +33,10 @@ using ItemKey  = asgl::ItemKey;
 
 constexpr const int k_int_max = std::numeric_limits<int>::max();
 
-/* anonymous */ class NullTextN final : public TextBase {
+/* anonymous */ class NullText final : public TextBase {
 public:
-    static NullTextN & instance() {
-        static NullTextN inst;
+    static NullText & instance() {
+        static NullText inst;
         return inst;
     }
 
@@ -89,12 +89,12 @@ private:
                        + ": cannot call this method on the null instance.");
     }
 
-    NullTextN() {}
+    NullText() {}
 };
 
 // ----------------------------------------------------------------------------
 
-/* anonymous */ class BasicTextN final : public TextBase {
+/* anonymous */ class BasicText final : public TextBase {
 public:
     const UString & string() const override
         { return m_string; }
@@ -121,7 +121,7 @@ public:
         { return TextSize(); }
 
     ProxyPointer clone() const override
-        { return make_clone<BasicTextN>(*this); }
+        { return make_clone<BasicText>(*this); }
 
     void set_viewport_(const sf::IntRect & port) override
         { m_viewport = port; }
@@ -148,15 +148,15 @@ private:
 namespace asgl {
 
 void TextBase::ProxyDeleter::operator () (TextBase * ptr) const {
-    if (ptr == &NullTextN::instance()) return;
+    if (ptr == &NullText::instance()) return;
     delete ptr;
 }
 
 /* static */ TextBase::ProxyPointer TextBase::Helpers::make_default_instance()
-    { return NullTextN::instance().clone(); }
+    { return NullText::instance().clone(); }
 
 /* static */ TextBase::ProxyPointer TextBase::Helpers::make_basic_instance()
-    { return ProxyPointer(new BasicTextN()); }
+    { return ProxyPointer(new BasicText()); }
 
 void TextBase::set_string(const UString & str) {
     UString temp;

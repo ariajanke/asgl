@@ -22,152 +22,193 @@
 
 *****************************************************************************/
 
-// off until I get that first demo program running!
-// !!! KEEP THIS !!!
-#if 0
 #pragma once
 
-#include <ksg/Widget.hpp>
-#include <ksg/Text.hpp>
-#include <ksg/FocusWidget.hpp>
-#include <ksg/DrawTriangle.hpp>
+#include <asgl/FocusWidget.hpp>
+#include <asgl/Text.hpp>
 
-#include <common/DrawRectangle.hpp>
-
-namespace ksg {
-
-namespace detail {
-
-class Ellipsis final : public sf::Drawable {
-public:
-    using VectorF = sf::Vector2f;
-    void set_size(float w, float h);
-    void set_location(float x, float y);
-    float width() const { return m_back.width(); }
-private:
-
-    static constexpr const int   k_dot_shape_count = 6;
-    static constexpr const float k_inner_hsize = 3.f / 4.f;
-    static constexpr const float k_inner_step = (1.f / 8.f)*k_inner_hsize;
-    static constexpr const float k_top_line = 1.f / 3.f;
-    static constexpr const float k_bottom_line = 2.f / 3.f;
-    static constexpr const float k_hmargin = (1.f - k_inner_hsize) / 2.f;
-
-    static VectorF point_a_for(int);
-    static VectorF point_b_for(int);
-    static VectorF point_c_for(int);
-
-    void update_dots();
-
-    void draw(sf::RenderTarget & target, sf::RenderStates states) const override;
-
-    DrawRectangle m_back;
-    FixedLengthArray<DrawTriangle, k_dot_shape_count> m_dots;
-};
-
-} // end of detail namespace
+namespace asgl {
 
 /** @brief The EditableText Widget allows a user to enter their own text.
  *
  *  It is encouraged that the client programmer constrain the dimensions of
- *  this widget, though it is not strictly required. \n
- *  If text overflows and ellipsis is rendered at the end without consideration
- *  for width/height constraints (an extreme case). \n
+ *  this widget, though it is not strictly required. @n
  *  For styles: for any style not set for constants defined by this class will
- *              fall back to those defined in the Frame class.
+ *              fall back to those defined in the Frame class. @n
+ *
+ *  @note "in-order subsequence" is a term I use to describe a sequence of
+ *        characters which are found in order but not necessarily contagious.
+ *        For example " c-a | te-gory" contains an "in-order subsequence" of
+ *        "category".
  */
 class EditableText final : public FocusWidget {
 public:
-    using Ellipsis       = detail::Ellipsis;
-    using UString        = Text::UString;
-    using CharFilterFunc = std::function<bool(const UString &)>;
-    using BlankFunc      = std::function<void()>;
+    enum StyleEnum {
+        k_text_background_style, k_widget_border_style,
+        k_widget_border_on_hover,
+        k_fill_text_style, k_empty_text_style, k_cursor_style,
+        k_style_count
+    };
+    inline static StyleKey to_key(StyleEnum e)
+        { return styles::StyleKeysEnum<StyleEnum, k_style_count>::to_key(e); }
 
-    // always uses frame's border color, text font, padding
-    static constexpr const char * const k_background_color    = "editable-text-background";
-    static constexpr const char * const k_ellipsis_back_color = "editable-text-ellipsis-background";
+    using UString          = Text::UString;
+    using UStringConstIter = Text::UStringConstIter;
+    using StringCheckFunc  = std::function<bool(const UString &, UString &)>;
 
-    EditableText();
-
-    /** Behavior differs depending on whether or not this widget has focus or
-     *  not. Some behaviors take place regardless of focus. It will not change
-     *  the text in response to an event.
-     *  When the widget has focus: \n
-     *  It will move the cursor in manner of accordance with any editable text
-     *  box in response to the arrow keys.
+    /** Width maybe set, though height may not be, as that is controlled by the
+     *  font and character size.
+     *  @note if left unitialized this control will take the width of the empty
+     *        string
+     *  @note this does not take into account for padding, the actual width of
+     *        the control will very likely be larger (by 2*padding)
      */
-    void process_event(const sf::Event &) override;
+    void set_text_width(int);
 
-    void set_location(float x, float y) override;
+    /** Resets the control's width to fit the "empty" string.
+     *  @note this is how instances are by default
+     */
+    void set_text_width_to_match_empty_text();
 
-    VectorF location() const override;
+    /** Sets the function called whenever text is changed.
+     *  @param func this function takes the following form:
+     *         bool (UString & new_string, UString & display_string)
+     *         - "new_string" parameter is the new string produced by the
+     *           text entered event
+     *         - "display_string" parameter is the current display string
+     *           which maybe modified to this function's liking, the display
+     *           string *must* be an in-order subsequence of the entered string
+     *         - the return value is false to "reject" the new string, and
+     *           true to "accept" the new string
+     */
+    void set_check_string_event(StringCheckFunc && func);
 
-    float width() const override;
+    /** When clicked with the mouse or "pressed" in any fashion, this control
+     *  begins to request focus.
+     */
+    void process_event(const Event &) override;
 
-    float height() const override;
+    /** @copydoc asgl::Widget::location() */
+    VectorI location() const override { return m_location; }
 
-    void set_style(const StyleMap &) override;
+    /** @copydoc asgl::Widget::width() */
+    int width() const override;
 
-    void set_width(float);
+    /** @copydoc asgl::Widget::height() */
+    int height() const override;
 
-    [[deprecated]] void set_text(const UString &);
+    /** Sets the style for the text cursor, "empty string" text, "display
+     *  string" text, the background, and the border.
+     */
+    void stylize(const StyleMap &) override;
 
-    void set_string(const UString &);
+    /** @copydoc asgl::Widget::on_geometry_update() */
+    void on_geometry_update() override;
 
-    void set_cursor_position(int);
+    /** If the display string is empty, then the "empty string" is shown. If
+     *  this control has focus, then the text cursor is shown. Note that the
+     *  display string may not match the actual "entered" string.
+     */
+    void draw(WidgetRenderer &) const override;
 
-    int character_count() const;
+    /** Sets the text with a string that is displayed when the display string
+     *  is empty (even if the actual string is non-empty).
+     */
+    void set_empty_string(const UString &);
 
-    [[deprecated]] const UString & text() const;
+    /** Calls the string check function, and then changes the entered string.
+     *  @throws if the check fails, a std::invalid_argument is thrown
+     */
+    void set_entered_string(const UString &);
 
-    const UString & string() const;
+    /** @returns the actual text entered into the control, not to be confused
+     *           with the "display string", though they sometimes have the
+     *           same value
+     */
+    const UString & entered_string() const;
 
-    void set_character_size(int);
+    /** The default behavior of the string change event. It accepts any string
+     *  which does not contain many of the ascii control characters.
+     *  @param new_string copied to display_string, regardless of contents
+     *  @param display_string sets to new_string's value if no control
+     *                        characters are found
+     *  @returns true if the new_string contains no control characters
+     */
+    static bool default_check_string_event
+        (const UString & new_string, UString & display_string);
 
-    void set_character_filter(CharFilterFunc &&);
+    /** Checks if the display_string contains an in-order subsequence that is
+     *  entered_string.
+     *  @note this function should not ever throw
+     *  @returns true if entered_string an in-order subsequence in
+     *           display_string, false otherwise
+     */
+    static bool is_display_string_ok
+        (const UString & display_string, const UString & entered_string);
 
-    void set_text_change_event(BlankFunc &&);
+    /** Finds the position in the display string that matches a position in the
+     *  entered string.
+     *  @throws if the entered_string is not contained as an in-order
+     *           subsequence
+     *  @throws if pos is greater than the size of the entered_string
+     *  @param display_string target string of the search operation
+     *  @param entered_string must be an in-order subsequence in display_string
+     *  @param pos position in the entered_string
+     *  @returns a constant iterator at the corresponding position in the
+     *           display_string
+     */
+    static UStringConstIter find_display_position
+        (const UString & display_string, const UString & entered_string,
+         std::size_t pos);
 
 private:
-    float max_text_width() const;
+    void set_location_(int x, int y) override
+        { m_location = VectorI(x, y); }
 
-    void process_focus_event(const sf::Event &) override;
+    /** Responds to arrow keys, text entered, backspace, delete, home and end
+     *  key presses.
+     *
+     *  Calls the check string event function everytime text is entered.
+     */
+    void process_focus_event(const Event &) override;
 
     void notify_focus_gained() override;
 
     void notify_focus_lost() override;
 
-    void draw(sf::RenderTarget & target, sf::RenderStates states) const override;
+    int cursor_width() const { return m_padding; }
 
-    bool need_ellipsis() const noexcept {
-        if (!m_text.has_font_assigned()) return false;
-        return m_text.measure_text(m_text.string()).width > max_text_width();
-    }
+    int text_width() const;
 
-    void update_geometry();
+    int text_height() const;
 
-    void update_cursor();
+    void check_invarients() const;
 
-    float padding() const noexcept;
+    void handle_focused_key_typed(const KeyTyped &);
 
-    float inner_padding() const noexcept;
+    void handle_focused_key_press(const KeyPress &);
 
-    Text m_text;
-    DrawRectangle m_outer = styles::make_rect_with_unset_color();
-    DrawRectangle m_inner = styles::make_rect_with_unset_color();
-    DrawRectangle m_cursor;
+    /** @returns true if character was deleted successfully */
+    bool delete_character_at(std::size_t);
 
-    sf::Color m_focus_color = styles::get_unset_value<sf::Color>();
-    sf::Color m_reg_color   = styles::get_unset_value<sf::Color>();
+    sf::IntRect bounds() const;
 
-    float m_padding       = styles::get_unset_value<float>();
-    float m_inner_padding = styles::get_unset_value<float>();
+    int m_padding    = 0;
+    int m_text_width = styles::k_uninit_size;
 
-    Ellipsis m_ellipsis;
+    ItemKey m_border_appearance, m_border_hover_appearance;
+    ItemKey m_area_appearance, m_cursor_appearance;
+    Text m_display_left, m_display_right;
+    Text m_empty_text;
 
-    CharFilterFunc m_filter_func = [](const UString &) { return true; };
-    BlankFunc m_change_text_func = [](){};
+    UString m_entered_string, m_display_string;
+
+    VectorI m_location;
+    sf::IntRect m_cursor;
+    /** indicates the position where a character is inserted in the entered string. */
+    std::size_t m_edit_position = 0;
+
+    StringCheckFunc m_string_check_func = default_check_string_event;
 };
 
-} // end of ksg namespace
-#endif
+} // end of asgl namespace

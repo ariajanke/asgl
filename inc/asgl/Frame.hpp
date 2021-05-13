@@ -219,6 +219,9 @@ public:
 
     void draw(WidgetRenderer &) const override;
 
+    void turn_off_focus_widgets() {
+        m_focus_handler.clear_focus_widgets();
+    }
 protected:
     BareFrame();
 

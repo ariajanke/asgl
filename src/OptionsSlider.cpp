@@ -77,7 +77,6 @@ int OptionsSlider::width() const
 int OptionsSlider::height() const { return m_inner_bounds.height; }
 
 void OptionsSlider::stylize(const StyleMap & stylemap) {
-    using Frame = Frame;
     m_left_arrow .stylize(stylemap);
     m_right_arrow.stylize(stylemap);
     TextArea::set_required_text_fields(
@@ -156,11 +155,12 @@ void OptionsSlider::set_wrap_enabled(bool b) {
 
 void OptionsSlider::draw(WidgetRenderer & target) const {
     draw_to(target, m_inner_bounds, m_back);
+#   if 1
     auto front = m_inner_bounds;
     front.top    += padding();
     front.height -= padding()*2;
     draw_to(target, front, m_front);
-
+#   endif
     m_left_arrow .draw(target);
     m_right_arrow.draw(target);
     m_text.draw_to(target);
@@ -174,8 +174,8 @@ void OptionsSlider::draw(WidgetRenderer & target) const {
         height_ = std::max(height_, gv.height);
     }
 
-    m_inner_bounds.width  = width_ + padding()*2;
-    m_inner_bounds.height = height_;
+    m_inner_bounds.width  = width_  + padding()*2;
+    m_inner_bounds.height = height_ + padding()*2;
 
     assert(m_inner_bounds.width  >= 0);
     assert(m_inner_bounds.height >= 0);
@@ -198,18 +198,19 @@ void OptionsSlider::draw(WidgetRenderer & target) const {
     m_left_arrow .set_size(m_inner_bounds.height, m_inner_bounds.height);
     m_right_arrow.set_size(m_inner_bounds.height, m_inner_bounds.height);
 
-    // center text
-    float center_offset = std::max(0.f, float(m_inner_bounds.width) - m_text.width()) / 2;
-    m_text.set_location(
-        float(m_left_arrow.location().x + m_left_arrow.width() + padding()) + center_offset,
-        float(m_left_arrow.location().y) + float(padding()));
-
-    m_inner_bounds.left = m_left_arrow.location().x + m_left_arrow.width();
+    // inner part
+    int left_arrow_right = m_left_arrow.location().x + m_left_arrow.width();
+    m_inner_bounds.left = left_arrow_right;
     m_inner_bounds.top  = m_left_arrow.location().y;
+
+    // center text
+    int center_offset = std::max(0, m_inner_bounds.width - m_text.width()) / 2;
+    m_text.set_location(left_arrow_right + center_offset,
+                        m_left_arrow.location().y + padding());
 
     // reposition right arrow
     m_right_arrow.set_location(
-        m_left_arrow.location().x + m_left_arrow.width() + m_inner_bounds.width,
+        left_arrow_right + m_inner_bounds.width,
         m_left_arrow.location().y);
 
     // update internal geometry of left and right arrows

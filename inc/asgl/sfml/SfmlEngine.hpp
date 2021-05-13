@@ -61,6 +61,8 @@ enum ItemColorEnum {
 
     k_title_text,
     k_widget_text,
+    k_editable_text_fill,
+    k_editable_text_empty,
 
     k_color_count
 };
@@ -86,9 +88,24 @@ public:
     // ----------------------- END OF PUBLIC INTERFACE ------------------------
     //                         (     entire file     )
 
+    class ColorItem {
+    public:
+        explicit ColorItem(sf::Color);
+
+        void update(const sf::IntRect &);
+        void update(const TriangleTuple &);
+
+        const DrawRectangle & rectangle() const { return m_rectangle; }
+        const DrawTriangle & triangle() const { return m_triangle; }
+
+    private:
+        DrawRectangle m_rectangle;
+        DrawTriangle m_triangle;
+    };
+
     using SfmlImageResource = detail::SfmlImageResource;
     using SfmlImageResPtr   = std::shared_ptr<SfmlImageResource>;
-    using SfmlRenderItem    = MultiType<DrawRectangle, DrawTriangle, SfmlImageResPtr>;
+    using SfmlRenderItem    = MultiType<ColorItem, SfmlImageResPtr>;
     using SfmlRenderItemMap = std::map<ItemKey, SfmlRenderItem>;
     using ItemColorEnum     = flat_colors::ItemColorEnum;
     using ItemStyles        = styles::ItemKeysEnum<ItemColorEnum, flat_colors::k_color_count>;
@@ -101,9 +118,9 @@ private:
     void render_triangle (const TriangleTuple &, ItemKey, const void *) final;
     void render_text(const TextBase &) final;
 
-    void render_rectangle(const sf::IntRect &, DrawRectangle &) const;
+    void render_rectangle(const sf::IntRect &, ColorItem &) const;
     void render_rectangle(const sf::IntRect &, SfmlImageResource &) const;
-    void render_triangle(const TriangleTuple &, DrawTriangle &) const;
+    void render_triangle(const TriangleTuple &, ColorItem &) const;
 
     SharedImagePtr make_image_resource(const std::string & filename) final;
     SharedImagePtr make_image_resource(SharedImagePtr) final;

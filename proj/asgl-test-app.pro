@@ -23,7 +23,7 @@ debug {
     LIBS   += -lcommon
 }
 
-SOURCES += ../demos/textarea-tests.cpp
+SOURCES += ../demos/editable-text.cpp
 
 SOURCES += \
     \ # SFML Engine

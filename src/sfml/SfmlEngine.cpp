@@ -30,9 +30,9 @@
 #include <asgl/Button.hpp>
 #include <asgl/ArrowButton.hpp>
 #include <asgl/TextButton.hpp>
-
 #include <asgl/TextArea.hpp>
 #include <asgl/ProgressBar.hpp>
+#include <asgl/EditableText.hpp>
 
 #include <asgl/Frame.hpp>
 #include <asgl/Text.hpp>
@@ -62,10 +62,8 @@ inline StyleField to_field<asgl::flat_colors::ItemColorEnum>
     (const asgl::flat_colors::ItemColorEnum & obj)
 { return StyleField(asgl::SfmlFlatEngine::ItemStyles::to_key(obj)); }
 
-inline SfmlRenderItem to_field(sf::Color color) {
-    DrawRectangle drect;
-    drect.set_color(color);
-    return asgl::SfmlFlatEngine::SfmlRenderItem(drect);
+inline SfmlRenderItem to_item(sf::Color color) {
+    return asgl::SfmlFlatEngine::SfmlRenderItem(asgl::SfmlFlatEngine::ColorItem(color));
 }
 
 } // end of <anonymous> namespace
@@ -90,13 +88,12 @@ void SfmlFlatEngine::stylize(Widget & widget) const {
 
 void SfmlFlatEngine::setup_default_styles() {
     using namespace flat_colors;
-    static constexpr const int k_chosen_padding = 3;
+    static constexpr const int k_chosen_padding = 5;
     if (m_first_setup_done) return;
     if (m_style_map.has_same_map_pointer(StyleMap())) {
         m_style_map = StyleMap::construct_new_map();
     }
     {
-    using Frame = Frame;
     auto & stylemap = m_style_map;
     stylemap.add(styles::k_global_padding, to_field(k_chosen_padding));
     stylemap.add(styles::k_global_font   , to_field( std::weak_ptr<const Font>( m_font_handler ) ));
@@ -130,6 +127,14 @@ void SfmlFlatEngine::setup_default_styles() {
     add_pbar_field(ProgressBar::k_fill_style   , to_field(k_primary_light));
     add_pbar_field(ProgressBar::k_void_style   , to_field(k_text_color_dark));
     add_pbar_field(ProgressBar::k_padding_style, to_field(k_chosen_padding));
+    // editable text
+    auto add_etext_field = [&stylemap] (EditableText::StyleEnum style, const StyleField & field)
+        { stylemap.add(EditableText::to_key(style), field); };
+    add_etext_field(EditableText::k_cursor_style, to_field(k_text_color_dark));
+    add_etext_field(EditableText::k_text_background_style, to_field(k_text_color));
+    add_etext_field(EditableText::k_widget_border_style, to_field(k_secondary_mid));
+    add_etext_field(EditableText::k_fill_text_style, to_field(k_editable_text_fill));
+    add_etext_field(EditableText::k_empty_text_style, to_field(k_editable_text_empty));
 #   if 0
     stylemap.add(TextArea::to_key(TextArea::k_text_size ), StyleField(18));
     stylemap.add(TextArea::to_key(TextArea::k_text_color), StyleField(sf::Color::White));
@@ -138,27 +143,26 @@ void SfmlFlatEngine::setup_default_styles() {
 
     m_font_handler->add_font_style(to_item_key(k_title_text ), 22, sf::Color::White);
     m_font_handler->add_font_style(to_item_key(k_widget_text), 18, sf::Color::White);
+    // editable text
+    m_font_handler->add_font_style(to_item_key(k_editable_text_fill ), 18, sf::Color::Black);
+    m_font_handler->add_font_style(to_item_key(k_editable_text_empty), 18, sf::Color(100, 100, 100));
 
     using sf::Color;
-    m_items[to_item_key(k_primary_light  )] = to_field(Color(0x51, 0x51, 0x76));
-    m_items[to_item_key(k_primary_mid    )] = to_field(Color(0x18, 0x18, 0x40));
-    m_items[to_item_key(k_primary_dark   )] = to_field(Color(0x08, 0x08, 0x22));
-    m_items[to_item_key(k_secondary_light)] = to_field(Color(0x77, 0x6A, 0x45));
-    m_items[to_item_key(k_secondary_mid  )] = to_field(Color(0x4B, 0x46, 0x15));
-    m_items[to_item_key(k_secondary_dark )] = to_field(Color(0x30, 0x2C, 0x05));
-    m_items[to_item_key(k_text_color     )] = [](){
-        DrawTriangle dtri;
-        dtri.set_color(sf::Color::White);
-        return SfmlRenderItem(dtri);
-    }();// to_field(Color(0xFF, 0xFF, 0xFF));
-    m_items[to_item_key(k_text_color_dark)] = to_field(Color(0x40,    0,    0));
+    m_items[to_item_key(k_primary_light  )] = to_item(Color(0x51, 0x51, 0x76));
+    m_items[to_item_key(k_primary_mid    )] = to_item(Color(0x18, 0x18, 0x40));
+    m_items[to_item_key(k_primary_dark   )] = to_item(Color(0x08, 0x08, 0x22));
+    m_items[to_item_key(k_secondary_light)] = to_item(Color(0x77, 0x6A, 0x45));
+    m_items[to_item_key(k_secondary_mid  )] = to_item(Color(0x4B, 0x46, 0x15));
+    m_items[to_item_key(k_secondary_dark )] = to_item(Color(0x30, 0x2C, 0x05));
+    m_items[to_item_key(k_text_color     )] = to_item(Color::White);
+    m_items[to_item_key(k_text_color_dark)] = to_item(Color(0x40,    0,    0));
 
     m_first_setup_done = true;
 }
 
 ItemKey SfmlFlatEngine::add_rectangle_style(sf::Color color, StyleKey stylekey) {
     auto item_key = m_item_key_creator.make_key();
-    m_items[item_key] = to_field(color);
+    m_items[item_key] = to_item(color);
     m_style_map.add(stylekey, StyleField(item_key));
     return item_key;
 }
@@ -180,6 +184,23 @@ void SfmlFlatEngine::load_global_font(const std::string & filename) {
 /* static */ Event SfmlFlatEngine::convert(const sf::Event & event)
     { return ::convert(event); }
 
+SfmlFlatEngine::ColorItem::ColorItem(sf::Color color) {
+    m_triangle .set_color(color);
+    m_rectangle.set_color(color);
+}
+
+void SfmlFlatEngine::ColorItem::update(const sf::IntRect & rect) {
+    m_rectangle = DrawRectangle(
+        float(rect.left), float(rect.top), float(rect.width), float(rect.height),
+        m_rectangle.color());
+}
+void SfmlFlatEngine::ColorItem::update(const TriangleTuple & trituple) {
+    using std::get;
+    m_triangle.set_point_a(sf::Vector2f(std::get<0>(trituple)));
+    m_triangle.set_point_b(sf::Vector2f(std::get<1>(trituple)));
+    m_triangle.set_point_c(sf::Vector2f(std::get<2>(trituple)));
+}
+
 /* private */ void SfmlFlatEngine::render_rectangle
     (const sf::IntRect & rect, ItemKey itemkey, const void *)
 {
@@ -189,12 +210,14 @@ void SfmlFlatEngine::load_global_font(const std::string & filename) {
     switch (itr->second.type_id()) {
     case k_item_type_id<SfmlImageResPtr>:
         return render_rectangle(rect, *itr->second.as<SfmlImageResPtr>());
-    case k_item_type_id<DrawRectangle>:
-        return render_rectangle(rect, itr->second.as<DrawRectangle>());
+    case k_item_type_id<ColorItem>:
+        return render_rectangle(rect, itr->second.as<ColorItem>());
+#   if 0
     case k_item_type_id<DrawTriangle>:
         throw RtError("SfmlFlatEngine::render_rectangle: Assigned ItemKey "
                       "belonging to a triangle and attempted to draw it as a "
                       "rectangle.");
+#   endif
     default:
         throw RtError("SfmlFlatEngine::render_rectangle: Bad branch.");
     }
@@ -208,13 +231,16 @@ void SfmlFlatEngine::load_global_font(const std::string & filename) {
         return;
     switch (itr->second.type_id()) {
     case k_item_type_id<SfmlImageResPtr>:
-    case k_item_type_id<DrawRectangle>:
         throw RtError("SfmlFlatEngine::render_rectangle: Assigned ItemKey "
                       "belonging to a rectangle and attempted to draw it as a "
                       "triangle.");
+    case k_item_type_id<ColorItem>:
+        return render_triangle(tuple, itr->second.as<ColorItem>());
+#   if 0
     case k_item_type_id<DrawTriangle>:
         render_triangle(tuple, itr->second.as<DrawTriangle>());
         break;
+#   endif
     default:
         throw RtError("SfmlFlatEngine::render_rectangle: Bad branch.");
     }
@@ -234,12 +260,16 @@ void SfmlFlatEngine::load_global_font(const std::string & filename) {
 
 
 /* private */ void SfmlFlatEngine::render_rectangle
-    (const sf::IntRect & rect, DrawRectangle & drect) const
+    (const sf::IntRect & rect, ColorItem & color_item) const
 {
+    color_item.update(rect);
+    m_target_ptr->draw(color_item.rectangle(), m_states);
+#   if 0
     drect = DrawRectangle(
         float(rect.left ), float(rect.top   ),
         float(rect.width), float(rect.height), drect.color());
     m_target_ptr->draw(drect, m_states);
+#   endif
 }
 
 /* private */ void SfmlFlatEngine::render_rectangle
@@ -253,13 +283,17 @@ void SfmlFlatEngine::load_global_font(const std::string & filename) {
 }
 
 /* private */ void SfmlFlatEngine::render_triangle
-    (const TriangleTuple & trituple, DrawTriangle & triangle) const
+    (const TriangleTuple & trituple, ColorItem & color_item) const
 {
+    color_item.update(trituple);
+    m_target_ptr->draw(color_item.triangle(), m_states);
+#   if 0
     using std::get;
     triangle.set_point_a(sf::Vector2f(std::get<0>(trituple)));
     triangle.set_point_b(sf::Vector2f(std::get<1>(trituple)));
     triangle.set_point_c(sf::Vector2f(std::get<2>(trituple)));
     m_target_ptr->draw(triangle, m_states);
+#   endif
 }
 
 
@@ -404,7 +438,7 @@ Key convert(sf::Keyboard::Key k) {
     case Ky::Dash     : return k_dash          ;
     case Ky::Space    : return k_space         ;
     case Ky::Return   : return k_enter         ;
-    case Ky::BackSpace: return k_backslash     ;
+    case Ky::BackSpace: return k_backspace     ;
     case Ky::Tab      : return k_tab           ;
     case Ky::PageUp   : return k_pageup        ;
     case Ky::PageDown : return k_pagedown      ;

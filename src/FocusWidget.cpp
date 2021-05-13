@@ -23,10 +23,23 @@
 *****************************************************************************/
 
 #include <asgl/FocusWidget.hpp>
+#include <asgl/Frame.hpp>
+
+#include <iostream>
 
 namespace {
 
 using asgl::detail::FocusWidgetAtt;
+using FocusContIter = asgl::detail::FrameFocusHandler::FocusContIter;
+
+constexpr const bool k_log_change_focus = false;
+
+inline void log_change_focus(const char * msg) {
+    if constexpr (!k_log_change_focus) return;
+    std::cout << msg << std::endl;
+}
+
+FocusContIter find_requesting_focus(FocusContIter beg, FocusContIter end);
 
 } // end of <anonymous> namespace
 
@@ -77,34 +90,30 @@ void FrameFocusHandler::set_focus_regress(const FocusChangeFunc & func) {
 void FrameFocusHandler::process_event(const Event & event) {
     if (m_focus_widgets.empty()) return;
 
-    auto widgets_end = m_focus_widgets.end();
-    auto new_focus = widgets_end;
-
-    if (m_current_position != m_focus_widgets.end())
-        { (**m_current_position).process_focus_event(event); }
-
-    // explicit requests for focus will override regress/advance events
-    for (auto itr = m_focus_widgets.begin(); itr != widgets_end; ++itr) {
-        if ((**itr).reset_focus_request() && new_focus == widgets_end) {
-            new_focus = itr;
-            // do not break
-        }
+    if (m_current_position != m_focus_widgets.end()) {
+        (**m_current_position).process_focus_event(event);
+        log_change_focus("[asgl] Focus event sent.");
     }
 
-    if (new_focus == widgets_end) {
+    auto new_focus = find_requesting_focus(m_focus_widgets.begin(), m_focus_widgets.end());
+    if (new_focus == m_focus_widgets.end()) {
         auto old_itr = m_current_position;
         if (m_advance_func(event)) {
             if (m_current_position == m_focus_widgets.end()) {
                 m_current_position = m_focus_widgets.begin();
             } else if (++m_current_position == m_focus_widgets.end()) {
+                // wrap around
                 m_current_position = m_focus_widgets.begin();
             }
+            log_change_focus("[asgl] Focus widget advanced.");
         } else if (m_regress_func(event)) {
             if (m_current_position == m_focus_widgets.begin()) {
+                // wrap around
                 m_current_position = m_focus_widgets.end() - 1;
             } else {
                 --m_current_position;
             }
+            log_change_focus("[asgl] Focus widget regressed.");
         }
         if (old_itr != m_current_position) {
             if (old_itr != m_focus_widgets.end())
@@ -116,6 +125,7 @@ void FrameFocusHandler::process_event(const Event & event) {
             { FocusWidgetAtt::notify_focus_lost(**m_current_position); }
         FocusWidgetAtt::notify_focus_gained(**new_focus);
         m_current_position = new_focus;
+        log_change_focus("[asgl] Focus request answered.");
     }
 }
 
@@ -123,11 +133,45 @@ void FrameFocusHandler::take_widgets_from(std::vector<FocusReceiver *> & widgets
     m_focus_widgets.clear();
     m_focus_widgets.swap(widgets);
     m_current_position = m_focus_widgets.end();
+    log_change_focus("[asgl] Focus widgets have been reset.");
+}
+
+void FrameFocusHandler::check_for_child_widget_updates(Widget & parent) {
+    bool mismatch_detected = false;
+    auto itr = m_focus_widgets.begin();
+    // O(n) in virtual calls
+    parent.iterate_children_f([&mismatch_detected, &itr, this](Widget & child) {
+        if (auto * frame = dynamic_cast<BareFrame *>(&child)) {
+            frame->turn_off_focus_widgets();
+            // note: BareFrame may also be a FocusReceiver
+        }
+        auto * focwid = dynamic_cast<FocusReceiver *>(&child);
+        if (!focwid) return;
+        if (mismatch_detected) {
+            m_focus_widgets.push_back(focwid);
+        } else if (   itr == m_focus_widgets.end()
+                   || /* (short circuit) or else */ *itr != focwid)
+        {
+            mismatch_detected = true;
+            if (m_current_position != m_focus_widgets.end()) {
+                FocusWidgetAtt::notify_focus_lost(**m_current_position);
+            }
+            m_focus_widgets.erase(itr, m_focus_widgets.end());
+            // warning: itr is now unusable!
+            m_focus_widgets.push_back(focwid);
+        }
+        if (!mismatch_detected) ++itr;
+    });
+    if (mismatch_detected) {
+        m_current_position = m_focus_widgets.end();
+        log_change_focus("[asgl] Focus widgets have been reset (change detected).");
+    }
 }
 
 void FrameFocusHandler::clear_focus_widgets() {
     m_focus_widgets.clear();
     m_current_position = m_focus_widgets.end();
+    log_change_focus("[asgl] Focus widgets have been cleared.");
 }
 
 /* static */ bool FrameFocusHandler::default_focus_advance(const Event & event) {
@@ -149,3 +193,19 @@ void FrameFocusHandler::clear_focus_widgets() {
 } // end of detail namespace -> into ::asgl
 
 } // end of asgl namespace
+
+namespace {
+
+FocusContIter find_requesting_focus(FocusContIter beg, FocusContIter end) {
+    // explicit requests for focus will override regress/advance events
+    auto new_focus = end;
+    for (auto itr = beg; itr != end; ++itr) {
+        if ((**itr).reset_focus_request() && new_focus == end) {
+            new_focus = itr;
+            // do not break
+        }
+    }
+    return new_focus;
+}
+
+} // end of <anonymous> namespace

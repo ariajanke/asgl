@@ -24,7 +24,7 @@
 
 #pragma once
 
-#include <asgl/StyleMap.hpp>
+#include <asgl/StyleMap.hpp> // we need to know ItemKey
 #include <asgl/Event.hpp>
 
 #include <SFML/Graphics/Rect.hpp>
@@ -87,6 +87,30 @@ public:
  *  === COMPOSITE PATTERN ===
  *  A Widget is a component, by default add_component (and future composite
  *  functions throws exceptions).
+ *
+ *  @code
+
+class MyWidget final : public Widget {
+public:
+    void process_event(const Event &) override;
+
+    VectorI location() const override;
+
+    int width() const override;
+
+    int height() const override;
+
+    void stylize(const StyleMap &) override;
+
+    void on_geometry_update() override;
+
+    void draw(WidgetRenderer &) const override;
+
+private:
+    void set_location_(int x, int y) override;
+};
+
+ *  @endcode
  */
 class Widget {
 public:
@@ -193,6 +217,15 @@ private:
     bool m_geo_update_flag = false;
 };
 
+template <typename T>
+sf::Vector2<T> get_top_left(const sf::Rect<T> &);
+
+template <typename T>
+void set_top_left(sf::Rect<T> &, const sf::Vector2<T> &);
+
+template <typename T>
+void set_top_left(sf::Rect<T> &, const T & x, const T & y);
+
 // ----------------------------------------------------------------------------
 
 template <typename Func>
@@ -232,6 +265,22 @@ template <typename Func>
 void Widget::iterate_children_const_f(Func && f) const {
     ConstChildIteratorFunctor<Func> itr(std::move(f));
     iterate_children(itr);
+}
+
+template <typename T>
+sf::Vector2<T> get_top_left(const sf::Rect<T> & rect)
+    { return sf::Vector2<T>(rect.left, rect.top); }
+
+template <typename T>
+void set_top_left(sf::Rect<T> & rect, const sf::Vector2<T> & r) {
+    rect.left = r.x;
+    rect.top  = r.y;
+}
+
+template <typename T>
+void set_top_left(sf::Rect<T> & rect, const T & x, const T & y) {
+    rect.left = x;
+    rect.top  = y;
 }
 
 } // end of asgl namespace

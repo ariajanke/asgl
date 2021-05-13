@@ -144,6 +144,48 @@ char to_char(const keys::KeyEventImpl & key_event) {
     default: return k_no_char_map;
     }
 }
+
+std::string to_string(const Event & event) {
+    static auto ml_to_string = [](const MouseLocation & ev)
+        { return "( " + std::to_string(ev.x) + ", " + std::to_string(ev.y) + ")"; };
+    static auto me_to_string = [](const mouse::MouseEventImpl & ev) {
+        using namespace mouse;
+        std::string rv;
+        switch (ev.button) {
+        case k_left  : rv += "left "   ; break;
+        case k_middle: rv += "middle " ; break;
+        case k_right : rv += "right "  ; break;
+        default      : rv += "unknown "; break;
+        }
+        return rv + ml_to_string(ev);
+    };
+    static auto ke_to_string = [](const keys::KeyEventImpl & ev)
+        { return std::string(1, to_char(ev)); };
+    switch (event.type_id()) {
+    case k_mouse_press_id  :
+        return "Mouse button pressed " + me_to_string(event.as<MousePress>());
+    case k_mouse_move_id   :
+        return "Mouse moved " + ml_to_string(event.as<MouseMove>());
+    case k_mouse_release_id:
+        return "Mouse button released " + me_to_string(event.as<MouseRelease>());
+    case k_key_press_id    :
+        return "Key pressed " + ke_to_string(event.as<KeyPress>());
+    case k_key_release_id  :
+        return "Key release " + ke_to_string(event.as<KeyRelease>());
+    case k_key_typed_id    : {
+        std::string rv = "Key typed ";
+        auto code = event.as<KeyTyped>().code;
+        if (code >= 0x20 && code < 0x7F) {
+            rv += "\"" + std::string(1, char(code)) + "\"";
+        } else {
+            rv += "code " + std::to_string(code);
+        }
+        return rv;
+    }
+    default: return "<unidentified event>";
+    }
+}
+
 #if 0
 Event convert(const sf::Event & sfevent) {
     switch (sfevent.type) {

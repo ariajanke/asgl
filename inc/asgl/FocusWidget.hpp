@@ -95,6 +95,8 @@ namespace detail {
 class FrameFocusHandler {
 public:
     using FocusChangeFunc = std::function<bool(const Event &)>;
+    using FocusContainer  = std::vector<FocusReceiver *>;
+    using FocusContIter   = FocusContainer::iterator;
 
     /** @brief Sets a function object, when it returns true, it advances the
      *         focus.
@@ -125,7 +127,9 @@ public:
     /** This function provides a point for Frames to deposit all focus widgets
      *  to.
      */
-    void take_widgets_from(std::vector<FocusReceiver *> &);
+    [[deprecated]] void take_widgets_from(std::vector<FocusReceiver *> &);
+
+    void check_for_child_widget_updates(Widget &);
 
     /** @brief Clears all focus widgets, essentially disabling focus events.
      *         Useful for nested frames.
@@ -148,8 +152,8 @@ private:
     FocusChangeFunc m_advance_func = default_focus_advance;
     FocusChangeFunc m_regress_func = default_focus_regress;
 
-    std::vector<FocusReceiver *> m_focus_widgets;
-    std::vector<FocusReceiver *>::iterator m_current_position;
+    FocusContainer m_focus_widgets;
+    FocusContIter m_current_position;
 };
 
 } // end of detail namespace -> into ::asgl

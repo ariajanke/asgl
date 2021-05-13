@@ -46,7 +46,6 @@ UString TextButton::give_cleared_string()
     { return m_text.give_cleared_string(); }
 
 void TextButton::stylize(const StyleMap & stylemap) {
-    using Frame = Frame;
     Button::stylize(stylemap);
     TextArea::set_required_text_fields(
         m_text, stylemap.find(styles::k_global_font),

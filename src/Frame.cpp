@@ -259,21 +259,10 @@ void BareFrame::draw(WidgetRenderer & target) const {
     on_geometry_update();
 
     // v we don't need this below on a regular geometry update v
-
-    // note: there is no consideration given to "vertical overflow"
-    // not considering if additional widgets overflow the frame's
-    // height
-    std::vector<FocusReceiver *> focus_widgets;
-    iterate_children_f([&focus_widgets](Widget & widget) {
-        if (auto * frame = dynamic_cast<BareFrame *>(&widget)) {
-            frame->m_focus_handler.clear_focus_widgets();
-        }
-        if (auto * focwid = dynamic_cast<FocusReceiver *>(&widget)) {
-            focus_widgets.push_back(focwid);
-        }
-    });
-    m_focus_handler.take_widgets_from(focus_widgets);
-
+    Widget & as_widget = *this;
+    // sadly I can't reveal (all of) the children of this frame without
+    // passing this, or incurring a dynamic allocation cost (micro optimizing?)
+    m_focus_handler.check_for_child_widget_updates(as_widget);
     // ^ we don't need this below on a regular geometry update ^
 
     check_invarients();

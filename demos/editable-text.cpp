@@ -22,22 +22,29 @@
 
 *****************************************************************************/
 
-#include <ksg/Frame.hpp>
-#include <ksg/TextArea.hpp>
-#include <ksg/EditableText.hpp>
-#include <ksg/TextButton.hpp>
-#include <ksg/SelectionMenu.hpp>
+#include <asgl/Frame.hpp>
+#include <asgl/TextArea.hpp>
+#include <asgl/EditableText.hpp>
+#include <asgl/TextButton.hpp>
 
+#include <asgl/sfml/SfmlEngine.hpp>
+#if 0
+#include <asgl/SelectionMenu.hpp>
+#endif
 #include <SFML/Graphics/RenderWindow.hpp>
 
 #include <common/StringUtil.hpp>
+#include <common/TestSuite.hpp>
 
 #include <thread>
 #include <chrono>
+#include <iostream>
 
-using namespace ksg;
+using namespace asgl;
 
 namespace {
+
+constexpr const bool k_log_key_events = true;
 
 class EditableTextFrame final : public Frame {
 public:
@@ -46,7 +53,9 @@ public:
     bool requesting_to_close() const { return m_request_close_flag; }
     void setup_frame();
 private:
+#   if 0
     SelectionMenu m_menu;
+#   endif
     TextArea m_option_text;
 
     TextArea m_text_area;
@@ -60,22 +69,41 @@ private:
     bool m_request_close_flag;
 };
 
+void test_editable_text_utils();
+
 } // end of <anonymous> namespace
 
 int main() {
+    test_editable_text_utils();
+
+    SfmlFlatEngine engine;
+    engine.load_global_font("font.ttf");
+
     EditableTextFrame dialog;
     dialog.setup_frame();
+    engine.stylize(dialog);
 
     sf::RenderWindow window(
         sf::VideoMode(unsigned(dialog.width()), unsigned(dialog.height())), 
         "Window Title");
+    engine.assign_target_and_states(window, sf::RenderStates::Default);
     window.setFramerateLimit(20);
     bool has_events = true;
     while (window.isOpen()) {
         sf::Event event;
         while (window.pollEvent(event)) {
             has_events = true;
-            dialog.process_event(event);
+            auto convevent = SfmlFlatEngine::convert(event);
+            dialog.process_event(convevent);
+            if (k_log_key_events
+                && (convevent.is_type<KeyPress>() || convevent.is_type<KeyRelease>()
+                    || convevent.is_type<KeyTyped>()))
+            {
+                SfmlFlatEngine::convert(event);
+                static int count = 0;
+                std::cout << "event #" << count++ << " "
+                          << to_string(convevent) << std::endl;
+            }
             if (event.type == sf::Event::Closed)
                 window.close();
         }
@@ -83,7 +111,11 @@ int main() {
             window.close();
         if (has_events) {
             window.clear();
+            dialog.check_for_geometry_updates();
+            dialog.draw(engine);
+#           if 0
             window.draw(dialog);
+#           endif
             window.display();
             has_events = false;
         } else {
@@ -95,14 +127,14 @@ int main() {
 
 namespace {
 
-using UString = ksg::Text::UString;
+using UString = asgl::Text::UString;
 
 template <typename T>
 UString shorten(UString &&, T error);
 
 void EditableTextFrame::setup_frame() {
     m_option_text.set_string(U"none selected");
-
+#   if 0
     m_menu.add_options({
         U"Option 1",
         U"Option 2",
@@ -111,32 +143,76 @@ void EditableTextFrame::setup_frame() {
     m_menu.set_response_function([this](std::size_t, const UString & ustr) {
         m_option_text.set_string(ustr);
     });
-
+#   endif
     m_text_area.set_string(U"Editable Text Box:");
-    m_text_area.set_size(150.f, 32.f);
-
-    m_editable_text.set_width(150.f);
+    m_editable_text.set_text_width(150);
 
     m_num_only_notice.set_string(U"Note: this text box only accepts numbers.");
-    m_num_only_et.set_width(150.f);
-    m_num_only_et.set_string(shorten(U"0.50000", 0.05));
-    m_num_only_et.set_character_filter([](const UString & ustr) {
+    m_num_only_et.set_text_width(150);
+    m_num_only_et.set_entered_string(shorten(U"0.50000", 0.05));
+    m_num_only_et.set_check_string_event([](const UString & ustr, UString & display_text) {
         int num = 0;
-        return string_to_number(ustr, num);
+        bool rv;
+        if ((rv = string_to_number(ustr, num) ))
+            display_text = ustr;
+        return rv;
     });
 
     m_exit_button.set_press_event([this]() { m_request_close_flag = true; });
     m_exit_button.set_string(U"Close Application");
 
-    auto styles = ksg::styles::construct_system_styles();
-    styles[styles::k_global_font] = ksg::styles::load_font("font.ttf");
+    begin_adding_widgets()
+        ./*add(m_menu).*/add(m_option_text).add_line_seperator()
+        .add(m_text_area).add(m_editable_text).add_line_seperator()
+        .add(m_num_only_et).add_line_seperator()
+        .add(m_num_only_notice).add_line_seperator()
+        .add(m_exit_button);
+}
 
-    begin_adding_widgets(styles).
-        add(m_menu).add(m_option_text).add_line_seperator().
-        add(m_text_area).add(m_editable_text).add_line_seperator().
-        add(m_num_only_et).add_line_seperator().
-        add(m_num_only_notice).add_line_seperator().
-        add(m_exit_button);
+void test_editable_text_utils() {
+    ts::TestSuite suite;
+    suite.start_series("editable text is_display_string_ok");
+    suite.test([]() {
+        return ts::test(EditableText::is_display_string_ok(
+            U"abcdefghi", U"abcdefghi"));
+    });
+    suite.test([]() {
+        return ts::test(EditableText::is_display_string_ok(
+            U" abcdefghi", U"abcdefghi"));
+    });
+    suite.test([]() {
+        return ts::test(EditableText::is_display_string_ok(
+            U" a b c d e f g h i", U"abcdefghi"));
+    });
+    suite.test([]() {
+        return ts::test(EditableText::is_display_string_ok(
+            U"cat ", U"cat"));
+    });
+    suite.test([]() {
+        return ts::test(!EditableText::is_display_string_ok(
+            U"cat ", U"c-at"));
+    });
+    suite.test([]() {
+        return ts::test(EditableText::is_display_string_ok(
+            U" 1 (800) 478-", U"1800478"));
+    });
+    suite.start_series("editable text find_display_position");
+    suite.test([]() {
+        //                   0
+        //                  01
+        UString display = U" 1 (800) 478-";
+        UString entered = U"1800478";
+        auto itr = EditableText::find_display_position(display, entered, 0);
+        return ts::test(display.begin() + 1 == itr);
+    });
+    suite.test([]() {
+        //                   0  123
+        //                  0123456
+        UString display = U" 1 (800) 478-";
+        UString entered = U"1800478";
+        auto itr = EditableText::find_display_position(display, entered, 3);
+        return ts::test(display.begin() + 6 == itr);
+    });
 }
 
 // ----------------------------------------------------------------------------
