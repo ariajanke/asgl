@@ -31,7 +31,11 @@ ArrowButton::ArrowButton(): m_dir(Direction::k_none) {}
 void ArrowButton::set_direction(Direction dir_) {
     if (m_dir == dir_) return;
     m_dir = dir_;
+    // it isn't clear to me how I should go about marking for needing redraw
+#   if 0
     set_needs_geometry_update_flag();
+#   endif
+    flag_needs_individual_geometry_update();
 }
 
 void ArrowButton::process_event(const Event & evnt) {
@@ -52,8 +56,8 @@ void ArrowButton::stylize(const StyleMap & smap) {
 void ArrowButton::set_arrow_style(ItemKey ky)
     { m_triangle_style = ky; }
 
-void ArrowButton::on_geometry_update() {
-    Button::on_geometry_update();
+void ArrowButton::update_geometry() {
+    Button::update_geometry();
     update_points();
 }
 

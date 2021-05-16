@@ -40,6 +40,8 @@
 #include <chrono>
 #include <iostream>
 
+#include <cassert>
+
 using namespace asgl;
 
 namespace {
@@ -65,6 +67,9 @@ private:
     TextArea m_num_only_notice;
 
     TextButton m_exit_button;
+
+    TextArea m_phone_num_example;
+    EditableText m_phone_number_et;
 
     bool m_request_close_flag;
 };
@@ -113,9 +118,6 @@ int main() {
             window.clear();
             dialog.check_for_geometry_updates();
             dialog.draw(engine);
-#           if 0
-            window.draw(dialog);
-#           endif
             window.display();
             has_events = false;
         } else {
@@ -127,10 +129,16 @@ int main() {
 
 namespace {
 
-using UString = asgl::Text::UString;
+using UString          = asgl::Text::UString;
+using UStringConstIter = asgl::Text::UStringConstIter;
+using UChar            = UString::value_type;
 
 template <typename T>
 UString shorten(UString &&, T error);
+
+bool is_valid_us_phone_number(const UString &);
+
+UString format_us_phone_number(const UString &, UString && = UString());
 
 void EditableTextFrame::setup_frame() {
     m_option_text.set_string(U"none selected");
@@ -161,11 +169,25 @@ void EditableTextFrame::setup_frame() {
     m_exit_button.set_press_event([this]() { m_request_close_flag = true; });
     m_exit_button.set_string(U"Close Application");
 
+    m_phone_num_example.set_string(U"Example Phone Number thing:");
+
+    m_phone_number_et.set_empty_string(U"1 (800) 555 - 5555");
+    m_phone_number_et.set_check_string_event([]
+        (const UString & entered_string, UString & display)
+    {
+        if (!EditableText::default_check_string_event(entered_string, display))
+            return false;
+        if (!is_valid_us_phone_number(entered_string)) return false;
+        display = format_us_phone_number(entered_string, std::move(display));
+        return true;
+    });
+
     begin_adding_widgets()
         ./*add(m_menu).*/add(m_option_text).add_line_seperator()
         .add(m_text_area).add(m_editable_text).add_line_seperator()
         .add(m_num_only_et).add_line_seperator()
         .add(m_num_only_notice).add_line_seperator()
+        .add(m_phone_num_example).add(m_phone_number_et).add_line_seperator()
         .add(m_exit_button);
 }
 
@@ -234,6 +256,55 @@ UString shorten(UString && ustr, T error) {
         }
         end = mid;
     }
+}
+
+bool is_valid_us_phone_number(const UString & entered_string) {
+    if (entered_string.size() > 11) return false;
+    auto beg = entered_string.begin();
+    auto end = entered_string.end();
+    if (end - beg == 11) {
+        if (*beg++ != U'1') return false;
+    }
+    if (std::any_of(beg, end, [](UChar c) { return c < U'0' || c > U'9'; })) {
+        return false;
+    }
+    return true;
+}
+
+UString format_us_phone_number(const UString & source, UString && display) {
+    display.clear();
+    using Iter = UStringConstIter;
+    auto append_at_most = [&display](Iter beg, Iter end, int n) {
+        if (end - beg > n) end = beg + n;
+        display.insert(display.end(), beg, end);
+        return end;
+    };
+    auto beg = source.begin();
+    auto end = source.end();
+    if (end == beg) {
+        // do nothing
+    } else if (end - beg <= 7) {
+        beg = append_at_most(beg, end, 3);
+        display += U" - ";
+        append_at_most(beg, end, 4);
+    } else if (end - beg <= 10) {
+        display += U"(";
+        beg = append_at_most(beg, end, 3);
+        display += U") ";
+        beg = append_at_most(beg, end, 3);
+        display += U" - ";
+        beg = append_at_most(beg, end, 4);
+    } else {
+        assert(end - beg == 11);
+        beg = append_at_most(beg, end, 1);
+        display += U"(";
+        beg = append_at_most(beg, end, 3);
+        display += U") ";
+        beg = append_at_most(beg, end, 3);
+        display += U" - ";
+        beg = append_at_most(beg, end, 4);
+    }
+    return std::move(display);
 }
 
 } // end of <anonymous> namespace

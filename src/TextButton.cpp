@@ -64,8 +64,8 @@ void TextButton::draw(WidgetRenderer & target) const {
     set_size(m_text.width() + padding()*2, m_text.height() + padding()*2);
 }
 
-/* private */ void TextButton::on_geometry_update() {
-    Button::on_geometry_update();
+/* private */ void TextButton::update_geometry() {
+    Button::update_geometry();
     m_text.set_location(float( location().x + padding() ),
                         float( location().y + padding() ));
 }

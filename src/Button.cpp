@@ -107,14 +107,17 @@ VectorI Button::location() const
 
 void Button::set_size(int width_, int height_) {
     set_button_frame_size(width_, height_);
+    flag_needs_whole_family_geometry_update();
+#   if 0
     set_needs_geometry_update_flag();
+#   endif
 }
 
 int Button::width() const { return m_back.width; }
 
 int Button::height() const { return m_back.height; }
 
-void Button::on_geometry_update() {
+void Button::update_geometry() {
     if (m_back.width > padding()*2) {
         m_front.left  = m_back.left  + padding();
         m_front.width = m_back.width - padding()*2;
@@ -151,7 +154,10 @@ void Button::draw(WidgetRenderer & target) const {
         m_active_items.back = m_regular_items.back;
     }
 
+    // it isn't clear to me how I should go about marking for needing redraw
+#   if 0
     set_needs_redraw_flag();
+#   endif
 }
 
 /* protected */ void Button::highlight() {
@@ -163,7 +169,10 @@ void Button::draw(WidgetRenderer & target) const {
         m_active_items.back = m_hover_items.back;
     }
 
+    // it isn't clear to me how I should go about marking for needing redraw
+#   if 0
     set_needs_redraw_flag();
+#   endif
 }
 
 /* private */ void Button::process_focus_event(const Event & event) {

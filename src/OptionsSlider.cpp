@@ -97,19 +97,19 @@ void OptionsSlider::stylize(const StyleMap & stylemap) {
 
 void OptionsSlider::set_options(const std::vector<UString> & options) {
     m_options = options;
-    set_needs_geometry_update_flag();
+    flag_needs_whole_family_geometry_update();
 }
 
 void OptionsSlider::set_options(std::vector<UString> && options) {
     m_options = std::move(options);
-    set_needs_geometry_update_flag();
+    flag_needs_whole_family_geometry_update();
 }
 
 void OptionsSlider::select_option(std::size_t index) {
     if (index == m_selected_index) return;    
     m_selected_index = index;
     update_selections();
-    set_needs_geometry_update_flag();
+    flag_needs_individual_geometry_update();
 }
 
 std::size_t OptionsSlider::selected_option_index() const
@@ -181,19 +181,21 @@ void OptionsSlider::draw(WidgetRenderer & target) const {
     assert(m_inner_bounds.height >= 0);
 }
 
-/* private */ void OptionsSlider::iterate_children_(ChildWidgetIterator & itr) {
-    itr.on_child(m_left_arrow );
-    itr.on_child(m_right_arrow);
+/* private */ void OptionsSlider::iterate_children_
+    (const ChildWidgetIterator & itr)
+{
+    itr(m_left_arrow );
+    itr(m_right_arrow);
 }
 
 /* private */ void OptionsSlider::iterate_children_const_
-    (ChildWidgetIterator & itr) const
+    (const ChildConstWidgetIterator & itr) const
 {
-    itr.on_child(m_left_arrow );
-    itr.on_child(m_right_arrow);
+    itr(m_left_arrow );
+    itr(m_right_arrow);
 }
 
-/* private */ void OptionsSlider::on_geometry_update() {
+/* private */ void OptionsSlider::update_geometry() {
     update_selections();
     m_left_arrow .set_size(m_inner_bounds.height, m_inner_bounds.height);
     m_right_arrow.set_size(m_inner_bounds.height, m_inner_bounds.height);
@@ -214,8 +216,8 @@ void OptionsSlider::draw(WidgetRenderer & target) const {
         m_left_arrow.location().y);
 
     // update internal geometry of left and right arrows
-    m_left_arrow .on_geometry_update();
-    m_right_arrow.on_geometry_update();
+    m_left_arrow .update_geometry();
+    m_right_arrow.update_geometry();
 }
 
 /* private */ void OptionsSlider::set_location_(int x, int y) {

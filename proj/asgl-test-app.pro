@@ -23,7 +23,7 @@ debug {
     LIBS   += -lcommon
 }
 
-SOURCES += ../demos/editable-text.cpp
+SOURCES += ../demos/select-menu-demo.cpp
 
 SOURCES += \
     \ # SFML Engine

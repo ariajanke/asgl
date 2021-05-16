@@ -37,54 +37,45 @@ namespace asgl {
 
 ChildWidgetIterator::~ChildWidgetIterator() {}
 
+ChildConstWidgetIterator::~ChildConstWidgetIterator() {}
+
 WidgetRenderer::~WidgetRenderer() {}
 
-/* static */ WidgetFlagsUpdater & WidgetFlagsUpdater::null_instance() {
-    class NullFlagsUpdater final : public asgl::WidgetFlagsUpdater {
-        void receive_geometry_needs_update_flag() override {}
-        bool needs_geometry_update() const override { return false; }
-        void set_needs_redraw_flag() override {}
+/* static */ WidgetFlagsReceiver & WidgetFlagsReceiver::null_instance() {
+    class NullFlagsUpdater final : public asgl::WidgetFlagsReceiver {
+        void receive_whole_family_upate_needed() {}
+        void receive_individual_update_needed(Widget *) {}
     };
     static NullFlagsUpdater inst;
     return inst;
 }
 
-WidgetFlagsUpdater::~WidgetFlagsUpdater() {}
+WidgetFlagsReceiver::~WidgetFlagsReceiver() {}
 
 // ----------------------------------------------------------------------------
 
 Widget::~Widget() {}
 
 void Widget::set_location(int x, int y) {
-    set_needs_geometry_update_flag();
+    flag_needs_whole_family_geometry_update();
     set_location_(x, y);
 }
 
 void Widget::issue_auto_resize() {}
 
-void Widget::iterate_children(ChildWidgetIterator && itr)
+void Widget::iterate_children(const ChildWidgetIterator & itr)
     { iterate_children_(itr); }
 
-void Widget::iterate_children(ChildWidgetIterator && itr) const
+void Widget::iterate_children(const ChildConstWidgetIterator & itr) const
     { iterate_children_const_(itr); }
 
-void Widget::iterate_children(ChildWidgetIterator & itr)
-    { iterate_children_(itr); }
+void Widget::assign_flags_receiver(WidgetFlagsReceiver * ptr)
+    { m_flags_receiver = ptr ? ptr : &WidgetFlagsReceiver::null_instance(); }
 
-void Widget::iterate_children(ChildWidgetIterator & itr) const
-    { iterate_children_const_(itr); }
+/* protected */ void Widget::iterate_children_(const ChildWidgetIterator &) {}
 
-void Widget::assign_flags_updater(WidgetFlagsUpdater * ptr) {
-    m_flags_updater = (ptr == nullptr) ? &WidgetFlagsUpdater::null_instance() : ptr;
-}
-
-/* protected */ Widget::Widget():
-    m_flags_updater(&WidgetFlagsUpdater::null_instance())
-{}
-
-/* protected */ void Widget::iterate_children_(ChildWidgetIterator &) {}
-
-/* protected */ void Widget::iterate_children_const_(ChildWidgetIterator &) const {}
+/* protected */ void Widget::iterate_children_const_
+    (const ChildConstWidgetIterator &) const {}
 
 /* protected */ void Widget::draw_to
     (WidgetRenderer & target, const sf::IntRect & rect, ItemKey key) const
@@ -94,11 +85,11 @@ void Widget::assign_flags_updater(WidgetFlagsUpdater * ptr) {
     (WidgetRenderer & target, const TriangleTuple & tri, ItemKey key) const
 { target.render_triangle(tri, key, this); }
 
-/* protected */ void Widget::set_needs_geometry_update_flag()
-    { m_flags_updater->receive_geometry_needs_update_flag(); }
+/* protected */ void Widget::flag_needs_whole_family_geometry_update()
+    { m_flags_receiver->receive_whole_family_upate_needed(); }
 
-/* protected */ void Widget::set_needs_redraw_flag()
-    { m_flags_updater->set_needs_redraw_flag(); }
+/* protected */ void Widget::flag_needs_individual_geometry_update()
+    { m_flags_receiver->receive_individual_update_needed(this); }
 
 /* static */ void Widget::Helpers::handle_required_fields
     (const char * caller, std::initializer_list<FieldFindTuple> && fields)
@@ -154,6 +145,56 @@ void Widget::assign_flags_updater(WidgetFlagsUpdater * ptr) {
         throw make_error("padding must be a non-negative integer.");
     }
     return field->as<int>();
+}
+
+// ----------------------------------------------------------------------------
+
+void WidgetFlagsReceiverWidget::receive_whole_family_upate_needed()
+    { m_geo_update_flag = true; }
+
+void WidgetFlagsReceiverWidget::receive_individual_update_needed(Widget * wid) {
+    if (wid) {
+        m_individuals.push_back(wid);
+        return;
+    }
+    throw InvArg("FlagsReceivingWidget::receive_individual_update_needed: "
+                 "widget pointer must not be null.");
+}
+
+/* protected */ void WidgetFlagsReceiverWidget::unset_flags() {
+    if (m_geo_update_flag) {
+        // if whole family flag was set, then geometry updates cannot take
+        // place here in this function, but rather in the more well defined
+        // BareFrame class
+        m_geo_update_flag = false;
+        m_individuals.clear();
+        return;
+    }
+    // I've failed to find evidence that std sort uses std::less,
+    // therefore I must pass it explicitly
+    std::sort(m_individuals.begin(), m_individuals.end(), std::less<Widget *>());
+    Widget * before = nullptr;
+    for (auto * widget : m_individuals) {
+        if (widget == before) continue;
+        int old_width  = widget->width ();
+        int old_height = widget->height();
+        widget->update_geometry();
+        if (old_width != widget->width() || old_height != widget->height())
+            { throw make_size_changed_error("unset_flags"); }
+        before = widget;
+
+    }
+    m_individuals.clear();
+}
+
+/* protected */ bool WidgetFlagsReceiverWidget::
+    needs_whole_family_geometry_update() const
+    { return m_geo_update_flag; }
+
+/* private static */ RtError WidgetFlagsReceiverWidget::make_size_changed_error(const char * caller) noexcept {
+    return RtError("FlagsReceivingWidget::" + std::string(caller)
+                   + ": Widgets must not change size on individual updates "
+                     "(call \"receive_whole_family_upate_needed\" instead.)");
 }
 
 } // end of asgl namespace

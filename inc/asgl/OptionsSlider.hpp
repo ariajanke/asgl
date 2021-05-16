@@ -82,11 +82,11 @@ public:
 private:
     void issue_auto_resize() override;
 
-    void iterate_children_(ChildWidgetIterator &) override;
+    void iterate_children_(const ChildWidgetIterator &) override;
 
-    void iterate_children_const_(ChildWidgetIterator &) const override;
+    void iterate_children_const_(const ChildConstWidgetIterator &) const override;
 
-    void on_geometry_update() override;
+    void update_geometry() override;
 
     void set_location_(int x, int y) override;
 

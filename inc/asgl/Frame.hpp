@@ -149,7 +149,7 @@ public:
  *  requires switch on type for geometric computations to work for Frame
  *  old-solution used switch-on type with enums
  */
-class BareFrame : public FlagsReceivingWidget {
+class BareFrame : public WidgetFlagsReceiverWidget {
 public:
     using UString      = std::u32string;
     using ClickFunctor = FrameDecoration::ClickFunctor;
@@ -281,11 +281,11 @@ private:
 
     bool contains(const Widget *) const noexcept;
 
-    void iterate_children_(ChildWidgetIterator &) final;
+    void iterate_children_(const ChildWidgetIterator &) final;
 
-    void iterate_children_const_(ChildWidgetIterator &) const final;
+    void iterate_children_const_(const ChildConstWidgetIterator &) const final;
 
-    void on_geometry_update() final;
+    void update_geometry() final;
 
     /** Updates sizes and locations for all member widgets including this frame.
      *  Also sets up focus widgets.

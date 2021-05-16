@@ -47,6 +47,7 @@ using RtError        = std::runtime_error;
 using InvArg         = std::invalid_argument;
 using StyleField     = asgl::StyleField;
 using SfmlRenderItem = asgl::SfmlFlatEngine::SfmlRenderItem;
+using VectorI        = asgl::Widget::VectorI;
 
 template <typename T>
 constexpr const int k_item_type_id = asgl::SfmlFlatEngine::SfmlRenderItem::GetTypeId<T>::k_value;
@@ -171,6 +172,21 @@ void SfmlFlatEngine::load_global_font(const std::string & filename) {
     m_font_handler = std::make_shared<detail::SfmlFont>();
     m_font_handler->load_font(filename);
     setup_default_styles();
+}
+
+SharedImagePtr SfmlFlatEngine::make_image_from(ConstSubGrid<sf::Color> data) {
+    sf::Image img;
+    img.create(unsigned(data.width()), unsigned(data.height()));
+    for (VectorI r; r != data.end_position(); r = data.next(r)) {
+        img.setPixel(unsigned(r.x), unsigned(r.y), data(r));
+    }
+    auto image_res = std::make_shared<SfmlImageResource>();
+    image_res->item = m_item_key_creator.make_key();
+    image_res->texture.loadFromImage(img);
+    image_res->sprite.setTexture(image_res->texture);
+
+    m_items[image_res->item] = SfmlRenderItem(image_res);
+    return image_res;
 }
 
 /* static */ const sf::Texture * SfmlFlatEngine::dynamic_cast_to_texture

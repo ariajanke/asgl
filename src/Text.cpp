@@ -183,11 +183,11 @@ void TextBase::set_viewport(const sf::IntRect & port) {
                       && port.top  >= 0 && port.top  <= full_height();
     if (port.width != k_default_viewport.width) {
         auto right = port.left + port.width;
-        valid_port = valid_port && right >= 0;// && right <= full_width();
+        valid_port = valid_port && right >= 0;
     }
     if (port.height != k_default_viewport.height) {
         auto bottom = port.top + port.height;
-        valid_port = valid_port && bottom >= 0;// && bottom <= full_height();
+        valid_port = valid_port && bottom >= 0;
     }
 
     using InvArg = std::invalid_argument;

@@ -64,17 +64,17 @@ UString TextArea::give_cleared_string()
 
 void TextArea::set_limiting_line(int x_limit) {
     m_draw_text.set_limiting_line(x_limit);
-    set_needs_geometry_update_flag();
+    flag_needs_whole_family_geometry_update();
 }
 
 void TextArea::set_viewport(const sf::IntRect & rect) {
     m_draw_text.set_viewport(rect);
-    set_needs_geometry_update_flag();
+    flag_needs_whole_family_geometry_update();
 }
 
 void TextArea::reset_viewport() {
     m_draw_text.reset_viewport();
-    set_needs_geometry_update_flag();
+    flag_needs_whole_family_geometry_update();
 }
 
 const sf::IntRect & TextArea::viewport() const
@@ -114,7 +114,7 @@ void TextArea::draw(WidgetRenderer & target) const
 
 /* private */ void TextArea::issue_auto_resize() {}
 
-/* private */ void TextArea::on_geometry_update() {
+/* private */ void TextArea::update_geometry() {
     m_draw_text.set_location(m_draw_text.location().x, m_draw_text.location().y);
 }
 

@@ -84,7 +84,7 @@ private:
 
     void issue_auto_resize() override;
 
-    void on_geometry_update() override;
+    void update_geometry() override;
 
     Text m_draw_text;
 };

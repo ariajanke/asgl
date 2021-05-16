@@ -77,8 +77,8 @@ void HorizontalSpacer::set_width(int w) {
 
 // ----------------------------------------------------------------------------
 
-void FrameDecoration::assign_flags_updater(WidgetFlagsUpdater * ptr)
-    { m_flags_receiver = ptr ? ptr : &WidgetFlagsUpdater::null_instance(); }
+void FrameDecoration::assign_flags_updater(WidgetFlagsReceiver * ptr)
+    { m_flags_receiver = ptr ? ptr : &WidgetFlagsReceiver::null_instance(); }
 
 /* static */ FrameDecoration & FrameDecoration::null_decoration() {
     static constexpr const int k_int_max = std::numeric_limits<int>::max();
@@ -106,7 +106,7 @@ void FrameDecoration::assign_flags_updater(WidgetFlagsUpdater * ptr)
         void request_size(int, int) override
             { throw make_calling_null_except(); }
 
-        void on_geometry_update() override {}
+        void update_geometry() override {}
 
         void draw(WidgetRenderer &) const override {}
 
@@ -128,7 +128,7 @@ void FrameDecoration::assign_flags_updater(WidgetFlagsUpdater * ptr)
 }
 
 /* protected */ void FrameDecoration::set_needs_geometry_update_flag() {
-    m_flags_receiver->receive_geometry_needs_update_flag();
+    m_flags_receiver->receive_whole_family_upate_needed();
 }
 
 // ----------------------------------------------------------------------------
@@ -157,10 +157,6 @@ FrameBorder::EventResponseSignal FrameBorder::process_event
     check_should_update_drag(event);
 
     EventResponseSignal rv;
-    // no obvious replacement, though the field maybe obsoleted
-#   if 0
-    rv.should_update_geometry = m_recently_dragged;
-#   endif
     if (   event.is_type<MousePress>()
         && m_back.contains(to_vector(event.as<MousePress>()))
         )

@@ -48,7 +48,7 @@ VectorI ProgressBar::location() const
 void ProgressBar::set_size(int w, int h) {
     m_bounds.width  = w;
     m_bounds.height = h;
-    set_needs_geometry_update_flag();
+    flag_needs_whole_family_geometry_update();
 }
 
 int ProgressBar::width() const { return m_bounds.width; }
@@ -74,24 +74,33 @@ void ProgressBar::stylize(const StyleMap & map) {
 
 void ProgressBar::set_outer_style(StyleKey key) {
     m_outer_key = key;
+    // it isn't clear to me how I should go about marking for needing redraw
+#   if 0
     set_needs_redraw_flag();
+#   endif
 }
 
 void ProgressBar::set_fill_style(StyleKey key) {
     m_fill_key = key;
+    // it isn't clear to me how I should go about marking for needing redraw
+#   if 0
     set_needs_redraw_flag();
+#   endif
 }
 
 void ProgressBar::set_void_style(StyleKey key) {
     m_void_key = key;
+    // it isn't clear to me how I should go about marking for needing redraw
+#   if 0
     set_needs_redraw_flag();
+#   endif
 }
 
 void ProgressBar::set_padding(int p) {
     verify_padding_ok(p, "ProgressBar::set_padding");
     m_padding = p;
     set_padding(styles::k_null_key);
-    set_needs_geometry_update_flag();
+    flag_needs_whole_family_geometry_update();
 }
 
 void ProgressBar::set_padding(StyleKey key) {
@@ -106,7 +115,10 @@ void ProgressBar::set_fill_amount(float fill_amount) {
         throw InvArg("ProgressBar::set_fill_amount: fill amount must be in [0 1].");
     }
     m_fill_amount = fill_amount;
+    // it isn't clear to me how I should go about marking for needing redraw
+#   if 0
     set_needs_redraw_flag();
+#   endif
 }
 
 float ProgressBar::fill_amount() const { return m_fill_amount; }
@@ -131,10 +143,9 @@ void ProgressBar::draw(WidgetRenderer & renderer) const {
 /* private */ void ProgressBar::set_location_(int x, int y) {
     m_bounds.left = x;
     m_bounds.top  = y;
-    set_needs_geometry_update_flag();
 }
 
-/* private */ void ProgressBar::on_geometry_update() {
+/* private */ void ProgressBar::update_geometry() {
     verify_padding_set("on_geometry_update");
     if (m_padding*2 >= m_bounds.width) {
         m_inner_bounds = sf::IntRect();

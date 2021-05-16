@@ -33,7 +33,6 @@
 
 namespace asgl {
 
-class StyleMap;
 class Widget;
 
 /** @brief Child widget iterator enables a way to iterate all the child widgets
@@ -46,24 +45,33 @@ class Widget;
 class ChildWidgetIterator {
 public:
     virtual ~ChildWidgetIterator();
-    void on_child(Widget & widget) { on_child_(widget); }
-    void on_child(const Widget & widget) { on_const_child_(widget); }
+    virtual void operator () (Widget &) const {}
 
 protected:
-    virtual void on_child_(Widget &) {}
-    virtual void on_const_child_(const Widget &) {}
     ChildWidgetIterator() {}
 };
 
-class WidgetFlagsUpdater {
+/** @brief Much like ChildWidgetIterator but for constant widgets instead.
+ *
+ */
+class ChildConstWidgetIterator {
 public:
-    virtual ~WidgetFlagsUpdater();
+    virtual ~ChildConstWidgetIterator();
+    virtual void operator () (const Widget &) const {}
 
-    virtual void receive_geometry_needs_update_flag() = 0;
-    virtual bool needs_geometry_update() const = 0;
-    virtual void set_needs_redraw_flag() = 0;
+protected:
+    ChildConstWidgetIterator() {}
+};
 
-    static WidgetFlagsUpdater & null_instance();
+class WidgetFlagsReceiver {
+public:
+    virtual ~WidgetFlagsReceiver();
+    virtual void receive_whole_family_upate_needed() = 0;
+
+    // this design requires passing a "this" pointer
+    virtual void receive_individual_update_needed(Widget *) = 0;
+
+    static WidgetFlagsReceiver & null_instance();
 };
 
 class TextBase;
@@ -88,6 +96,8 @@ public:
  *  A Widget is a component, by default add_component (and future composite
  *  functions throws exceptions).
  *
+ *  The following is a code snippet which maybe useful for copying when deriving
+ *  from Widget:
  *  @code
 
 class MyWidget final : public Widget {
@@ -102,7 +112,7 @@ public:
 
     void stylize(const StyleMap &) override;
 
-    void on_geometry_update() override;
+    void update_geometry() override;
 
     void draw(WidgetRenderer &) const override;
 
@@ -111,6 +121,17 @@ private:
 };
 
  *  @endcode
+ *
+ *  @note on design:
+ *  Exposing the individual geometry flag from the widget (as boolean) is not
+ *  desired design especially the ability to reset the flag, as widget should
+ *  not own its own flags/signals which it sent the flags receiver. @n
+ *  Worse still, it allows clients to cancel and be exposed to more flagging
+ *  logic than neccessary at the widget level. @n
+ *  I *could* pass a boolean owned by the widget, but this incurs the same
+ *  risks and problems as just passing the "this" pointer. @n
+ *  Conclusion: just pass the this pointer, the flags receiver, should also be
+ *  the owning frame/parent object.
  */
 class Widget {
 public:
@@ -140,7 +161,7 @@ public:
      *  @note This is called after all widgets has had their proper locations
      *        set.
      */
-    virtual void on_geometry_update() = 0;
+    virtual void update_geometry() = 0;
 
     /** @brief Called by frame for automatic widget sizing.
      *  Widget computes its own size.
@@ -159,13 +180,18 @@ public:
     template <typename Func>
     void iterate_children_const_f(Func &&) const;
 
-    void iterate_children(ChildWidgetIterator &&);
-    void iterate_children(ChildWidgetIterator &&) const;
+    void iterate_children(const ChildWidgetIterator &);
+    void iterate_children(const ChildConstWidgetIterator &) const;
 
-    void iterate_children(ChildWidgetIterator &);
-    void iterate_children(ChildWidgetIterator &) const;
-
-    void assign_flags_updater(WidgetFlagsUpdater *);
+    /** Assigns the flags receiver pointer.
+     *
+     *  @warning This should be a pointer to the owning object, which means
+     *           it should exist for the same duration as this widget
+     *           (excluding either object's deconstruction)
+     *  @param rec The receiver either must be the owning container, or the
+     *             nullptr.
+     */
+    void assign_flags_receiver(WidgetFlagsReceiver * rec);
 
     struct Helpers {
         using FieldFindTuple = std::tuple<ItemKey *, const char *, const StyleField *>;
@@ -182,11 +208,9 @@ public:
     };
 
 protected:
-    Widget();
+    virtual void iterate_children_(const ChildWidgetIterator &);
 
-    virtual void iterate_children_(ChildWidgetIterator &);
-
-    virtual void iterate_children_const_(ChildWidgetIterator &) const;
+    virtual void iterate_children_const_(const ChildConstWidgetIterator &) const;
 
     virtual void set_location_(int x, int y) = 0;
 
@@ -194,26 +218,62 @@ protected:
 
     void draw_to(WidgetRenderer &, const TriangleTuple &, ItemKey) const;
 
-    void set_needs_geometry_update_flag();
+    /** Set this flag if you need to resize the whole frame/family of widgets,
+     *  in addition to local geometric computations.
+     */
+    void flag_needs_whole_family_geometry_update();
 
-    void set_needs_redraw_flag();
+    /** Set this flag if you *only* need a widget local (no resizing) geometry
+     *  update.
+     *  @warning The geometry update *must not* resize the widget, doing so
+     *           will cause the owning frame/parent object to throw a runtime
+     *           exception.
+     */
+    void flag_needs_individual_geometry_update();
 
 private:
-    WidgetFlagsUpdater * m_flags_updater = nullptr; // safety set
+    WidgetFlagsReceiver * m_flags_receiver = &WidgetFlagsReceiver::null_instance();
 };
 
-class FlagsReceivingWidget : public Widget, public WidgetFlagsUpdater {
+/** Describes a layer of the widget's parent of which individual widgets should
+ *  be ignorant.
+ *
+ */
+class WidgetFlagsReceiverWidget : public Widget, public WidgetFlagsReceiver {
 public:
-    void receive_geometry_needs_update_flag() final
-        { m_geo_update_flag = true; }
-    bool needs_geometry_update() const final { return m_geo_update_flag; }
+    /** Sets a flag that the whole family of widgets needs a geometry update.
+     *  @note this should generally only be called by the Widget class, client
+     *        coders should not have to worry about this function (at all!)
+     */
+    void receive_whole_family_upate_needed() final;
 
-    void set_needs_redraw_flag() final {}
+    /** Sets a flag that an individual widget needs a geometry update.
+     *  @note This function requires that Widget passes this, therefore this
+     *        instance really must be the owning parent object.
+     *  @param wid pointer to the widget that needs an individual geometry
+     *         update
+     */
+    void receive_individual_update_needed(Widget * wid) final;
 
-    void unset_needs_geometry_update_flag()
-        { m_geo_update_flag = false; }
+protected:
+    /** Unsets all geometry update flags for both the whole family and for
+     *  individuals.
+     *
+     *  If the whole family didn't need an update, then this function will
+     *  update geometry for individual widgets before clearing their individual
+     *  flags.
+     */
+    void unset_flags();
+
+    /** @returns true if the entire family of widgets needs to update
+     *           geometry, false otherwise.
+     */
+    bool needs_whole_family_geometry_update() const;
 
 private:
+    static std::runtime_error make_size_changed_error(const char * caller) noexcept;
+
+    std::vector<Widget *> m_individuals;
     bool m_geo_update_flag = false;
 };
 
@@ -232,26 +292,15 @@ template <typename Func>
 class ChildIteratorFunctor final : public ChildWidgetIterator {
 public:
     explicit ChildIteratorFunctor(Func && f_): f(std::move(f_)) {}
-    void on_child_(Widget & widget) override { f(widget); }
-    void on_const_child_(const Widget &) {
-        throw std::runtime_error(
-            "ChildIteratorFunctor::on_const_child_: called constant "
-            "on_const_child_, which is not desired by this type.");
-    }
+    void operator () (Widget & widget) const override { f(widget); }
     Func f;
 };
 
 template <typename Func>
-class ConstChildIteratorFunctor final : public ChildWidgetIterator {
+class ConstChildIteratorFunctor final : public ChildConstWidgetIterator {
 public:
     explicit ConstChildIteratorFunctor(Func && f_): f(std::move(f_)) {}
-    void on_child_(Widget &) override {
-        throw std::runtime_error(
-            "ConstChildIteratorFunctor::on_child_: called non-constant "
-            "on_child_, which is not desired by this type.");
-    }
-    void on_const_child_(const Widget & widget) override { f(widget); }
-
+    void operator () (const Widget & widget) const override { f(widget); }
     Func f;
 };
 

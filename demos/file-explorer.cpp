@@ -26,13 +26,13 @@
 #include <SFML/Window.hpp>
 
 #include <SFML/Graphics/RenderTexture.hpp>
-
+#if 0
 #include <ksg/Frame.hpp>
 
 #include <ksg/TextButton.hpp>
 #include <ksg/TextArea.hpp>
 #include <ksg/SelectionMenu.hpp>
-
+#endif
 #include <common/CurrentWorkingDirectory.hpp>
 
 #include <cstring>

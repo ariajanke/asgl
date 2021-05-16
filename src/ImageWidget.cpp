@@ -45,17 +45,27 @@ SharedImagePtr ImageWidget::load_image
 
 void ImageWidget::set_image(SharedImagePtr resptr) {
     m_image = resptr;
+    // (don't delete quite yet?)
+    // it isn't clear to me how I should go about marking for needing redraw
+#   if 0
     set_needs_redraw_flag();
+#   endif
 }
 
 void ImageWidget::copy_image_from(ImageLoader & loader, const ImageWidget & rhs) {
     copy_image_from(loader, rhs.m_image);
+    // it isn't clear to me how I should go about marking for needing redraw
+#   if 0
     set_needs_redraw_flag();
+#   endif
 }
 
 void ImageWidget::copy_image_from(ImageLoader & loader, SharedImagePtr resptr) {
     m_image = loader.make_image_resource(resptr);
+    // it isn't clear to me how I should go about marking for needing redraw
+#   if 0
     set_needs_redraw_flag();
+#   endif
 }
 
 VectorI ImageWidget::location() const

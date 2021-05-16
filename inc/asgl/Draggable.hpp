@@ -27,6 +27,8 @@
 #include <SFML/System/Vector2.hpp>
 #include <SFML/Graphics/Rect.hpp>
 
+#include <common/Grid.hpp>
+
 namespace asgl {
 
 /** @brief Any on-screen object that can be dragged by a mouse.
@@ -71,6 +73,13 @@ protected:
 
     /** @brief mouse_click Handles mouse click events.
      *
+     *  Begins the drag event regardless of where the mouse is (unless not
+     *  watching for drag events).
+     */
+    bool mouse_click(int x, int y);
+
+    /** @brief mouse_click Handles mouse click events.
+     *
      *  If a mouse click were to take place within the given rectangle, this
      *  object enters a drag state. Any additional mouse movements will cause
      *  this object to follow the cursor until drag_release is called.
@@ -81,6 +90,22 @@ protected:
      *  @return Returns true if the object has entered the drag state.
      */
     bool mouse_click(int x, int y, const sf::IntRect & drect);
+
+    /** @brief mouse_click Handles mouse click events.
+     *
+     *  If a mouse click were to take place within the given click matrix, this
+     *  object enters a drag state. Any additional mouse movements will cause
+     *  this object to follow the cursor until drag_release is called.
+     *
+     *  @param x X-coordinate of the current mouse position.
+     *  @param y Y-coordinate of the current mouse position.
+     *  @param matrix_location an "on screen" location of the matrix
+     *  @param click_matrix a mask precise of which pixels are and are not
+     *                      clickable (true meaning clickable, false otherwise)
+     *  @return Returns true if the object has entered the drag state.
+     */
+    bool mouse_click(int x, int y, sf::Vector2i matrix_location,
+                     const Grid<bool> & click_matrix);
 
     /** @brief drag_release Causes object to leave its drag state.
      */

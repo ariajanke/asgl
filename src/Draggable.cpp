@@ -52,15 +52,30 @@ void Draggable::mouse_move(int x, int y) {
     update_drag_position(x, y);
 }
 
+bool Draggable::mouse_click(int x, int y) {
+    if (!m_watch_drag_events) return false;
+    m_dragged     = true;
+    m_drag_offset = sf::Vector2i(x, y);
+    return true;
+}
+
 bool Draggable::mouse_click
-    (int x, int y, const sf::IntRect &drect)
+    (int x, int y, const sf::IntRect & drect)
 {
     if (!m_watch_drag_events) return false;
     if (drect.contains(x, y)) {
-        m_dragged = true;
-        m_drag_offset = sf::Vector2i
-            (int(std::round(x - drect.left)), int(std::round(y - drect.top)));
-        return true;
+        return mouse_click(x - drect.left, y - drect.top);
+    }
+    return false;
+}
+
+bool Draggable::mouse_click(int x, int y, sf::Vector2i matrix_location,
+                            const Grid<bool> & grid)
+{
+    if (!m_watch_drag_events) return false;
+    if (!grid.has_position(x, y)) return false;
+    if (grid(x, y)) {
+        return mouse_click(x - matrix_location.x, y - matrix_location.y);
     }
     return false;
 }

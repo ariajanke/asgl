@@ -103,7 +103,7 @@ public:
     void stylize(const StyleMap &) override;
 
     /** @copydoc asgl::Widget::on_geometry_update() */
-    void on_geometry_update() override;
+    void update_geometry() override;
 
     /** If the display string is empty, then the "empty string" is shown. If
      *  this control has focus, then the text cursor is shown. Note that the

@@ -32,6 +32,7 @@
 #include <SFML/Window/Event.hpp>
 
 #include <common/DrawRectangle.hpp>
+#include <common/SubGrid.hpp>
 #include <asgl/DrawTriangle.hpp>
 
 namespace asgl {
@@ -80,6 +81,8 @@ public:
     ItemKey add_rectangle_style(sf::Color, StyleKey);
 
     void load_global_font(const std::string & filename);
+
+    SharedImagePtr make_image_from(ConstSubGrid<sf::Color>);
 
     static const sf::Texture * dynamic_cast_to_texture(SharedImagePtr);
 

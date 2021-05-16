@@ -69,7 +69,7 @@ public:
     [[deprecated]] void set_arrow_style(ItemKey);
 
     /** Rearranges geometric internals. */
-    void on_geometry_update() override;
+    void update_geometry() override;
 
     void draw(WidgetRenderer &) const override;
 

@@ -66,13 +66,13 @@ void EditableText::set_text_width(int new_width) {
     Helpers::verify_non_negative(
         new_width, "EditableText::set_text_width", "text width");
     m_text_width = new_width;
-    set_needs_geometry_update_flag();
+    flag_needs_whole_family_geometry_update();
     check_invarients();
 }
 
 void EditableText::set_text_width_to_match_empty_text() {
     m_text_width = styles::k_uninit_size;
-    set_needs_geometry_update_flag();
+    flag_needs_whole_family_geometry_update();
     check_invarients();
 }
 
@@ -129,10 +129,10 @@ void EditableText::stylize(const StyleMap & stylemap) {
                                  Frame::to_key(Frame::k_widget_text_style)))
     });
 
-    set_needs_geometry_update_flag();
+    flag_needs_whole_family_geometry_update();
 }
 
-void EditableText::on_geometry_update() {
+void EditableText::update_geometry() {
     const auto & any_display_text = m_display_left;
     const auto & disp             = m_display_string;
 
@@ -151,6 +151,7 @@ void EditableText::on_geometry_update() {
     set_string(m_display_left , disp.begin(), itr);
     set_string(m_display_right, itr, disp.end());
     m_display_left.set_location( m_location + VectorI(1, 1)*m_padding );
+    m_empty_text.set_location( m_display_left.location() );
     if (on_left + on_right <= text_width()) {
         // no ellipse
         set_cursor_location(on_left);
@@ -163,6 +164,7 @@ void EditableText::on_geometry_update() {
         }
 
         int set_aside_left = text_width() - set_aside_right;
+        assert((on_left + on_right) >= set_aside_left);
         sf::IntRect left_viewport((on_left + on_right) - set_aside_left, 0,
                                   set_aside_left, text_height());
         sf::IntRect right_viewport(0, 0, set_aside_right, text_height());
@@ -208,7 +210,7 @@ void EditableText::set_entered_string(const UString & new_string) {
         m_entered_string = new_string;
     }
 
-    set_needs_geometry_update_flag();
+    flag_needs_individual_geometry_update();
     check_invarients();
     if (!all_good) {
         throw InvArg("EditableText::set_entered_string: string entered was "
@@ -295,7 +297,7 @@ const UString & EditableText::entered_string() const
         ustr.erase(ustr.begin() + m_edit_position);
     }
     }
-    set_needs_geometry_update_flag();
+    flag_needs_individual_geometry_update();
     if (!is_display_string_ok(m_display_string, ustr)) {
         m_display_string = U"";
         check_invarients();
@@ -312,34 +314,34 @@ const UString & EditableText::entered_string() const
     case keys::k_delete:
         if (m_entered_string.size() != m_edit_position) {
             (void)delete_character_at(m_edit_position);
-            set_needs_geometry_update_flag();
+            flag_needs_individual_geometry_update();
         }
         break;
     case keys::k_backspace:
         if (0 != m_edit_position) {
             if (delete_character_at(m_edit_position - 1))
                 --m_edit_position;
-            set_needs_geometry_update_flag();
+            flag_needs_individual_geometry_update();
         }
         break;
     case keys::k_end:
         m_edit_position = m_entered_string.size();
-        set_needs_geometry_update_flag();
+        flag_needs_individual_geometry_update();
         break;
     case keys::k_home:
         m_edit_position = 0;
-        set_needs_geometry_update_flag();
+        flag_needs_individual_geometry_update();
         break;
     case keys::k_left:
         if (m_edit_position != 0) {
             --m_edit_position;
-            set_needs_geometry_update_flag();
+            flag_needs_individual_geometry_update();
         }
         break;
     case keys::k_right:
         if (m_edit_position != m_entered_string.size()) {
             ++m_edit_position;
-            set_needs_geometry_update_flag();
+            flag_needs_individual_geometry_update();
         }
         break;
     default: break;

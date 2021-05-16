@@ -65,7 +65,7 @@ public:
 
 private:
     void set_location_(int, int) override {}
-    void on_geometry_update() override {}
+    void update_geometry() override {}
 };
 
 class HorizontalSpacer final : public Widget {
@@ -89,7 +89,7 @@ public:
 private:
     void set_location_(int x, int y) override;
 
-    void on_geometry_update() override {}
+    void update_geometry() override {}
 
     VectorI m_location;
     int m_width;
@@ -99,6 +99,40 @@ private:
 
 // ----------------------------------------------------------------------------
 
+/**
+ *
+ *  The follow code is here for your copying conveince:
+ *  @code
+class MyDecoration final : public asgl::FrameDecoration {
+public:
+    VectorI widget_start() const final;
+
+    VectorI location() const final;
+
+    int width() const final;
+
+    int height() const final;
+
+    EventResponseSignal process_event(const asgl::Event &) final;
+
+    void set_location(int frame_x, int frame_y) final;
+
+    void stylize(const asgl::StyleMap &) final;
+
+    void request_size(int w, int h) final;
+
+    void update_geometry() final;
+
+    void draw(asgl::WidgetRenderer &) const final;
+
+    int minimum_width() const final;
+
+    int width_available_for_widgets() const final;
+
+    void set_click_inside_event(ClickFunctor &&) final;
+};
+ *  @endcode
+ */
 class FrameDecoration : public Draggable {
 public:
     using VectorI = Widget::VectorI;
@@ -111,9 +145,7 @@ public:
     using ClickFunctor = std::function<ClickResponse()>;
 
     struct EventResponseSignal {
-        bool skip_other_events      = false;
-        // maybe omitted
-        bool should_update_geometry = false;
+        bool skip_other_events = false;
     };
 
     /** Each decoration object must tell the frame where to start placing
@@ -166,7 +198,7 @@ public:
     virtual void request_size(int w, int h) = 0;
 
     /** Called by frame, whenever it's time for resizing/relocating widgets. */
-    virtual void on_geometry_update() = 0;
+    virtual void update_geometry() = 0;
 
     /** All frame decoration needs to specify how it's drawn. */
     virtual void draw(WidgetRenderer &) const = 0;
@@ -182,7 +214,7 @@ public:
 
     virtual void set_click_inside_event(ClickFunctor &&) = 0;
 
-    void assign_flags_updater(WidgetFlagsUpdater *);
+    void assign_flags_updater(WidgetFlagsReceiver *);
 
     /** @returns the default decoration used by frames, which will throw
      *           exceptions complaining about it decoration being unset.
@@ -195,7 +227,7 @@ protected:
     void set_needs_geometry_update_flag();
 
 private:
-    WidgetFlagsUpdater * m_flags_receiver = &WidgetFlagsUpdater::null_instance();
+    WidgetFlagsReceiver * m_flags_receiver = &WidgetFlagsReceiver::null_instance();
 };
 
 /** A helper class for Frame. The object manages the border graphics, events,
@@ -255,7 +287,7 @@ public:
         set_register_click_event(std::move(bfunc));
     }
 
-    void update_geometry();
+    void update_geometry() override;
 
     /** @return the pixels needed to be set aside for rendering the title's
      *          width
@@ -271,10 +303,10 @@ public:
 
     void request_size(int w, int h) override
         { set_size(w, h); }
-
-    void on_geometry_update() override
+#   if 0
+    void update_geometry() override
         { update_geometry(); }
-
+#   endif
     int minimum_width() const override
         { return title_width_accommodation(); }
 

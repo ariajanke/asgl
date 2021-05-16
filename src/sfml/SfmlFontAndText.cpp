@@ -125,14 +125,6 @@ void TextWithFontStyle::stylize(ItemKey itemkey) {
 
     auto itr = ptr->find(itemkey);
     if (itr == ptr->end()) {
-        std::vector<ItemKey> v;
-        std::vector<FontStyle> fs;
-        for (const auto & [key, style] : *ptr) {
-            v.emplace_back(key);
-            fs.emplace_back(style);
-        }
-        int k = 0;
-        ++k;
         throw make_error("Itemkey is not found on map.");
     }
     set_character_size_and_color(itr->second.character_size, itr->second.color);

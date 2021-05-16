@@ -115,7 +115,7 @@ public:
 
     void process_focus_event(const Event &) final;
 
-    void on_geometry_update() override;
+    void update_geometry() override;
 
     void draw(WidgetRenderer &) const override;
 

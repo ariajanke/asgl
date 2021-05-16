@@ -163,15 +163,10 @@ void BareFrame::process_event(const Event & event) {
         // widgets the opportunity to make a request after an event
         m_focus_handler.process_event(event);
     }
-    if (gv.should_update_geometry) {
-        finalize_widgets();
-    }
-
     check_invarients();
 }
 
 void BareFrame::stylize(const StyleMap & smap) {
-
     decoration().stylize(smap);
     m_padding = Helpers::verify_padding(
         smap.find(styles::k_global_padding), "Frame::stylize");
@@ -179,7 +174,7 @@ void BareFrame::stylize(const StyleMap & smap) {
     for (Widget * widget_ptr : m_widgets)
         widget_ptr->stylize(smap);
 
-    set_needs_geometry_update_flag();
+    flag_needs_whole_family_geometry_update();
     check_for_geometry_updates();
     check_invarients();
 }
@@ -217,12 +212,13 @@ void BareFrame::finalize_widgets(std::vector<Widget *> && widgets,
     m_widgets     .swap(widgets);
     m_horz_spacers.swap(spacers);
 
-    assign_flags_updater(this);
+    // note this marks this instance as a widget which "owns itself"
+    assign_flags_receiver(this);
     iterate_children_f([this](Widget & widget) {
-        widget.assign_flags_updater(this);
+        widget.assign_flags_receiver(this);
     });
 
-    set_needs_geometry_update_flag();
+    flag_needs_whole_family_geometry_update();
     check_invarients();
 }
 
@@ -236,11 +232,11 @@ void BareFrame::set_padding(int pixels)
     { m_padding = pixels; }
 
 void BareFrame::check_for_geometry_updates() {
-    if (!needs_geometry_update()) return;
-
-    finalize_widgets();
-
-    unset_needs_geometry_update_flag();
+    if (needs_whole_family_geometry_update()) {
+        update_geometry();
+        m_focus_handler.check_for_child_widget_updates(*this);
+    }
+    unset_flags();
 }
 
 void BareFrame::draw(WidgetRenderer & target) const {
@@ -251,17 +247,15 @@ void BareFrame::draw(WidgetRenderer & target) const {
 }
 
 /* private */ void BareFrame::finalize_widgets() {
-    // all size work (needed to be done first so we know where to place widgets)
-    issue_auto_resize();
-
-    place_widgets_to_locations();
-
-    on_geometry_update();
+    update_geometry();
 
     // v we don't need this below on a regular geometry update v
     Widget & as_widget = *this;
     // sadly I can't reveal (all of) the children of this frame without
     // passing this, or incurring a dynamic allocation cost (micro optimizing?)
+
+    // I can try a give and take sort of deal if I *really* want to, that could
+    // avoid a use of "this"
     m_focus_handler.check_for_child_widget_updates(as_widget);
     // ^ we don't need this below on a regular geometry update ^
 
@@ -399,7 +393,7 @@ void BareFrame::swap(BareFrame & lhs) {
     auto size_ = compute_size_to_fit();
     auto & deco = decoration();
     deco.request_size(size_.x, size_.y);
-    deco.on_geometry_update();
+    deco.update_geometry();
 
     // update horizontal spacer sizes
     update_horizontal_spacers();
@@ -415,28 +409,34 @@ void BareFrame::swap(BareFrame & lhs) {
     return false;
 }
 
-/* private */ void BareFrame::iterate_children_(ChildWidgetIterator & itr) {
+/* private */ void BareFrame::iterate_children_(const ChildWidgetIterator & itr) {
     for (auto * widget : m_widgets) {
-        itr.on_child(*widget);
+        itr(*widget);
         widget->iterate_children(itr);
     }
 }
 
-/* private */ void BareFrame::iterate_children_const_(ChildWidgetIterator & itr) const {
+/* private */ void BareFrame::iterate_children_const_
+    (const ChildConstWidgetIterator & itr) const
+{
     for (const auto * widget : m_widgets) {
-        itr.on_child(*widget);
+        itr(*widget);
         widget->iterate_children(itr);
     }
 }
 
-/* private */ void BareFrame::on_geometry_update() {
+/* private */ void BareFrame::update_geometry() {
+    // all size work (needed to be done first so we know where to place widgets)
+    issue_auto_resize();
+
+    place_widgets_to_locations();
+
     // this means there are two calls to this function during the course
     // of geometric computations
-    decoration().on_geometry_update();
+    // what happens without this second call? (no immediately appearant issues)
     for (auto * widget : m_widgets) {
-        widget->on_geometry_update();
+        widget->update_geometry();
     }
-    unset_needs_geometry_update_flag();
 }
 
 /* private */ void BareFrame::check_invarients() const {

@@ -80,7 +80,7 @@ public:
 private:
     void process_event(const Event &) override {}
 
-    void on_geometry_update() override {}
+    void update_geometry() override {}
 
     ItemKey item_key() const override;
 

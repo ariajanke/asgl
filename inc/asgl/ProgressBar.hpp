@@ -80,7 +80,7 @@ public:
 private:
     void set_location_(int x, int y) override;
 
-    void on_geometry_update() override;
+    void update_geometry() override;
 
     void verify_padding_set(const char * caller) const;
 
