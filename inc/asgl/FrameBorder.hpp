@@ -49,47 +49,46 @@ namespace detail {
  */
 class LineSeperator final : public Widget {
 public:
-    ~LineSeperator() override;
+    ~LineSeperator() final;
 
-    void process_event(const Event &) override {}
+    void process_event(const Event &) final {}
 
-    VectorI location() const override { return VectorI(); }
+    VectorI location() const final { return VectorI(); }
 
-    int width() const override { return 0; }
+    int width() const final { return 0; }
 
-    int height() const override { return 0; }
+    int height() const final { return 0; }
 
-    void stylize(const StyleMap &) override {}
+    void stylize(const StyleMap &) final {}
 
-    void draw(WidgetRenderer &) const override {}
+    void draw(WidgetRenderer &) const final {}
 
 private:
-    void set_location_(int, int) override {}
-    void update_geometry() override {}
+    void set_location_(int, int) final {}
+    void update_size() final {}
 };
 
 class HorizontalSpacer final : public Widget {
 public:
     HorizontalSpacer(): m_width(0) {}
 
-    void process_event(const Event &) override { }
+    void process_event(const Event &) final {}
 
-    VectorI location() const override;
+    VectorI location() const final;
 
-    int width() const override;
+    int width() const final;
 
-    int height() const override { return 0.f; }
+    int height() const final { return 0; }
 
     void set_width(int w);
 
-    void stylize(const StyleMap &) override {}
+    void stylize(const StyleMap &) final {}
 
-    void draw(WidgetRenderer &) const override {}
+    void draw(WidgetRenderer &) const final {}
 
 private:
-    void set_location_(int x, int y) override;
-
-    void update_geometry() override {}
+    void set_location_(int x, int y) final;
+    void update_size() final {}
 
     VectorI m_location;
     int m_width;
@@ -147,6 +146,13 @@ public:
     struct EventResponseSignal {
         bool skip_other_events = false;
     };
+    struct AcceptedSize {
+        int width  = 0;
+        int height = 0;
+    };
+
+    static constexpr const int k_no_width_limit_for_widgets
+        = std::numeric_limits<int>::max();
 
     /** Each decoration object must tell the frame where to start placing
      *  widgets.
@@ -195,7 +201,7 @@ public:
      * @note Values given to this function depend on previous feedback from
      *       this instance.
      */
-    virtual void request_size(int w, int h) = 0;
+    virtual AcceptedSize request_size(int w, int h) = 0;
 
     /** Called by frame, whenever it's time for resizing/relocating widgets. */
     virtual void update_geometry() = 0;
@@ -203,28 +209,27 @@ public:
     /** All frame decoration needs to specify how it's drawn. */
     virtual void draw(WidgetRenderer &) const = 0;
 
-    /** @returns the minimum width for the decoration */
-    virtual int minimum_width() const = 0;
-
-    /** @returns the number of pixels available for widgets.
+    /** @returns the number of pixels available for widgets, may return
+     *           "k_no_width_limit_for_widgets"
      *
      *  @note This function is used for widget placement computations.
      */
-    virtual int width_available_for_widgets() const = 0;
+    virtual int maximum_width_for_widgets() const = 0;
 
     virtual void set_click_inside_event(ClickFunctor &&) = 0;
 
     void assign_flags_updater(WidgetFlagsReceiver *);
 
-    /** @returns the default decoration used by frames, which will throw
-     *           exceptions complaining about it decoration being unset.
-     */
-    static FrameDecoration & null_decoration();
-
 protected:
     void update_drag_position(int x, int y) final;
 
     void set_needs_geometry_update_flag();
+
+    static VectorI defer_location_to_widgets();
+
+    static int defer_width_to_widgets();
+
+    static int defer_height_to_widgets();
 
 private:
     WidgetFlagsReceiver * m_flags_receiver = &WidgetFlagsReceiver::null_instance();
@@ -238,20 +243,20 @@ private:
  */
 class FrameBorder final : public FrameDecoration {
 public:
-    VectorI widget_start() const override;
+    VectorI widget_start() const final;
 
-    VectorI location() const override;
+    VectorI location() const final;
 
-    int width() const override;
+    int width() const final;
 
-    int height() const override;
+    int height() const final;
 
-    EventResponseSignal process_event(const Event &) override;
+    EventResponseSignal process_event(const Event &) final;
 
-    void set_location(int x, int y) override;
+    void set_location(int x, int y) final;
 
     // takes styles from frame
-    void stylize(const StyleMap &) override;
+    void stylize(const StyleMap &) final;
 
     void set_size(int w, int h);
 
@@ -283,11 +288,11 @@ public:
     /** Resets the register click event function back to its default value. */
     void reset_register_click_event();
 
-    void set_click_inside_event(ClickFunctor && bfunc) override {
+    void set_click_inside_event(ClickFunctor && bfunc) final {
         set_register_click_event(std::move(bfunc));
     }
 
-    void update_geometry() override;
+    void update_geometry() final;
 
     /** @return the pixels needed to be set aside for rendering the title's
      *          width
@@ -297,18 +302,23 @@ public:
     int title_width_accommodation() const noexcept;
 
     /** @return the pixel width available for widgets */
-    int width_available_for_widgets() const override;
+    int maximum_width_for_widgets() const final;
 
-    void draw(WidgetRenderer &) const override;
+    void draw(WidgetRenderer &) const final;
 
-    void request_size(int w, int h) override
-        { set_size(w, h); }
-#   if 0
-    void update_geometry() override
-        { update_geometry(); }
-#   endif
-    int minimum_width() const override
-        { return title_width_accommodation(); }
+    AcceptedSize request_size(int w, int h) final {
+        AcceptedSize sz;
+        sz.width = std::max(title_width_accommodation(), w);
+        sz.width = std::max(sz.width, m_width_minimum);
+        sz.height = h;
+        set_size(sz.width, title_height() + sz.height);
+        return sz;
+    }
+
+    void set_width_minimum(int i) {
+        Widget::Helpers::verify_non_negative(i, "set_width_minimum", "minimum width");
+        m_width_minimum = i;
+    }
 
 private:
     int title_height() const noexcept;
@@ -320,6 +330,8 @@ private:
     int outer_padding() const noexcept;
 
     int m_outer_padding = styles::k_uninit_size;
+    int m_width_maximum = FrameDecoration::k_no_width_limit_for_widgets;
+    int m_width_minimum = 0;
 
     sf::IntRect m_back, m_title_bar, m_widget_body;
     ItemKey m_back_style, m_title_bar_style, m_widget_body_style;

@@ -42,9 +42,8 @@ namespace asgl {
 class Button : public FocusWidget {
 public:
     enum ButtonStyleEnum {
-        k_regular_back_style, k_regular_front_style,
-        k_hover_back_style  , k_hover_front_style  ,
-        k_button_padding    ,
+        k_regular_style, k_hover_style, k_focus_style, k_hover_and_focus_style,
+        k_button_padding,
         k_style_count
     };
 
@@ -56,7 +55,7 @@ public:
 
     /** @returns pixel location of the button. */
     VectorI location() const final;
-
+#   if 0
     /** Allows the setting of the width and height of Button.
      *
      *  (what about TextButton??)
@@ -64,7 +63,7 @@ public:
      *  @param h height in pixels
      */
     void set_size(int w, int h);
-
+#   endif
     /** @return This returns width of the button in pixels. */
     int width() const final;
 
@@ -114,9 +113,9 @@ public:
     int padding() const noexcept { return std::max(0, m_padding); }
 
     void process_focus_event(const Event &) final;
-
+#   if 0
     void update_geometry() override;
-
+#   endif
     void draw(WidgetRenderer &) const override;
 
 protected:
@@ -145,30 +144,30 @@ protected:
     void notify_focus_lost() final;
 
     /** When called, changes button's location. */
-    void set_location_(int x, int y) final;
+    void set_location_(int x, int y) override;
 
 private:
     template <typename T>
-    struct KeyPairImpl {
-        KeyPairImpl() {}
-        KeyPairImpl(T b_, T f_): back(b_), front(f_) {}
-        T back ;
-        T front;
-    };
-    using StyleKeyPair = KeyPairImpl<StyleKey>;
-    using ItemKeyPair  = KeyPairImpl<ItemKey >;
+    using KeyTuple = std::tuple<T, T, T, T>;
 
-    StyleKeyPair m_regular_keys = StyleKeyPair(to_key(k_regular_back_style), to_key(k_regular_front_style));
-    StyleKeyPair m_hover_keys   = StyleKeyPair(to_key(k_hover_back_style  ), to_key(k_hover_front_style  ));
-    ItemKeyPair m_regular_items;
-    ItemKeyPair m_hover_items;
+    static constexpr const int k_regular_idx         = 0;
+    static constexpr const int k_hover_idx           = 1;
+    static constexpr const int k_focus_idx           = 2;
+    static constexpr const int k_hover_and_focus_idx = 3;
 
-    ItemKeyPair m_active_items;
+    ItemKey get_active_item() const;
+
+    static KeyTuple<StyleKey> default_styles();
+
+    KeyTuple<ItemKey> m_items;
+    KeyTuple<StyleKey> m_styles = default_styles();
 
     sf::IntRect m_back, m_front;
 
     int m_padding = styles::k_uninit_size;
-    bool m_is_highlighted = false;
+    bool m_is_focused = false;
+    bool m_is_hovered = false;
+
     BlankFunctor m_press_functor = [](){};
 };
 

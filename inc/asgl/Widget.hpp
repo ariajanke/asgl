@@ -84,7 +84,12 @@ class WidgetRenderer {
 public:
     virtual ~WidgetRenderer();
 
-    virtual void render_rectangle(const sf::IntRect   &, ItemKey, const void * widget_spec_ptr) = 0;
+    virtual void render_rectangle(const sf::IntRect &, ItemKey, const void * widget_spec_ptr) = 0;
+    // this solves two problems:
+    // - rendering buttons with rounded/special borders
+    // - rendering images with any texture rectangle
+    virtual void render_rectangle_pair
+        (const sf::IntRect &, const sf::IntRect &, ItemKey, const void * widget_spec_ptr) = 0;
     virtual void render_triangle (const TriangleTuple &, ItemKey, const void * widget_spec_ptr) = 0;
     virtual void render_text(const TextBase &) = 0;
 };
@@ -141,6 +146,15 @@ public:
 
     virtual void process_event(const Event &) = 0;
 
+    /** Sets location of the widget, potentially updating its internal geometry.
+     *  @throws If the call changes the size of the widget, widget placement
+     *          should *never* change its size.
+     *  @note generally client code should avoid having to place widgets
+     *        explicitly, as the owning frame should generally be the one who
+     *        calls this function
+     *  @param x
+     *  @param y
+     */
     void set_location(int x, int y);
 
     /** @returns the top left location of the widget */
@@ -154,14 +168,22 @@ public:
      *
      */
     virtual void stylize(const StyleMap &) = 0;
-
+#   if 0
     /** This function is called whenever it's time for the widget to
      *  rearrange its internals and recompute geometry of its various features.
      *
-     *  @note This is called after all widgets has had their proper locations
-     *        set.
+     *  @note When widgets are added to a frame they're given a "first signal"
+     *        with a call. This first call allows widgets to compute their
+     *        sizes. Then a second call is issued by the frame after each are
+     *        placed. If a widget then changes size again, it's size change is
+     *        disregarded. (Unless perhaps until the next geometry update check
+     *        if the widget flags the frame).
      */
-    virtual void update_geometry() = 0;
+    [[deprecated]] virtual void update_geometry() = 0;
+#   endif
+    virtual void update_size() = 0;
+#   if 0
+    void update_location();
 
     /** @brief Called by frame for automatic widget sizing.
      *  Widget computes its own size.
@@ -171,7 +193,7 @@ public:
      *  @note Presently Frame and TextArea both use this function.
      */
     virtual void issue_auto_resize();
-
+#   endif
     virtual void draw(WidgetRenderer &) const = 0;
 
     template <typename Func>
@@ -216,6 +238,8 @@ protected:
 
     void draw_to(WidgetRenderer &, const sf::IntRect &, ItemKey) const;
 
+    void draw_to(WidgetRenderer &, const sf::IntRect &, const sf::IntRect &, ItemKey) const;
+
     void draw_to(WidgetRenderer &, const TriangleTuple &, ItemKey) const;
 
     /** Set this flag if you need to resize the whole frame/family of widgets,
@@ -231,6 +255,10 @@ protected:
      */
     void flag_needs_individual_geometry_update();
 
+
+#   if 0
+    virtual void update_location_() = 0;
+#   endif
 private:
     WidgetFlagsReceiver * m_flags_receiver = &WidgetFlagsReceiver::null_instance();
 };

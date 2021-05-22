@@ -29,12 +29,89 @@
 #include <SFML/Graphics/RenderTarget.hpp>
 
 #include <stdexcept>
+#if 0
 #include <iostream>
+#endif
 #include <cassert>
 
 namespace {
 
 using VectorI = asgl::BareFrame::VectorI;
+using WidgetPlacementVector = asgl::BareFrame::WidgetPlacementVector;
+using Widget = asgl::Widget;
+using asgl::detail::HorizontalSpacer;
+using asgl::detail::LineSeperator;
+
+class WidgetPlacerAdapter {
+public:
+    virtual ~WidgetPlacerAdapter() {}
+    // should include *all* widgets
+    virtual void on_line_end(int widgets_covered, int ns_width) = 0;
+    virtual void operator () (Widget *, int x, int y) const = 0;
+    virtual bool is_line_seperator(const Widget &) const = 0;
+    virtual bool is_horizontal_spacer(const Widget &) const = 0;
+
+    virtual void debug_buff_pad() {}
+    virtual void debug_on_new_line() {}
+};
+
+class PartialWidgetPlacerAdapter : public WidgetPlacerAdapter {
+public:
+    bool is_line_seperator(const Widget & widget) const final;
+
+    bool is_horizontal_spacer(const Widget & widget) const final;
+
+    void assign_line_seperator(const LineSeperator & ls)
+        { m_line_seperator = &ls; }
+
+    void assign_horizontal_spacers_vector(const std::vector<HorizontalSpacer> & vec)
+        { m_spacers_vector = &vec; }
+
+protected:
+    auto horizontal_spacers_begin() { return m_spacers_vector->cbegin(); }
+    auto horizontal_spacers_end  () { return m_spacers_vector->cend  (); }
+
+private:
+    const LineSeperator * m_line_seperator = nullptr;
+    const std::vector<HorizontalSpacer> * m_spacers_vector = nullptr;
+};
+
+class HorizontalSpacerUpdater final : public PartialWidgetPlacerAdapter {
+public:
+    using WidgetConstIter = std::vector<Widget *>::const_iterator;
+    using HorzIter        = std::vector<HorizontalSpacer>::iterator;
+
+    ~HorizontalSpacerUpdater() final;
+
+    void on_line_end(int widgets_covered, int ns_width) final;
+
+    void assign_horizontal_spacers_vector
+        (std::vector<asgl::detail::HorizontalSpacer> & vec);
+
+    void set_widget_iterators(const std::vector<Widget *> & widgets);
+
+    void set_horizontal_space(int sp) { m_horz_space = sp; }
+
+    static bool point_to_same(WidgetConstIter widitr, HorzIter horzitr)
+        { return (*widitr) == &*horzitr; }
+
+    void operator () (Widget *, int, int) const final {}
+
+private:
+    WidgetConstIter m_widget_itr;
+    WidgetConstIter m_widget_end;
+    int m_horz_space = 0;
+    HorzIter m_horz_itr;
+};
+
+void do_placements(WidgetPlacementVector &);
+
+inline bool is_zero_sized(const Widget & widget)
+    { return widget.width() == 0 && widget.height() == 0; }
+
+void run_placer_algo
+    (WidgetPlacerAdapter & placer, const std::vector<Widget *> & widgets,
+     int width_for_widgets, int padding_between_widgets);
 
 } // end of <anonymous> namespace
 
@@ -149,7 +226,22 @@ void WidgetAdder::swap(WidgetAdder & rhs) {
 /* protected */ BareFrame::~BareFrame() {}
 
 /* protected */ void BareFrame::set_location_(int x, int y) {
-    decoration().set_location(x, y);
+    VectorI delta = VectorI(x, y) - location();
+
+    auto & deco = decoration();
+    deco.set_location(x, y);
+    deco.update_geometry();
+
+#   if 1
+    // seems to work beyond an initial "wobble"
+    for (auto * widget_ptr : m_widgets) {
+        assert(widget_ptr);
+        auto loc = widget_ptr->location();
+        widget_ptr->set_location(loc.x + delta.x, loc.y + delta.y);
+    }
+    m_widget_extremes = BareFrame::get_measurements(m_widget_placements);
+    m_widget_placements.clear();
+#   endif
     check_invarients();
 }
 
@@ -174,16 +266,20 @@ void BareFrame::stylize(const StyleMap & smap) {
     for (Widget * widget_ptr : m_widgets)
         widget_ptr->stylize(smap);
 
-    flag_needs_whole_family_geometry_update();
-    check_for_geometry_updates();
     check_invarients();
 }
 
-VectorI BareFrame::location() const { return decoration().location(); }
+VectorI BareFrame::location() const {
+    auto deco_loc = decoration().location();
+    auto ex_loc = m_widget_extremes.recorded_location();
+    return VectorI(std::min(deco_loc.x, ex_loc.x), std::min(deco_loc.y, ex_loc.y));
+}
 
-int BareFrame::width() const { return decoration().width(); }
+int BareFrame::width() const
+    { return std::max(decoration().width(), m_widget_extremes.recorded_width() + padding()*2); }
 
-int BareFrame::height() const { return decoration().height(); }
+int BareFrame::height() const
+    { return std::max(decoration().height(), m_widget_extremes.recorded_height() + padding()*2); }
 
 WidgetAdder BareFrame::begin_adding_widgets()
     { return WidgetAdder(this, &m_the_line_seperator); }
@@ -233,8 +329,16 @@ void BareFrame::set_padding(int pixels)
 
 void BareFrame::check_for_geometry_updates() {
     if (needs_whole_family_geometry_update()) {
-        update_geometry();
-        m_focus_handler.check_for_child_widget_updates(*this);
+        update_size();
+        // v we don't need this below on a regular geometry update v
+        Widget & as_widget = *this;
+        // sadly I can't reveal (all of) the children of this frame without
+        // passing this, or incurring a dynamic allocation cost (micro optimizing?)
+
+        // I can try a give and take sort of deal if I *really* want to, that could
+        // avoid a use of "this"
+        m_focus_handler.check_for_child_widget_updates(as_widget);
+        // ^ we don't need this below on a regular geometry update ^
     }
     unset_flags();
 }
@@ -246,157 +350,59 @@ void BareFrame::draw(WidgetRenderer & target) const {
     }    
 }
 
-/* private */ void BareFrame::finalize_widgets() {
-    update_geometry();
+void BareFrame::get_widget_placements(WidgetPlacementVector & vec, const int k_horz_space) const {
+    vec.reserve(m_widgets.size());
+    vec.clear();
 
-    // v we don't need this below on a regular geometry update v
-    Widget & as_widget = *this;
-    // sadly I can't reveal (all of) the children of this frame without
-    // passing this, or incurring a dynamic allocation cost (micro optimizing?)
-
-    // I can try a give and take sort of deal if I *really* want to, that could
-    // avoid a use of "this"
-    m_focus_handler.check_for_child_widget_updates(as_widget);
-    // ^ we don't need this below on a regular geometry update ^
-
-    check_invarients();
-}
-
-void BareFrame::place_widgets_to_locations() {
-    auto & deco = decoration();
-    const int start_x = deco.widget_start().x + padding();
-    int x = start_x;
-    int y = deco.widget_start().y + padding();
-
-    int line_height = 0;
-    int pad_fix     = 0;
-    auto advance_locals_to_next_line = [&]() {
-        y += line_height + padding();
-        x = start_x;
-        line_height = 0;
-        pad_fix = 0;
+    class WidgetPlacer final : public PartialWidgetPlacerAdapter {
+    public:
+        void on_line_end(int, int) final {}
+        void operator () (Widget * widget_ptr, int x, int y) const final {
+            assert(!dynamic_cast<LineSeperator *>(widget_ptr));
+            assert(dest && widget_ptr);
+            dest->emplace_back(widget_ptr, VectorI(x, y) + start);
+#           if 0
+            std::cout << "{" << x << "}" << std::flush;
+            if (has_been_done.end() == has_been_done.find(widget_ptr)) {
+                has_been_done.insert(widget_ptr);
+            } else {
+                throw std::runtime_error(":(");
+            }
+#           endif
+        }
+        void debug_buff_pad() final {
+#           if 0
+            std::cout << "-";
+#           endif
+        }
+        void debug_on_new_line() final {
+#           if 0
+            std::cout << ".";
+#           endif
+        }
+        WidgetPlacementVector * dest = nullptr;
+        VectorI start;
+#       if 0
+        mutable std::set<Widget *> has_been_done;
+#       endif
     };
-    const int k_right_limit = location().x + width();
-    for (Widget * widget_ptr : m_widgets) {
-        assert(widget_ptr);
-        // horizontal overflow
-        if (is_line_seperator(widget_ptr)) {
-            advance_locals_to_next_line();
-            continue;
-        }
-        if (x + get_widget_advance(widget_ptr) > k_right_limit) {
-            advance_locals_to_next_line();
-            // this widget_ptr is placed as the first element of the line
-        }
-        if (is_horizontal_spacer(widget_ptr))
-            x += pad_fix;
 
-        widget_ptr->set_location(x, y);
-
-        line_height = std::max(widget_ptr->height(), line_height);
-
-        // horizontal advance
-        x += get_widget_advance(widget_ptr);
-        pad_fix = -m_padding;
-    }
-
-    for (Widget * widget_ptr : m_widgets) {
-        if (auto * frame_ptr = dynamic_cast<BareFrame *>(widget_ptr))
-            frame_ptr->place_widgets_to_locations();
-    }
+    WidgetPlacer placer;
+    placer.assign_line_seperator(m_the_line_seperator);
+    placer.assign_horizontal_spacers_vector(m_horz_spacers);
+    placer.dest = &vec;
+    placer.start = decoration().widget_start() + VectorI(1, 1)*padding();
+#   if 0
+    std::cout << "placement (" << k_horz_space << ") ";
+#   endif
+    run_placer_algo(placer, m_widgets, k_horz_space, padding());
+#   if 0
+    std::cout << std::endl;
+#   endif
 }
 
 void BareFrame::swap(BareFrame & lhs) {
     std::swap(m_padding, lhs.m_padding);
-}
-
-/* private */ VectorI BareFrame::compute_size_to_fit() const {
-    int total_width  = 0;
-    int line_width   = 0;
-    int total_height = 0;
-    int line_height  = 0;
-    int pad_fix      = 0;
-
-    for (Widget * widget_ptr : m_widgets) {
-        assert(widget_ptr);
-        if (is_horizontal_spacer(widget_ptr)) {
-            pad_fix = -padding();
-            continue;
-        }
-        if (is_line_seperator(widget_ptr)) {
-            total_width   = std::max(line_width, total_width);
-            line_width    = 0;
-            total_height += line_height + padding();
-            line_height   = 0;
-            pad_fix       = 0;
-            continue;
-        }
-        int width  = widget_ptr->width ();
-        int height = widget_ptr->height();
-        BareFrame * widget_as_frame = nullptr;
-        // should I issue auto-resize here?
-        if (   width == 0 && height == 0
-            && (widget_as_frame = dynamic_cast<BareFrame *>(widget_ptr)))
-        {
-            auto gv = widget_as_frame->compute_size_to_fit();
-            width  = gv.x;
-            height = gv.y;
-        }
-        line_width  += get_widget_advance(widget_ptr) + pad_fix;
-        line_height  = std::max(line_height, height);
-        pad_fix = 0;
-    }
-
-    if (line_width != 0) {
-        total_width   = std::max(total_width, line_width);
-        total_height += line_height + padding();
-    }
-    // we want to fit for the title's width and height also
-    // accommodate for the title
-    auto & deco = decoration();
-    total_height += (deco.widget_start() - deco.location()).y;
-    total_width = std::max(total_width, deco.minimum_width() + padding()*2);
-    if (!m_widgets.empty()) {
-        // padding for borders + padding on end
-        // during normal iteration we include only one
-        total_width  += padding()*3;
-        total_height += padding()*3;
-    }
-    assert(total_width  >= 0);
-    assert(total_height >= 0);
-    return VectorI(total_width, total_height);
-}
-
-/* private */ bool BareFrame::is_horizontal_spacer
-    (const Widget * widget) const
-{
-    if (m_horz_spacers.empty()) return false;
-    return !(widget < &m_horz_spacers.front() || widget > &m_horz_spacers.back());
-}
-
-/* private */ bool BareFrame::is_line_seperator(const Widget * widget) const
-    { return widget == &m_the_line_seperator; }
-
-/* private */ int BareFrame::get_widget_advance(const Widget * widget_ptr) const {
-    bool is_special_widget = is_line_seperator(widget_ptr) ||
-                             is_horizontal_spacer(widget_ptr);
-    return widget_ptr->width() + (is_special_widget ? 0 : m_padding);
-}
-
-/* private */ void BareFrame::issue_auto_resize() {
-    // ignore auto resize if the frame as a width/height already set
-    for (Widget * widget_ptr : m_widgets)
-        widget_ptr->issue_auto_resize();
-
-    issue_auto_resize_for_frame();
-
-    auto size_ = compute_size_to_fit();
-    auto & deco = decoration();
-    deco.request_size(size_.x, size_.y);
-    deco.update_geometry();
-
-    // update horizontal spacer sizes
-    update_horizontal_spacers();
 }
 
 /* private */ bool BareFrame::contains(const Widget * wptr) const noexcept {
@@ -424,19 +430,75 @@ void BareFrame::swap(BareFrame & lhs) {
         widget->iterate_children(itr);
     }
 }
-
-/* private */ void BareFrame::update_geometry() {
-    // all size work (needed to be done first so we know where to place widgets)
-    issue_auto_resize();
-
-    place_widgets_to_locations();
-
-    // this means there are two calls to this function during the course
-    // of geometric computations
-    // what happens without this second call? (no immediately appearant issues)
-    for (auto * widget : m_widgets) {
-        widget->update_geometry();
+#if 0
+void print(const std::vector<VectorI> & vec) {
+    for (const auto & r : vec) {
+        std::cout << "(" << r.x << ", " << r.y << ")"
+                  << ((&r == &vec.back()) ? "" : ",");
     }
+    std::cout << std::endl;
+}
+
+void print_w(const std::vector<HorizontalSpacer> & vec) {
+    for (const auto & r : vec) {
+        std::cout << "[" << r.width() << "]"
+                  << ((&r == &vec.back()) ? "" : ",");
+    }
+    std::cout << std::endl;
+}
+#endif
+/* private */ void BareFrame::update_size() {
+    for (auto * widget : m_widgets) {
+        assert(widget);
+        widget->update_size();
+    }
+
+    auto & deco = decoration();
+#   if 0
+    std::vector<VectorI> old_locations;
+    for (auto * widget : m_widgets) if (!dynamic_cast<LineSeperator *>(widget) && widget) old_locations.emplace_back(widget->location());
+    std::cout << "old "; print(old_locations);
+#   endif
+#   if 0
+    std::cout << "old "; print_w(m_horz_spacers);
+#   endif
+    // place without spacers
+    {
+    int available_width = deco.maximum_width_for_widgets();
+    //for (auto & hs : m_horz_spacers) hs.set_width(0);
+    get_widget_placements(m_widget_placements, available_width);
+    }
+
+    // redo placement adjusted for minimum needed width
+    WidgetBoundsFinder widget_extremes = BareFrame::get_measurements(m_widget_placements);
+    update_horizontal_spacers(widget_extremes.recorded_width());
+    get_widget_placements(m_widget_placements, widget_extremes.recorded_width());
+#   if 0
+    std::vector<VectorI> new_locations;
+    for (const auto & tuple : m_widget_placements) new_locations.emplace_back(std::get<1>(tuple));
+    std::cout << "new "; print(new_locations);
+#   endif
+#   if 0
+    std::cout << "new "; print_w(m_horz_spacers);
+#   endif
+    // request size (padding needs to be included)
+    int requested_width = widget_extremes.recorded_width() + padding()*2;
+    auto accepted_size = deco.request_size
+        (requested_width, widget_extremes.recorded_height() + padding()*2);
+
+    // if the request failed, we end up having to play by the frame
+    // decorations' rules
+    if (accepted_size.width != requested_width) {
+        int width_for_widgets = accepted_size.width - padding()*2;
+        update_horizontal_spacers(width_for_widgets);
+        get_widget_placements(m_widget_placements, width_for_widgets);
+        widget_extremes = BareFrame::get_measurements(m_widget_placements);
+    }
+
+    // last updates
+    m_widget_extremes = widget_extremes;
+    deco.update_geometry();
+    do_placements(m_widget_placements);
 }
 
 /* private */ void BareFrame::check_invarients() const {
@@ -446,77 +508,30 @@ void BareFrame::swap(BareFrame & lhs) {
 #   endif
 }
 
-/* private */ void BareFrame::update_horizontal_spacers() {
-    const int k_horz_space = decoration().width_available_for_widgets();
-    const int k_start_x    = 0;
-    assert(k_horz_space >= 0);
-    // horizontal spacers:
-    // will have to find out how much horizontal space is available per line
-    // first. Next, if there are any horizontal spacers, each of them carries
-    // an equal amount of the left over space.
-    int x = k_start_x;
-    int pad_fix = 0;
-    auto line_begin = m_widgets.begin();
-    for (auto itr = m_widgets.begin(); itr != m_widgets.end(); ++itr) {
-        Widget * widget_ptr = *itr;
-        assert(widget_ptr);
-        // if the widget follow another non spacer is a spacer than no
-        // padding is added
-        if (is_horizontal_spacer(widget_ptr)) {
-            x += pad_fix;
-            pad_fix = 0;
-            continue;
-        }
-        pad_fix = -m_padding;
-        int horz_step = get_widget_advance(widget_ptr);
+/* private */ void BareFrame::update_horizontal_spacers(const int k_horz_space) {
+    // k_horz_space describes the amount of space available for widgets
+    assert(k_horz_space != FrameDecoration::k_no_width_limit_for_widgets);
 
-        // horizontal overflow or end of widgets
-        if (x + horz_step > k_horz_space || is_line_seperator(widget_ptr)) {
-            // at the end of the line, set the widths for the horizontal
-            // spacers
-            line_begin = set_horz_spacer_widths
-                (line_begin, itr, std::max(k_horz_space - x, 0), m_padding);
-
-            // advance to new line
-            x = k_start_x;
-            pad_fix = 0;
-        } // end of horizontal overflow handling
-
-        // horizontal advance
-        x += horz_step;
-    } // looping through widgets
-
-    if (line_begin == m_widgets.end()) return;
-
-    set_horz_spacer_widths
-        (line_begin, m_widgets.end(), std::max(k_horz_space - x, 0), m_padding);
+    HorizontalSpacerUpdater spacer_updater;
+    spacer_updater.assign_line_seperator(m_the_line_seperator);
+    spacer_updater.assign_horizontal_spacers_vector(m_horz_spacers);
+    spacer_updater.set_widget_iterators(m_widgets);
+    spacer_updater.set_horizontal_space(k_horz_space);
+    run_placer_algo(spacer_updater, m_widgets, k_horz_space, padding());
 }
 
-/* private */ BareFrame::WidgetItr BareFrame::set_horz_spacer_widths
-    (WidgetItr beg, WidgetItr end, int left_over_space, int padding)
+/* private static */ BareFrame::WidgetBoundsFinder BareFrame::get_measurements
+    (const WidgetPlacementVector & widget_placements)
 {
-    assert(left_over_space >= 0.f);
-    int horz_spacer_count = 0;
-    for (auto jtr = beg; jtr != end; ++jtr) {
-        if (is_horizontal_spacer(*jtr))
-            ++horz_spacer_count;
+    WidgetBoundsFinder widget_extremes;
+    for (auto [widget_ptr, loc] : widget_placements) {
+        // the line seperator reports itself as being at the origin
+        // regardless of placement, this can result in inaccurate bounds
+        assert(widget_ptr);
+        if (is_zero_sized(*widget_ptr)) continue;
+        widget_extremes.record_widget_bounds(loc, *widget_ptr);
     }
-
-    // if no horizontal spacers, space cannot be split up
-    if (horz_spacer_count == 0) return end;
-
-    // distribute left over space to spacers
-    int width_per_spacer = (left_over_space / horz_spacer_count) - padding;
-    width_per_spacer = std::max(0, width_per_spacer);
-    for (auto jtr = beg; jtr != end; ++jtr) {
-        if (!is_horizontal_spacer(*jtr)) continue;
-        auto horz_spacer = dynamic_cast<HorizontalSpacer *>(*jtr);
-        assert(horz_spacer);
-        // always move on the next state
-        horz_spacer->set_width(width_per_spacer);
-    }
-
-    return end;
+    return widget_extremes;
 }
 
 // ----------------------------------------------------------------------------
@@ -525,3 +540,140 @@ void BareFrame::swap(BareFrame & lhs) {
 SimpleFrame::~SimpleFrame() {}
 
 } // end of asgl namespace
+
+namespace {
+
+bool PartialWidgetPlacerAdapter::is_line_seperator(const Widget & widget) const {
+    assert(m_line_seperator);
+    return m_line_seperator == &widget;
+}
+
+bool PartialWidgetPlacerAdapter::is_horizontal_spacer
+    (const Widget & widget) const
+{
+    assert(m_spacers_vector);
+    if (m_spacers_vector->empty()) return false;
+    return    &widget >= &m_spacers_vector->front()
+           && &widget <= &m_spacers_vector->back ();
+}
+
+HorizontalSpacerUpdater::~HorizontalSpacerUpdater() {
+    // this is testing algorithm correctness
+    assert(m_horz_itr   == horizontal_spacers_end());
+    assert(m_widget_itr == m_widget_end);
+}
+
+void HorizontalSpacerUpdater::on_line_end
+    (int widgets_covered, int ns_width)
+{
+    auto horz_line_end = m_horz_itr;
+    for (; widgets_covered; --widgets_covered) {
+        assert(m_widget_itr != m_widget_end);
+        if (point_to_same(m_widget_itr, horz_line_end)) {
+            ++horz_line_end;
+        } else {
+            assert(!dynamic_cast<asgl::detail::HorizontalSpacer *>(*m_widget_itr));
+        }
+        ++m_widget_itr;
+    }
+    if (m_horz_itr == horz_line_end) return;
+
+    int space_for_spacers = m_horz_space - ns_width;
+#   if 0
+    std::cout << "line end " << m_horz_space << " " << space_for_spacers;
+#   endif
+    int left_over_pixels  = space_for_spacers % (horz_line_end - m_horz_itr);
+    space_for_spacers /= (horz_line_end - m_horz_itr);
+#   if 0
+    std::cout << " split into " << space_for_spacers << " with lo " << left_over_pixels << std::endl;
+#   endif
+    assert(space_for_spacers >= 0);
+    for (auto itr = m_horz_itr; itr != horz_line_end; ++itr) {
+        bool is_mid = itr == m_horz_itr + (horz_line_end - horz_line_end) / 2;
+        itr->set_width(space_for_spacers + (is_mid ? left_over_pixels : 0));
+    }
+
+    m_horz_itr = horz_line_end;
+}
+
+void HorizontalSpacerUpdater::assign_horizontal_spacers_vector
+    (std::vector<HorizontalSpacer> & vec)
+{
+    PartialWidgetPlacerAdapter::assign_horizontal_spacers_vector(vec);
+    m_horz_itr = vec.begin();
+}
+
+void HorizontalSpacerUpdater::set_widget_iterators
+    (const std::vector<Widget *> & widgets)
+{
+    m_widget_itr = widgets.begin();
+    m_widget_end = widgets.end();
+}
+
+void do_placements(WidgetPlacementVector & placements) {
+    for (auto [widget_ptr, loc] : placements) {
+        assert(widget_ptr);
+        widget_ptr->set_location(loc.x, loc.y);
+    }
+    placements.clear();
+}
+
+void run_placer_algo
+    (WidgetPlacerAdapter & placer, const std::vector<Widget *> & widgets,
+     int width_for_widgets, int padding_between_widgets)
+{
+    static int i = 0;
+
+    int x = 0;
+    int y = 0;
+    int count = 0;
+    int ns_width = 0;
+
+    int line_height = 0;
+    auto advance_to_next_line = [&, padding_between_widgets]() {
+        placer.on_line_end(count, ns_width);
+        y += line_height + padding_between_widgets;
+        ns_width = x = count = line_height = 0;
+    };
+
+    bool last_is_regular_widget = false;
+    for (Widget * widget_ptr : widgets) {
+        assert(widget_ptr);
+        ++i;
+        if (i == 31) {
+            int j = 0;
+            ++j;
+        }
+        if (placer.is_line_seperator(*widget_ptr)) {
+            last_is_regular_widget = false;
+            // we'll put the seperator on the line which it breaks
+            ++count;
+            advance_to_next_line();
+            placer.debug_on_new_line();
+            continue;
+        } else if (x != 0 && x + widget_ptr->width() > width_for_widgets) {
+            // horizontal overflow
+            advance_to_next_line();
+        }
+        // intra widget padding
+        bool this_is_regular_widget = !placer.is_horizontal_spacer(*widget_ptr);
+        if (this_is_regular_widget && last_is_regular_widget) {
+            x        += padding_between_widgets;
+            ns_width += padding_between_widgets;
+            placer.debug_buff_pad();
+        }
+        last_is_regular_widget = this_is_regular_widget;
+
+        // placement and advance
+        placer(widget_ptr, x, y);
+        x += widget_ptr->width();
+        if (this_is_regular_widget) {
+            ns_width += widget_ptr->width();
+        }
+        line_height = std::max(line_height, widget_ptr->height());
+        ++count;
+    }
+    if (count) advance_to_next_line();
+}
+
+} // end of <anonymous> namespace

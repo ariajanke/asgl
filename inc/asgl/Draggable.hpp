@@ -132,6 +132,18 @@ protected:
      */
     virtual void update_drag_position(int x, int y) = 0;
 
+    /** Sometimes a call to "update_drag_position" is not helpful and detecting
+     *  whether a control is being dragged or not.
+     *
+     *  @note This is made protected, the inheritor may choose to reveal it as
+     *        a public method with a using declaration.
+     *  @warning A strong preference should be given toward
+     *           "update_drag_position" for updates on whether a control or not
+     *           is being dragged.
+     *  @returns true if this instance is being currently dragged.
+     */
+    bool is_being_dragged() const { return m_dragged; }
+
 private:
     bool has_position_contraints() const;
 

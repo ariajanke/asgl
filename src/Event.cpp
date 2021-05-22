@@ -162,17 +162,17 @@ std::string to_string(const Event & event) {
     static auto ke_to_string = [](const keys::KeyEventImpl & ev)
         { return std::string(1, to_char(ev)); };
     switch (event.type_id()) {
-    case k_mouse_press_id  :
+    case k_event_id_of<MousePress>:
         return "Mouse button pressed " + me_to_string(event.as<MousePress>());
-    case k_mouse_move_id   :
+    case k_event_id_of<MouseMove>:
         return "Mouse moved " + ml_to_string(event.as<MouseMove>());
-    case k_mouse_release_id:
+    case k_event_id_of<MouseRelease>:
         return "Mouse button released " + me_to_string(event.as<MouseRelease>());
-    case k_key_press_id    :
+    case k_event_id_of<KeyPress>:
         return "Key pressed " + ke_to_string(event.as<KeyPress>());
-    case k_key_release_id  :
+    case k_event_id_of<KeyRelease>:
         return "Key release " + ke_to_string(event.as<KeyRelease>());
-    case k_key_typed_id    : {
+    case k_event_id_of<KeyTyped>: {
         std::string rv = "Key typed ";
         auto code = event.as<KeyTyped>().code;
         if (code >= 0x20 && code < 0x7F) {

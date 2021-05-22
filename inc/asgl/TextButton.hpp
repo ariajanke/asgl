@@ -40,16 +40,22 @@ public:
 
     UString give_cleared_string();
 
-    void stylize(const StyleMap &) override;
+    void stylize(const StyleMap &) final;
 
     const UString & string() const;
 
-    void draw(WidgetRenderer &) const override;
+    void draw(WidgetRenderer &) const final;
 
 private:
+#   if 0
     void issue_auto_resize() override;
 
     void update_geometry() override;
+#   endif
+
+    void set_location_(int x, int y) final;
+
+    void update_size() final;
 
     Text m_text;
 };

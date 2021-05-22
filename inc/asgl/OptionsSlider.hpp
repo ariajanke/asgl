@@ -42,6 +42,10 @@ public:
     using UString      = Text::UString;
     using BlankFunctor = ArrowButton::BlankFunctor;
 
+    enum { k_back_style, k_front_style, k_style_count };
+    inline static StyleKey to_key(decltype(k_style_count) e)
+        { return styles::StyleKeysEnum<decltype (k_style_count), k_style_count>::to_key(e); }
+
     OptionsSlider();
     OptionsSlider(const OptionsSlider &);
     ~OptionsSlider() override;
@@ -80,13 +84,17 @@ public:
     void draw(WidgetRenderer &) const override;
 
 private:
+#   if 0
     void issue_auto_resize() override;
-
+#   endif
     void iterate_children_(const ChildWidgetIterator &) override;
 
     void iterate_children_const_(const ChildConstWidgetIterator &) const override;
-
+#   if 0
     void update_geometry() override;
+#   endif
+
+    void update_size() override;
 
     void set_location_(int x, int y) override;
 
@@ -103,8 +111,8 @@ private:
     ItemKey m_back;
     ItemKey m_front;
 
-    StyleKey m_back_style = Button::to_key(Button::k_regular_back_style);
-    StyleKey m_front_style = Button::to_key(Button::k_regular_front_style);
+    StyleKey m_back_style    = to_key(k_back_style);
+    StyleKey m_front_style   = to_key(k_front_style);
     StyleKey m_padding_style = Button::to_key(Button::k_button_padding);
 
     // boundry around the text (includes the padding)

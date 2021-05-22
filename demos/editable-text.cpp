@@ -87,7 +87,7 @@ int main() {
     EditableTextFrame dialog;
     dialog.setup_frame();
     engine.stylize(dialog);
-
+    dialog.check_for_geometry_updates();
     sf::RenderWindow window(
         sf::VideoMode(unsigned(dialog.width()), unsigned(dialog.height())), 
         "Window Title");

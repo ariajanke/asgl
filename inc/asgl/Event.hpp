@@ -160,17 +160,39 @@ struct KeyRelease : public keys::KeyEventImpl {
     explicit KeyRelease(const keys::KeyEventImpl & o): keys ::KeyEventImpl(o) {}
 };
 
+namespace general_motion {
+
+enum GeneralMotionEnum {
+    k_advance_focus,
+    k_regress_focus,
+    k_motion_focus_up,
+    k_motion_focus_down,
+    k_motion_focus_right,
+    k_motion_focus_left,
+    k_accept,
+    k_cancel,
+    k_general_motion_count
+};
+
+} // end of general_motion namespace -> into ::asgl
+
+using GeneralMotion = general_motion::GeneralMotionEnum;
+
 using Event = MultiType<
-    MousePress, MouseRelease, MouseMove, KeyPress, KeyRelease, KeyTyped
+    MousePress, MouseRelease, MouseMove, KeyPress, KeyRelease, KeyTyped,
+    GeneralMotion
 >;
 
+template <typename T>
+constexpr const int k_event_id_of = Event::GetTypeId<T>::k_value;
+#if 0
 constexpr const int k_mouse_press_id   = Event::GetTypeId<MousePress  >::k_value;
 constexpr const int k_mouse_move_id    = Event::GetTypeId<MouseMove   >::k_value;
 constexpr const int k_mouse_release_id = Event::GetTypeId<MouseRelease>::k_value;
 constexpr const int k_key_press_id     = Event::GetTypeId<KeyPress    >::k_value;
 constexpr const int k_key_release_id   = Event::GetTypeId<KeyRelease  >::k_value;
 constexpr const int k_key_typed_id     = Event::GetTypeId<KeyTyped    >::k_value;
-
+#endif
 Key collapse_numerics(Key);
 Key collapse_modifiers(Key);
 inline Key collapse_all(Key k) { return collapse_numerics(collapse_modifiers(k)); }

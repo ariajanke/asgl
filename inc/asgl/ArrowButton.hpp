@@ -65,16 +65,27 @@ public:
      */
     void stylize(const StyleMap &) override;
 
+    void set_size(int w, int h)
+        { set_button_frame_size(w, h); }
+
+#   if 0
     // maybe "reinstated" still though, stylize will overwrite any value given!
     [[deprecated]] void set_arrow_style(ItemKey);
 
     /** Rearranges geometric internals. */
     void update_geometry() override;
-
+#   endif
     void draw(WidgetRenderer &) const override;
 
 private:
     void update_points();
+
+    void set_location_(int x, int y) override {
+        Button::set_location_(x, y);
+        update_points();
+    }
+
+    void update_size() override {}
 
     ItemKey m_triangle_style;
     TriangleTuple m_tri;

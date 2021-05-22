@@ -44,9 +44,7 @@ class SfmlImageResource;
 
 } // end of detail namespace -> into ::asgl
 
-// ---------------------- BEGINNING OF PUBLIC INTERFACE -----------------------
-
-namespace flat_colors {
+namespace sfml_items {
 
 enum ItemColorEnum {
     k_primary_light,
@@ -57,18 +55,30 @@ enum ItemColorEnum {
     k_secondary_mid,
     k_secondary_dark,
 
-    k_text_color,
-    k_text_color_dark,
-
-    k_title_text,
-    k_widget_text,
-    k_editable_text_fill,
-    k_editable_text_empty,
+    k_mono_light,
+    k_mono_dark,
 
     k_color_count
 };
 
-} // end of flat_colors namespace -> into ::asgl
+enum ItemEnum {
+    k_title_text,
+    k_widget_text,
+
+    k_editable_text_fill,
+    k_editable_text_empty,
+
+    k_bordered_regular_widget,
+    k_bordered_hover_widget,
+    k_bordered_focus_widget,
+    k_bordered_hover_and_focus_widget,
+
+    k_item_count
+};
+
+}  // end of sfml_items namespace -> into ::asgl
+
+// ---------------------- BEGINNING OF PUBLIC INTERFACE -----------------------
 
 class SfmlFlatEngine final : public WidgetRenderer, public ImageLoader {
 public:
@@ -106,24 +116,50 @@ public:
         DrawTriangle m_triangle;
     };
 
+    class RoundedBorder {
+    public:
+        std::vector<sf::Vertex> circle;
+        DrawRectangle back_rectangle;
+        DrawRectangle front_rectangle;
+    };
+
+    class SquareBorder {
+    public:
+        DrawRectangle back_rectangle;
+        DrawRectangle front_rectangle;
+    };
+
     using SfmlImageResource = detail::SfmlImageResource;
     using SfmlImageResPtr   = std::shared_ptr<SfmlImageResource>;
-    using SfmlRenderItem    = MultiType<ColorItem, SfmlImageResPtr>;
+    using SfmlRenderItem    = MultiType<ColorItem, SfmlImageResPtr, RoundedBorder, SquareBorder>;
     using SfmlRenderItemMap = std::map<ItemKey, SfmlRenderItem>;
-    using ItemColorEnum     = flat_colors::ItemColorEnum;
-    using ItemStyles        = styles::ItemKeysEnum<ItemColorEnum, flat_colors::k_color_count>;
+    using ItemColorEnum     = sfml_items::ItemColorEnum;
+    using ItemEnum          = sfml_items::ItemEnum;
+    using ColorItemStyles   = styles::ItemKeysEnum<ItemColorEnum, sfml_items::k_color_count>;
+    // going to change name... not now until refactoring is done
+    using DescItemStyles    = styles::ItemKeysEnum<ItemEnum, sfml_items::k_item_count>;
+
+    static void update_draw_rectangle(DrawRectangle &, const sf::IntRect &);
+
+    inline static ItemKey to_item_key(sfml_items::ItemColorEnum e)
+        { return ColorItemStyles::to_key(e); }
+
+    inline static ItemKey to_item_key(sfml_items::ItemEnum e)
+        { return DescItemStyles::to_key(e); }
 
 private:
-    inline static ItemKey to_item_key(flat_colors::ItemColorEnum e)
-        { return ItemStyles::to_key(e); }
-
     void render_rectangle(const sf::IntRect   &, ItemKey, const void *) final;
     void render_triangle (const TriangleTuple &, ItemKey, const void *) final;
     void render_text(const TextBase &) final;
 
+    void render_rectangle_pair(const sf::IntRect &, const sf::IntRect &, ItemKey, const void *) final;
+
     void render_rectangle(const sf::IntRect &, ColorItem &) const;
-    void render_rectangle(const sf::IntRect &, SfmlImageResource &) const;
     void render_triangle(const TriangleTuple &, ColorItem &) const;
+
+    void render_rectangle_pair(const sf::IntRect &, const sf::IntRect &, RoundedBorder &) const;
+    void render_rectangle_pair(const sf::IntRect &, const sf::IntRect &, SquareBorder &) const;
+    void render_rectangle_pair(const sf::IntRect &, const sf::IntRect &, SfmlImageResource &) const;
 
     SharedImagePtr make_image_resource(const std::string & filename) final;
     SharedImagePtr make_image_resource(SharedImagePtr) final;
@@ -151,9 +187,6 @@ public:
 
     int image_height() const override
         { return int(texture.getSize().y); }
-
-    void set_view_rectangle(sf::IntRect rect) override
-        { sprite.setTextureRect(rect); }
 
     ItemKey item_key() const override { return item; }
 

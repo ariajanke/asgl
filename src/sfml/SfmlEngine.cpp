@@ -33,6 +33,7 @@
 #include <asgl/TextArea.hpp>
 #include <asgl/ProgressBar.hpp>
 #include <asgl/EditableText.hpp>
+#include <asgl/OptionsSlider.hpp>
 
 #include <asgl/Frame.hpp>
 #include <asgl/Text.hpp>
@@ -40,31 +41,108 @@
 #include <SFML/Graphics/RenderTarget.hpp>
 #include <SFML/Window/Event.hpp>
 
+#include <cmath>
+#include <cassert>
+
 namespace {
 
-using SharedImagePtr = asgl::SharedImagePtr;
-using RtError        = std::runtime_error;
-using InvArg         = std::invalid_argument;
-using StyleField     = asgl::StyleField;
-using SfmlRenderItem = asgl::SfmlFlatEngine::SfmlRenderItem;
-using VectorI        = asgl::Widget::VectorI;
+using SharedImagePtr   = asgl::SharedImagePtr;
+using RtError          = std::runtime_error;
+using InvArg           = std::invalid_argument;
+using StyleField       = asgl::StyleField;
+using SfmlRenderItem   = asgl::SfmlFlatEngine::SfmlRenderItem;
+using VectorI          = asgl::Widget::VectorI;
+using RoundedBorder    = asgl::SfmlFlatEngine::RoundedBorder;
+using SquareBorder     = asgl::SfmlFlatEngine::SquareBorder;
+using SfmlRenderItemMap = asgl::SfmlFlatEngine::SfmlRenderItemMap;
+
+const std::array k_palette = []() {
+    using namespace asgl::sfml_items;
+    using sf::Color;
+    std::array<Color, k_color_count> rv;
+    // not like this: "= { ... };" I want to see which index to which color
+
+    rv[k_primary_light] = Color(0x51, 0x51, 0x76);
+    rv[k_primary_mid  ] = Color(0x18, 0x18, 0x40);
+    rv[k_primary_dark ] = Color(0x08, 0x08, 0x22);
+
+    rv[k_secondary_light] = Color(0x77, 0x6A, 0x45);
+    rv[k_secondary_mid  ] = Color(0x4B, 0x46, 0x15);
+    rv[k_secondary_dark ] = Color(0x30, 0x2C, 0x05);
+
+    rv[k_mono_light] = Color(0xFE, 0xFE, 0xFE);
+    rv[k_mono_dark ] = Color(0x40,    0,    0);
+
+    assert(!std::any_of(rv.begin(), rv.end(), [](Color c) { return c == Color(); }));
+    return rv;
+} ();
 
 template <typename T>
 constexpr const int k_item_type_id = asgl::SfmlFlatEngine::SfmlRenderItem::GetTypeId<T>::k_value;
 
 asgl::Event convert(const sf::Event &);
 
+using ItemColorEnum = asgl::sfml_items::ItemColorEnum;
+using ItemEnum      = asgl::sfml_items::ItemEnum;
+
 template <typename T>
-inline StyleField to_field(const T & obj)
+constexpr const bool is_field_type_t = StyleField::HasType<T>::k_value
+    || std::is_same_v<ItemColorEnum, T>
+    || std::is_same_v<ItemEnum, T>;
+
+template <typename T>
+inline std::enable_if_t<is_field_type_t<T>, StyleField>
+    to_field(const T & obj)
     { return StyleField(obj); }
 
 template <>
-inline StyleField to_field<asgl::flat_colors::ItemColorEnum>
-    (const asgl::flat_colors::ItemColorEnum & obj)
-{ return StyleField(asgl::SfmlFlatEngine::ItemStyles::to_key(obj)); }
+inline StyleField to_field(const ItemColorEnum & obj)
+    { return StyleField(asgl::SfmlFlatEngine::to_item_key(obj)); }
 
+template <>
+inline StyleField to_field(const ItemEnum & obj)
+    { return StyleField(asgl::SfmlFlatEngine::to_item_key(obj)); }
+#if 0
 inline SfmlRenderItem to_item(sf::Color color) {
     return asgl::SfmlFlatEngine::SfmlRenderItem(asgl::SfmlFlatEngine::ColorItem(color));
+}
+#endif
+inline RoundedBorder make_rounded_border(sf::Color back, sf::Color front, int padding) {
+    assert(padding >= 0);
+    RoundedBorder border;
+    border.back_rectangle.set_color(back);
+    border.front_rectangle.set_color(front);
+
+    auto to_v = [padding](float f)
+        { return sf::Vector2f(std::cos(f), std::sin(f))*float(std::max(0, padding - 1)); };
+    border.circle.reserve(padding*3*3);
+    static constexpr const float k_full_rot = 3.14159265f * 2.f;
+    float t    = 0.f;
+    float step = k_full_rot / float(padding*3);
+    sf::Vertex vtx;
+    vtx.color = back;
+    for (int i = 0; i != padding*3; ++i) {
+        auto next_t = std::min(k_full_rot, t + step);
+        vtx.position = sf::Vector2f();
+        border.circle.push_back(vtx);
+        vtx.position = to_v(t);
+        border.circle.push_back(vtx);
+        vtx.position = to_v(next_t);
+        border.circle.push_back(vtx);
+        t = next_t;
+    }
+    return border;
+}
+
+inline SquareBorder make_square_border(sf::Color back, sf::Color front) {
+    SquareBorder border;
+    border.back_rectangle.set_color(back);
+    border.front_rectangle.set_color(front);
+    return border;
+}
+
+inline SfmlRenderItem to_color_item(sf::Color color) {
+     return SfmlRenderItem( asgl::SfmlFlatEngine::ColorItem(color) );
 }
 
 } // end of <anonymous> namespace
@@ -88,7 +166,7 @@ void SfmlFlatEngine::stylize(Widget & widget) const {
 }
 
 void SfmlFlatEngine::setup_default_styles() {
-    using namespace flat_colors;
+    using namespace sfml_items;
     static constexpr const int k_chosen_padding = 5;
     if (m_first_setup_done) return;
     if (m_style_map.has_same_map_pointer(StyleMap())) {
@@ -102,44 +180,40 @@ void SfmlFlatEngine::setup_default_styles() {
     auto add_frame_field = [&stylemap] (Frame::StyleEnum style, const StyleField & field)
         { stylemap.add(Frame::to_key(style), field); };
     add_frame_field(Frame::k_title_bar_style  , to_field(k_primary_mid));
-#   if 0
-    add_frame_field(Frame::k_title_size_style , to_field(22));
-    add_frame_field(Frame::k_title_color_style, to_field(k_text_color));
-#   endif
     add_frame_field(Frame::k_widget_body_style, to_field(k_primary_dark));
     add_frame_field(Frame::k_border_size_style, to_field(k_chosen_padding));
 
     add_frame_field(Frame::k_title_text_style , to_field(k_title_text));
     add_frame_field(Frame::k_widget_text_style, to_field(k_widget_text));
     // button
+
     auto add_button_field = [&stylemap](Button::ButtonStyleEnum style, const StyleField & field)
         { stylemap.add(Button::to_key(style), field); };
     add_button_field(Button::k_button_padding     , to_field(k_chosen_padding));
-    add_button_field(Button::k_regular_front_style, to_field(k_secondary_mid));
-    add_button_field(Button::k_regular_back_style , to_field(k_secondary_dark));
-    add_button_field(Button::k_hover_back_style   , to_field(k_secondary_mid));
-    add_button_field(Button::k_hover_front_style  , to_field(k_secondary_light));
+    add_button_field(Button::k_regular_style,  to_field(k_bordered_regular_widget));
+    add_button_field(Button::k_hover_style,  to_field(k_bordered_hover_widget));
+    add_button_field(Button::k_focus_style,  to_field(k_bordered_focus_widget));
+    add_button_field(Button::k_hover_and_focus_style,  to_field(k_bordered_hover_and_focus_widget));
     // arrow button
-    stylemap.add(ArrowButton::to_key(ArrowButton::k_triangle_style), to_field(k_text_color));
+    stylemap.add(ArrowButton::to_key(ArrowButton::k_triangle_style), to_field(k_mono_light));
     // progress bar
     auto add_pbar_field = [&stylemap](ProgressBar::StyleEnum style, const StyleField & field)
         { stylemap.add(ProgressBar::to_key(style), field); };
     add_pbar_field(ProgressBar::k_outer_style  , to_field(k_secondary_dark));
     add_pbar_field(ProgressBar::k_fill_style   , to_field(k_primary_light));
-    add_pbar_field(ProgressBar::k_void_style   , to_field(k_text_color_dark));
+    add_pbar_field(ProgressBar::k_void_style   , to_field(k_mono_dark));
     add_pbar_field(ProgressBar::k_padding_style, to_field(k_chosen_padding));
     // editable text
     auto add_etext_field = [&stylemap] (EditableText::StyleEnum style, const StyleField & field)
         { stylemap.add(EditableText::to_key(style), field); };
-    add_etext_field(EditableText::k_cursor_style, to_field(k_text_color_dark));
-    add_etext_field(EditableText::k_text_background_style, to_field(k_text_color));
+    add_etext_field(EditableText::k_cursor_style, to_field(k_mono_dark));
+    add_etext_field(EditableText::k_text_background_style, to_field(k_mono_light));
     add_etext_field(EditableText::k_widget_border_style, to_field(k_secondary_mid));
     add_etext_field(EditableText::k_fill_text_style, to_field(k_editable_text_fill));
     add_etext_field(EditableText::k_empty_text_style, to_field(k_editable_text_empty));
-#   if 0
-    stylemap.add(TextArea::to_key(TextArea::k_text_size ), StyleField(18));
-    stylemap.add(TextArea::to_key(TextArea::k_text_color), StyleField(sf::Color::White));
-#   endif
+    // options slider
+    stylemap.add(OptionsSlider::to_key(OptionsSlider::k_back_style ), to_field(k_secondary_dark));
+    stylemap.add(OptionsSlider::to_key(OptionsSlider::k_front_style), to_field(k_secondary_mid ));
     }
 
     m_font_handler->add_font_style(to_item_key(k_title_text ), 22, sf::Color::White);
@@ -149,21 +223,34 @@ void SfmlFlatEngine::setup_default_styles() {
     m_font_handler->add_font_style(to_item_key(k_editable_text_empty), 18, sf::Color(100, 100, 100));
 
     using sf::Color;
-    m_items[to_item_key(k_primary_light  )] = to_item(Color(0x51, 0x51, 0x76));
-    m_items[to_item_key(k_primary_mid    )] = to_item(Color(0x18, 0x18, 0x40));
-    m_items[to_item_key(k_primary_dark   )] = to_item(Color(0x08, 0x08, 0x22));
-    m_items[to_item_key(k_secondary_light)] = to_item(Color(0x77, 0x6A, 0x45));
-    m_items[to_item_key(k_secondary_mid  )] = to_item(Color(0x4B, 0x46, 0x15));
-    m_items[to_item_key(k_secondary_dark )] = to_item(Color(0x30, 0x2C, 0x05));
-    m_items[to_item_key(k_text_color     )] = to_item(Color::White);
-    m_items[to_item_key(k_text_color_dark)] = to_item(Color(0x40,    0,    0));
+    m_items[to_item_key(k_primary_light  )] = to_color_item(k_palette[k_primary_light]);
+    m_items[to_item_key(k_primary_mid    )] = to_color_item(k_palette[k_primary_mid]);
+    m_items[to_item_key(k_primary_dark   )] = to_color_item(k_palette[k_primary_dark]);
+    m_items[to_item_key(k_secondary_light)] = to_color_item(k_palette[k_secondary_light]);
+    m_items[to_item_key(k_secondary_mid  )] = to_color_item(k_palette[k_secondary_mid]);
+    m_items[to_item_key(k_secondary_dark )] = to_color_item(k_palette[k_secondary_dark]);
+    m_items[to_item_key(k_mono_light     )] = to_color_item(k_palette[k_mono_light]);
+    m_items[to_item_key(k_mono_dark      )] = to_color_item(k_palette[k_mono_dark]);
+
+    auto make_button_item =  [](ItemColorEnum back, ItemColorEnum fore) {
+        return SfmlRenderItem( make_rounded_border( k_palette[back], k_palette[fore], k_chosen_padding ) );
+    };
+
+    m_items[to_item_key(k_bordered_regular_widget)]
+        = make_button_item(k_secondary_dark, k_secondary_mid);
+    m_items[to_item_key(k_bordered_hover_widget)]
+        = make_button_item(k_secondary_mid, k_secondary_dark);
+    m_items[to_item_key(k_bordered_focus_widget)]
+        = make_button_item(k_secondary_light, k_secondary_mid);
+    m_items[to_item_key(k_bordered_hover_and_focus_widget)]
+        = make_button_item(k_secondary_light, k_secondary_light);
 
     m_first_setup_done = true;
 }
 
 ItemKey SfmlFlatEngine::add_rectangle_style(sf::Color color, StyleKey stylekey) {
     auto item_key = m_item_key_creator.make_key();
-    m_items[item_key] = to_item(color);
+    m_items[item_key] = to_color_item(color);
     m_style_map.add(stylekey, StyleField(item_key));
     return item_key;
 }
@@ -206,15 +293,22 @@ SfmlFlatEngine::ColorItem::ColorItem(sf::Color color) {
 }
 
 void SfmlFlatEngine::ColorItem::update(const sf::IntRect & rect) {
-    m_rectangle = DrawRectangle(
-        float(rect.left), float(rect.top), float(rect.width), float(rect.height),
-        m_rectangle.color());
+    SfmlFlatEngine::update_draw_rectangle(m_rectangle, rect);
 }
+
 void SfmlFlatEngine::ColorItem::update(const TriangleTuple & trituple) {
     using std::get;
     m_triangle.set_point_a(sf::Vector2f(std::get<0>(trituple)));
     m_triangle.set_point_b(sf::Vector2f(std::get<1>(trituple)));
     m_triangle.set_point_c(sf::Vector2f(std::get<2>(trituple)));
+}
+
+/* static */ void SfmlFlatEngine::update_draw_rectangle
+    (DrawRectangle & rectangle, const sf::IntRect & irect)
+{
+    rectangle = DrawRectangle(
+        float(irect.left), float(irect.top), float(irect.width), float(irect.height),
+        rectangle.color());
 }
 
 /* private */ void SfmlFlatEngine::render_rectangle
@@ -224,8 +318,9 @@ void SfmlFlatEngine::ColorItem::update(const TriangleTuple & trituple) {
     if (itr == m_items.end())
         return;
     switch (itr->second.type_id()) {
+#   if 0
     case k_item_type_id<SfmlImageResPtr>:
-        return render_rectangle(rect, *itr->second.as<SfmlImageResPtr>());
+#   endif
     case k_item_type_id<ColorItem>:
         return render_rectangle(rect, itr->second.as<ColorItem>());
 #   if 0
@@ -235,7 +330,7 @@ void SfmlFlatEngine::ColorItem::update(const TriangleTuple & trituple) {
                       "rectangle.");
 #   endif
     default:
-        throw RtError("SfmlFlatEngine::render_rectangle: Bad branch.");
+        throw RtError("SfmlFlatEngine::render_rectangle: (not) Bad branch.");
     }
 }
 
@@ -252,50 +347,44 @@ void SfmlFlatEngine::ColorItem::update(const TriangleTuple & trituple) {
                       "triangle.");
     case k_item_type_id<ColorItem>:
         return render_triangle(tuple, itr->second.as<ColorItem>());
-#   if 0
-    case k_item_type_id<DrawTriangle>:
-        render_triangle(tuple, itr->second.as<DrawTriangle>());
-        break;
-#   endif
     default:
-        throw RtError("SfmlFlatEngine::render_rectangle: Bad branch.");
+        throw RtError("SfmlFlatEngine::render_rectangle: (not) Bad branch.");
     }
 }
 
 /* private */ void SfmlFlatEngine::render_text(const TextBase & text_base) {
     const auto * dc_text = dynamic_cast<const detail::SfmlText *>(&text_base);
     if (!dc_text) return;
-#   if 0
-    auto & drect = m_items.find(to_item_key(flat_colors::k_text_color_dark))->second.as<DrawRectangle>();
-    drect = DrawRectangle(dc_text->location().x, dc_text->location().y,
-                          dc_text->width(), dc_text->height(), drect.color());
-    m_target_ptr->draw(drect, m_states);
-#   endif
     m_target_ptr->draw(*dc_text, m_states);
 }
 
+/* private */ void SfmlFlatEngine::render_rectangle_pair
+    (const sf::IntRect & first, const sf::IntRect & second, ItemKey key, const void *)
+{
+    auto itr = m_items.find(key);
+    if (itr == m_items.end()) return;
+    switch (itr->second.type_id()) {
+    case k_item_type_id<SfmlImageResPtr>: {
+        auto ptr = itr->second.as<SfmlImageResPtr>();
+        if (!ptr) { throw RtError("somehow null"); }
+        return render_rectangle_pair(first, second, *ptr);
+    }
+    case k_item_type_id<ColorItem>:
+        render_rectangle(first, itr->second.as<ColorItem>());
+        return render_rectangle(second, itr->second.as<ColorItem>());
+    case k_item_type_id<RoundedBorder>:
+        return render_rectangle_pair(first, second, itr->second.as<RoundedBorder>());
+    case k_item_type_id<SquareBorder>:
+        return render_rectangle_pair(first, second, itr->second.as<SquareBorder>());
+    default: throw RtError("bad branch");
+    }
+}
 
 /* private */ void SfmlFlatEngine::render_rectangle
     (const sf::IntRect & rect, ColorItem & color_item) const
 {
     color_item.update(rect);
     m_target_ptr->draw(color_item.rectangle(), m_states);
-#   if 0
-    drect = DrawRectangle(
-        float(rect.left ), float(rect.top   ),
-        float(rect.width), float(rect.height), drect.color());
-    m_target_ptr->draw(drect, m_states);
-#   endif
-}
-
-/* private */ void SfmlFlatEngine::render_rectangle
-    (const sf::IntRect & rect, SfmlImageResource & res) const
-{
-    auto & spt = res.sprite;
-    spt.setPosition(float(rect.left), float(rect.top));
-    spt.setScale(float( rect.width  ) / float(spt.getTextureRect().width ),
-                 float( rect.height ) / float(spt.getTextureRect().height));
-    m_target_ptr->draw(spt, m_states);
 }
 
 /* private */ void SfmlFlatEngine::render_triangle
@@ -303,15 +392,53 @@ void SfmlFlatEngine::ColorItem::update(const TriangleTuple & trituple) {
 {
     color_item.update(trituple);
     m_target_ptr->draw(color_item.triangle(), m_states);
-#   if 0
-    using std::get;
-    triangle.set_point_a(sf::Vector2f(std::get<0>(trituple)));
-    triangle.set_point_b(sf::Vector2f(std::get<1>(trituple)));
-    triangle.set_point_c(sf::Vector2f(std::get<2>(trituple)));
-    m_target_ptr->draw(triangle, m_states);
-#   endif
 }
 
+/* private */ void SfmlFlatEngine::render_rectangle_pair
+    (const sf::IntRect & front, const sf::IntRect & back, RoundedBorder & obj) const
+{
+    SfmlFlatEngine::update_draw_rectangle
+        (obj.back_rectangle, sf::IntRect(front.left, back.top, front.width, back.height));
+    m_target_ptr->draw(obj.back_rectangle, m_states);
+
+    SfmlFlatEngine::update_draw_rectangle
+        (obj.back_rectangle, sf::IntRect(back.left, front.top, back.width, front.height));
+    m_target_ptr->draw(obj.back_rectangle, m_states);
+
+    auto draw_circle_at = [&obj, this](float x, float y) {
+        auto nstates = m_states;
+        nstates.transform.translate(x, y);
+        m_target_ptr->draw(obj.circle.data(), obj.circle.size(), sf::PrimitiveType::Triangles, nstates);
+    };
+    // tl, tr, bl, br
+    draw_circle_at( float(front.left              ), float(front.top               ) );
+    draw_circle_at( float(front.left + front.width), float(front.top               ) );
+    draw_circle_at( float(front.left              ), float(front.top + front.height) );
+    draw_circle_at( float(front.left + front.width), float(front.top + front.height) );
+
+    SfmlFlatEngine::update_draw_rectangle(obj.front_rectangle, front);
+    m_target_ptr->draw(obj.front_rectangle, m_states);
+}
+
+/* private */ void SfmlFlatEngine::render_rectangle_pair
+    (const sf::IntRect & front, const sf::IntRect & back, SquareBorder & obj) const
+{
+    SfmlFlatEngine::update_draw_rectangle(obj.back_rectangle, front);
+    m_target_ptr->draw(obj.back_rectangle, m_states);
+
+    SfmlFlatEngine::update_draw_rectangle(obj.front_rectangle, back);
+    m_target_ptr->draw(obj.front_rectangle, m_states);
+}
+
+/* private */ void SfmlFlatEngine::render_rectangle_pair
+    (const sf::IntRect & bounds, const sf::IntRect & txrect, SfmlImageResource & obj) const
+{
+    obj.sprite.setTextureRect(txrect);
+    obj.sprite.setPosition(float(bounds.left), float(bounds.top));
+    obj.sprite.setScale(float( bounds.width ) / float(txrect.width ),
+                        float( bounds.height) / float(txrect.height));
+    m_target_ptr->draw(obj.sprite, m_states);
+}
 
 /* private */ SharedImagePtr SfmlFlatEngine::make_image_resource
     (const std::string & filename)

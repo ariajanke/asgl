@@ -143,9 +143,7 @@ void ProgressBar::draw(WidgetRenderer & renderer) const {
 /* private */ void ProgressBar::set_location_(int x, int y) {
     m_bounds.left = x;
     m_bounds.top  = y;
-}
 
-/* private */ void ProgressBar::update_geometry() {
     verify_padding_set("on_geometry_update");
     if (m_padding*2 >= m_bounds.width) {
         m_inner_bounds = sf::IntRect();
@@ -158,7 +156,11 @@ void ProgressBar::draw(WidgetRenderer & renderer) const {
     m_inner_bounds.width  = m_bounds.width  - m_padding*2;
     m_inner_bounds.height = m_bounds.height - m_padding*2;
 }
+#if 0
+/* private */ void ProgressBar::update_geometry() {
 
+}
+#endif
 /* private */ void ProgressBar::verify_padding_set(const char * caller) const {
     if (m_padding != styles::k_uninit_size) return;
     throw RtError("ProgressBar::" + std::string(caller) + ": padding has not"

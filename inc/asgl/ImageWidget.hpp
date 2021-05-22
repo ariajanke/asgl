@@ -34,7 +34,6 @@ struct ImageResource {
     virtual ~ImageResource();
     virtual int image_width() const = 0;
     virtual int image_height() const = 0;
-    virtual void set_view_rectangle(sf::IntRect) = 0;
     virtual ItemKey item_key() const = 0;
 };
 
@@ -59,38 +58,40 @@ public:
 
     void copy_image_from(ImageLoader &, SharedImagePtr);
 
-    void stylize(const StyleMap &) override {}
+    void stylize(const StyleMap &) final {}
 
-    VectorI location() const override;
+    VectorI location() const final;
 
-    int width() const override;
+    int width() const final;
 
-    int height() const override;
+    int height() const final;
 
     void set_size(int w, int h);
 
-    int image_width() const override;
+    int image_width() const final;
 
-    int image_height() const override;
+    int image_height() const final;
 
-    void set_view_rectangle(sf::IntRect) override;
+    void set_view_rectangle(sf::IntRect);
 
-    void draw(WidgetRenderer &) const override;
+    void draw(WidgetRenderer &) const final;
 
 private:
-    void process_event(const Event &) override {}
-
+    void process_event(const Event &) final {}
+#   if 0
     void update_geometry() override {}
-
-    ItemKey item_key() const override;
+#   endif
+    void update_size() final {}
+    ItemKey item_key() const final;
 
     ImageResource & verify_image_present();
 
     const ImageResource & verify_image_present() const;
 
-    void set_location_(int x, int y) override;
+    void set_location_(int x, int y) final;
 
     SharedImagePtr m_image;
+    sf::IntRect m_image_rect;
     sf::IntRect m_bounds;
 };
 

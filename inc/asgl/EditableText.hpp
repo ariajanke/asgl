@@ -86,30 +86,30 @@ public:
     /** When clicked with the mouse or "pressed" in any fashion, this control
      *  begins to request focus.
      */
-    void process_event(const Event &) override;
+    void process_event(const Event &) final;
 
     /** @copydoc asgl::Widget::location() */
-    VectorI location() const override { return m_location; }
+    VectorI location() const final { return m_location; }
 
     /** @copydoc asgl::Widget::width() */
-    int width() const override;
+    int width() const final;
 
     /** @copydoc asgl::Widget::height() */
-    int height() const override;
+    int height() const final;
 
     /** Sets the style for the text cursor, "empty string" text, "display
      *  string" text, the background, and the border.
      */
-    void stylize(const StyleMap &) override;
-
+    void stylize(const StyleMap &) final;
+#   if 0
     /** @copydoc asgl::Widget::on_geometry_update() */
     void update_geometry() override;
-
+#   endif
     /** If the display string is empty, then the "empty string" is shown. If
      *  this control has focus, then the text cursor is shown. Note that the
      *  display string may not match the actual "entered" string.
      */
-    void draw(WidgetRenderer &) const override;
+    void draw(WidgetRenderer &) const final;
 
     /** Sets the text with a string that is displayed when the display string
      *  is empty (even if the actual string is non-empty).
@@ -162,19 +162,20 @@ public:
          std::size_t pos);
 
 private:
-    void set_location_(int x, int y) override
-        { m_location = VectorI(x, y); }
+    void set_location_(int x, int y) final;
+
+    void update_size() final;
 
     /** Responds to arrow keys, text entered, backspace, delete, home and end
      *  key presses.
      *
      *  Calls the check string event function everytime text is entered.
      */
-    void process_focus_event(const Event &) override;
+    void process_focus_event(const Event &) final;
 
-    void notify_focus_gained() override;
+    void notify_focus_gained() final;
 
-    void notify_focus_lost() override;
+    void notify_focus_lost() final;
 
     int cursor_width() const { return m_padding; }
 
@@ -193,8 +194,11 @@ private:
 
     sf::IntRect bounds() const;
 
-    int m_padding    = 0;
-    int m_text_width = styles::k_uninit_size;
+    void update_internals_locations();
+
+    int m_padding      = 0;
+    int m_chosen_width = styles::k_uninit_size;
+    int m_used_width   = 0;
 
     ItemKey m_border_appearance, m_border_hover_appearance;
     ItemKey m_area_appearance, m_cursor_appearance;

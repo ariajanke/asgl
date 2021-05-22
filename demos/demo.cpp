@@ -39,6 +39,8 @@
 #include <SFML/Graphics/RenderWindow.hpp>
 #include <SFML/Graphics/Font.hpp>
 
+#include <random>
+
 using UString = asgl::Text::UString;
 
 namespace {
@@ -46,7 +48,13 @@ namespace {
 class FruitFrame final : public asgl::Frame {
 public:
     void setup_frame(asgl::ImageLoader &);
+
 private:
+#   if 0
+    void draw(asgl::WidgetRenderer &) const final {
+
+    }
+#   endif
     asgl::ImageWidget   m_image_widget;
     asgl::OptionsSlider m_slider;
 
@@ -58,6 +66,7 @@ public:
     DemoText(): m_close_flag(false) {}
     void setup_frame(asgl::ImageLoader &);
     bool requesting_to_close() const { return m_close_flag; }
+
 private:
     asgl::TextArea   m_text_area    ;
     asgl::TextButton m_text_button  ;
@@ -77,6 +86,7 @@ int main() {
     DemoText dialog;
     dialog.setup_frame(engine);
     engine.stylize(dialog);
+    dialog.check_for_geometry_updates();
 
     sf::RenderWindow window;
     window.create(sf::VideoMode(unsigned(dialog.width()), unsigned(dialog.height())),
@@ -85,6 +95,7 @@ int main() {
     engine.assign_target_and_states(window, sf::RenderStates::Default);
 
     bool has_events = true;
+
     while (window.isOpen()) {
         sf::Event event;
         while (window.pollEvent(event)) {
@@ -99,6 +110,21 @@ int main() {
         if (has_events) {
             window.clear();
             dialog.draw(engine);
+#           if 0
+            using IntDistri = std::uniform_int_distribution<int>;
+            std::default_random_engine rng { 0x1201471 };
+            dialog.iterate_children_const_f([&window, &rng](const asgl::Widget & widget) {
+                auto rnd_u8 = [](std::default_random_engine & rng) {
+                    return IntDistri(0, 255)(rng);
+                };
+                sf::IntRect irect(widget.location().x, widget.location().y,
+                                  widget.width(), widget.height());
+                DrawRectangle rect(float(widget.location().x), float(widget.location().y),
+                                   float(widget.width()), float(widget.height()),
+                                   sf::Color(rnd_u8(rng), rnd_u8(rng), rnd_u8(rng), 150));
+                window.draw(rect);
+            });
+#           endif
             window.display();
             has_events = false;
         } else {
@@ -142,9 +168,7 @@ void DemoText::setup_frame(asgl::ImageLoader & loader) {
     // this may result in a segmentation fault, and is undefined behavior
     m_text_button.set_press_event([this]() { m_close_flag = true; });
 
-    m_text_area.set_string(U"Hello World");
     m_text_area.set_limiting_line(200);
-
     m_text_area.set_string(U"Hello World.\n"
         "Images of fruit were graciously "
         "provided by \"freefoodphotos.com\" "

@@ -53,6 +53,7 @@ public:
 
     bool requesting_to_close() const { return m_request_close_flag; }
     void setup_frame(/*const sf::Font &*/);
+
 private:
     TextArea m_row1_ta;
     // spacer
@@ -70,6 +71,8 @@ private:
     // spacer
     ProgressBar m_row3_pb;
     // spacer
+    // newline
+    TextButton m_force_update_geo;
     // newline
     // spacer
     TextButton m_exit;
@@ -89,9 +92,10 @@ int main() {
     engine.add_rectangle_style(sf::Color(200,  12, 86), CustomStyles::to_key(k_pb1_style));
     dialog.setup_frame();
     engine.stylize(dialog);
+    dialog.check_for_geometry_updates();
 
     sf::RenderWindow window(
-        sf::VideoMode(unsigned(dialog.width()), unsigned(dialog.height())), 
+        sf::VideoMode(unsigned(dialog.width() + 200), unsigned(dialog.height() + 200)),
         "Window Title", sf::Style::Close);
     window.setFramerateLimit(20);
     engine.assign_target_and_states(window, sf::RenderStates::Default);
@@ -111,6 +115,13 @@ int main() {
             window.clear();
             dialog.check_for_geometry_updates();
             dialog.draw(engine);
+
+            dialog.iterate_children_const_f([&window](const asgl::Widget & widget) {
+                DrawRectangle rect(float(widget.location().x), float(widget.location().y),
+                                   float(widget.width()), float(widget.height()), sf::Color(140, 0, 0, 50));
+                window.draw(rect);
+            });
+
 #           if 0
             window.draw(dialog);
 #           endif
@@ -127,15 +138,15 @@ namespace {
 void SpacerTest::setup_frame() {
     m_row1_ta.set_string(U"Hjg Sample");
     m_row1_ab.set_direction(ArrowButton::Direction::k_right);
-    m_row1_ab.set_size(32.f, 32.f);
-    m_row2_pb.set_size(100.f, 32.f);
+    m_row1_ab.set_size(32, 32);
+    m_row2_pb.set_size(100, 32);
     m_row2_pb.set_fill_amount(0.48f);
 
     m_row2_ta.set_string(U"Hello World");
     m_row3_ab.set_direction(ArrowButton::Direction::k_down);
-    m_row3_ab.set_size(32.f, 32.f);
+    m_row3_ab.set_size(32, 32);
     m_row3_ta.set_string(U"Row 3");
-    m_row3_pb.set_size(100.f, 32.f);
+    m_row3_pb.set_size(100, 32);
     m_row3_pb.set_fill_amount(0.78f);
     m_exit.set_string(U"Close Application");
     m_exit.set_press_event([this]() { m_request_close_flag = true; });
@@ -146,6 +157,12 @@ void SpacerTest::setup_frame() {
 
     m_row2_pb.set_fill_style(CustomStyles::to_key(k_pb0_style));
     m_row3_pb.set_fill_style(CustomStyles::to_key(k_pb1_style));
+
+    m_force_update_geo.set_string(U"Force Geometry Update");
+    m_force_update_geo.set_press_event([this]() { flag_needs_whole_family_geometry_update(); });
+
+    set_width_minimum(1000);
+
     begin_adding_widgets(/*styles*/).
         add( m_row1_ta).
         add_horizontal_spacer().
@@ -163,6 +180,8 @@ void SpacerTest::setup_frame() {
         add_horizontal_spacer().
         add( m_row3_pb).
         add_horizontal_spacer().
+        add_line_seperator().
+        add(m_force_update_geo).
         add_line_seperator().
         add_horizontal_spacer().
         add( m_exit).

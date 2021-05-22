@@ -222,6 +222,12 @@ public:
     void turn_off_focus_widgets() {
         m_focus_handler.clear_focus_widgets();
     }
+
+    void stylize(const StyleMap &) override;
+
+    // detail
+    using WidgetPlacementVector = std::vector<std::tuple<Widget *, VectorI>>;
+
 protected:
     BareFrame();
 
@@ -230,20 +236,7 @@ protected:
 
     ~BareFrame();
 
-    /** @brief Sometimes the most derived frame class will have it's own auto
-     *         resize behavior.
-     *
-     *  The issue_auto_resize behaviors defined in Frame, are mandatory for
-     *  this class to work. This method is provided as an "issue_auto_resize"
-     *  for classes inheriting from Frame. Added member widgets will have their
-     *  "issue_auto_resize" called first.
-     *
-     *  @note much like "issue_auto_resize" styles are set for widgets on this
-     *        call, so that information is provided for any desired geometric
-     *        work.
-     */
-    virtual void issue_auto_resize_for_frame() {}
-
+    virtual void on_frame_geometry_update() {}
     /** Sets the pixel location of the frame.
      *  @param x the x coordinate
      *  @param y the y coordinate
@@ -257,27 +250,35 @@ protected:
     virtual const FrameDecoration & decoration() const = 0;
 
 private:
+    class WidgetBoundsFinder {
+    public:
+
+        void record_widget_bounds(VectorI location, const Widget & widget) {
+            x_low  = std::min(x_low , location.x);
+            y_low  = std::min(y_low , location.y);
+            x_high = std::max(x_high, location.x + widget.width ());
+            y_high = std::max(y_high, location.y + widget.height());
+        }
+
+        VectorI recorded_location() const
+            { return VectorI(x_low, y_low); }
+
+        int recorded_width() const { return x_high - x_low; }
+
+        int recorded_height() const { return y_high - y_low; }
+
+    private:
+        using IntLims = std::numeric_limits<int>;
+        int x_low = IntLims::max(), y_low = IntLims::max(), x_high = IntLims::min(), y_high = IntLims::min();
+    };
+
+    static WidgetBoundsFinder get_measurements(const WidgetPlacementVector & widget_placements);
+
     using WidgetItr = std::vector<Widget *>::iterator;
     using LineSeperator = detail::LineSeperator;
     using HorizontalSpacer = detail::HorizontalSpacer;
 
-    void stylize(const StyleMap &) override;
-
-    WidgetItr set_horz_spacer_widths
-        (WidgetItr beg, WidgetItr end, int left_over_space, int padding);
-
-    void update_horizontal_spacers();
-
-    /** @return Calculates the minimum size to fit all widgets. */
-    VectorI compute_size_to_fit() const;
-
-    bool is_horizontal_spacer(const Widget *) const;
-
-    bool is_line_seperator(const Widget *) const;
-
-    int get_widget_advance(const Widget * widget_ptr) const;
-
-    void issue_auto_resize() final;
+    void update_horizontal_spacers(const int);
 
     bool contains(const Widget *) const noexcept;
 
@@ -285,20 +286,16 @@ private:
 
     void iterate_children_const_(const ChildConstWidgetIterator &) const final;
 
-    void update_geometry() final;
+    void update_size() final;
 
-    /** Updates sizes and locations for all member widgets including this frame.
-     *  Also sets up focus widgets.
-     */
-    void finalize_widgets();
-
-    void place_widgets_to_locations();
+    void get_widget_placements(WidgetPlacementVector &, const int k_horz_space) const;
 
     void check_invarients() const;
 
     int padding() const { return std::max(0, m_padding); }
 
     std::vector<Widget *> m_widgets;
+    WidgetPlacementVector m_widget_placements;
     int m_padding = styles::k_uninit_size;
 
     //! unique per instance
@@ -306,6 +303,8 @@ private:
     std::vector<HorizontalSpacer> m_horz_spacers;
 
     detail::FrameFocusHandler m_focus_handler;
+
+    WidgetBoundsFinder m_widget_extremes;
 };
 
 /** This class is intended as a top level, bordered frame, possibly with a
@@ -340,6 +339,9 @@ public:
      */
     bool has_drag_enabled() const;
 
+    void set_width_minimum(int i)
+        { m_border.set_width_minimum(i); }
+
 protected:
     Frame()
         { m_border.assign_flags_updater(this); }
@@ -357,6 +359,9 @@ protected:
     Frame & operator = (Frame &&) = delete;
 
     ~Frame() {}
+
+    void draw_decoration(WidgetRenderer & target) const
+        { decoration().draw(target); }
 
 private:
     FrameDecoration & decoration() final { return m_border; }

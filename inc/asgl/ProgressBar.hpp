@@ -79,8 +79,11 @@ public:
 
 private:
     void set_location_(int x, int y) override;
-
+#   if 0
     void update_geometry() override;
+#   endif
+
+    void update_size() override {}
 
     void verify_padding_set(const char * caller) const;
 

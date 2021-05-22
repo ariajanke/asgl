@@ -86,10 +86,10 @@ void OptionsSlider::stylize(const StyleMap & stylemap) {
 
     using std::make_tuple;
     Helpers::handle_required_fields("OptionsSlider::stylize", {
-        make_tuple(&m_front, "regular front style",
-                   stylemap.find(m_front_style, Button::to_key(Button::k_regular_front_style))),
-        make_tuple(&m_back, "regular back style",
-                   stylemap.find(m_back_style, Button::to_key(Button::k_regular_back_style))),
+        make_tuple(&m_front, "front style",
+                   stylemap.find(m_front_style, to_key(k_front_style))),
+        make_tuple(&m_back, "back style",
+                   stylemap.find(m_back_style, to_key(k_back_style))),
     });
     m_padding = Helpers::verify_padding(
         stylemap.find(styles::k_global_padding), "OptionsSlider::stylize");
@@ -165,7 +165,7 @@ void OptionsSlider::draw(WidgetRenderer & target) const {
     m_right_arrow.draw(target);
     m_text.draw_to(target);
 }
-
+#if 0
 /* private */ void OptionsSlider::issue_auto_resize() {
     int width_ = 0, height_ = 0;
     for (const auto & str : m_options) {
@@ -180,7 +180,7 @@ void OptionsSlider::draw(WidgetRenderer & target) const {
     assert(m_inner_bounds.width  >= 0);
     assert(m_inner_bounds.height >= 0);
 }
-
+#endif
 /* private */ void OptionsSlider::iterate_children_
     (const ChildWidgetIterator & itr)
 {
@@ -194,8 +194,24 @@ void OptionsSlider::draw(WidgetRenderer & target) const {
     itr(m_left_arrow );
     itr(m_right_arrow);
 }
-
+#if 0
 /* private */ void OptionsSlider::update_geometry() {
+#   if 0
+    // compute overall size
+    int width_ = 0, height_ = 0;
+    for (const auto & str : m_options) {
+        auto gv = m_text.measure_text(str.begin(), str.end());
+        width_  = std::max(width_ , gv.width );
+        height_ = std::max(height_, gv.height);
+    }
+
+    m_inner_bounds.width  = width_  + padding()*2;
+    m_inner_bounds.height = height_ + padding()*2;
+
+    assert(m_inner_bounds.width  >= 0);
+    assert(m_inner_bounds.height >= 0);
+#   endif
+    // update other internals
     update_selections();
     m_left_arrow .set_size(m_inner_bounds.height, m_inner_bounds.height);
     m_right_arrow.set_size(m_inner_bounds.height, m_inner_bounds.height);
@@ -219,9 +235,50 @@ void OptionsSlider::draw(WidgetRenderer & target) const {
     m_left_arrow .update_geometry();
     m_right_arrow.update_geometry();
 }
+#endif
+/* private */ void OptionsSlider::update_size() {
+    int width_ = 0, height_ = 0;
+    for (const auto & str : m_options) {
+        auto gv = m_text.measure_text(str.begin(), str.end());
+        width_  = std::max(width_ , gv.width );
+        height_ = std::max(height_, gv.height);
+    }
+
+    m_inner_bounds.width  = width_  + padding()*2;
+    m_inner_bounds.height = height_ + padding()*2;
+
+    assert(m_inner_bounds.width  >= 0);
+    assert(m_inner_bounds.height >= 0);
+}
 
 /* private */ void OptionsSlider::set_location_(int x, int y) {
     m_left_arrow.set_location(x, y);
+
+    // update other internals
+    m_left_arrow .set_size(m_inner_bounds.height, m_inner_bounds.height);
+    m_right_arrow.set_size(m_inner_bounds.height, m_inner_bounds.height);
+
+    // inner part
+    int left_arrow_right = m_left_arrow.location().x + m_left_arrow.width();
+    m_inner_bounds.left = left_arrow_right;
+    m_inner_bounds.top  = m_left_arrow.location().y;
+
+    // center text
+    int center_offset = std::max(0, m_inner_bounds.width - m_text.width()) / 2;
+    m_text.set_location(left_arrow_right + center_offset,
+                        m_left_arrow.location().y + padding());
+
+    // reposition right arrow
+    m_right_arrow.set_location(
+        left_arrow_right + m_inner_bounds.width,
+        m_left_arrow.location().y);
+
+    update_selections();
+#   if 0
+    // update internal geometry of left and right arrows
+    m_left_arrow .update_geometry();
+    m_right_arrow.update_geometry();
+#   endif
 }
 
 /* private */ void OptionsSlider::set_arrow_events() {

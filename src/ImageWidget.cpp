@@ -45,6 +45,7 @@ SharedImagePtr ImageWidget::load_image
 
 void ImageWidget::set_image(SharedImagePtr resptr) {
     m_image = resptr;
+    m_image_rect = sf::IntRect(0, 0, m_image->image_width(), m_image->image_height());
     // (don't delete quite yet?)
     // it isn't clear to me how I should go about marking for needing redraw
 #   if 0
@@ -52,21 +53,11 @@ void ImageWidget::set_image(SharedImagePtr resptr) {
 #   endif
 }
 
-void ImageWidget::copy_image_from(ImageLoader & loader, const ImageWidget & rhs) {
-    copy_image_from(loader, rhs.m_image);
-    // it isn't clear to me how I should go about marking for needing redraw
-#   if 0
-    set_needs_redraw_flag();
-#   endif
-}
+void ImageWidget::copy_image_from(ImageLoader & loader, const ImageWidget & rhs)
+    { copy_image_from(loader, rhs.m_image); }
 
-void ImageWidget::copy_image_from(ImageLoader & loader, SharedImagePtr resptr) {
-    m_image = loader.make_image_resource(resptr);
-    // it isn't clear to me how I should go about marking for needing redraw
-#   if 0
-    set_needs_redraw_flag();
-#   endif
-}
+void ImageWidget::copy_image_from(ImageLoader & loader, SharedImagePtr resptr)
+    { set_image(loader.make_image_resource(resptr)); }
 
 VectorI ImageWidget::location() const
     { return VectorI(m_bounds.left, m_bounds.top); }
@@ -89,11 +80,10 @@ int ImageWidget::image_height() const
     { return verify_image_present().image_height(); }
 
 void ImageWidget::set_view_rectangle(sf::IntRect rect)
-    { verify_image_present().set_view_rectangle(rect); }
+    { m_image_rect = rect; }
 
-void ImageWidget::draw(WidgetRenderer & target) const {
-    draw_to(target, m_bounds, item_key());
-}
+void ImageWidget::draw(WidgetRenderer & target) const
+    { draw_to(target, m_bounds, m_image_rect, item_key()); }
 
 /* private */ ItemKey ImageWidget::item_key() const
     { return verify_image_present().item_key(); }

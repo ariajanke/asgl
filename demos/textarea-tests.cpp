@@ -38,8 +38,11 @@
 #include <common/TestSuite.hpp>
 
 #include <limits>
+#include <random>   // debug
+#include <iostream> // debug
 
 #include <cstring>
+#include <cassert>
 
 namespace {
 
@@ -181,6 +184,7 @@ private:
     LocationsParamsFrame m_locs_frame;
     SizeParamsFrame      m_size_frame;
 
+    TextButton m_force_geometry_update;
     TextButton m_exit;
 
     bool m_req_exit = false;
@@ -189,6 +193,8 @@ private:
 };
 
 void run_tests();
+
+void run_engine_tests(asgl::SfmlFlatEngine &);
 
 } // end of <anonymous> namespace
 
@@ -205,8 +211,19 @@ int main() {
     engine.assign_target_and_states(win, sf::RenderStates::Default);
     engine.load_global_font("font.ttf");
 
+    //run_engine_tests(engine);
+
     frame.setup();
     engine.stylize(frame);
+    frame.check_for_geometry_updates();
+    {
+    auto old_width = frame.width();
+    {
+    asgl::Widget & asw = frame;
+    asw.update_size();
+    }
+    assert(old_width == frame.width());
+    }
 
     win.create(sf::VideoMode(unsigned(frame.width()) + 200, unsigned(frame.height()) + 200), "TextArea Test App");
     while (win.isOpen()) {
@@ -218,8 +235,24 @@ int main() {
             }
         }
         win.clear();
+        int old_width = frame.width();
         frame.check_for_geometry_updates();
+        if (old_width < frame.width()) {
+            std::cout << "Frame width increase " << (frame.width() - old_width) << std::endl;
+        }
         frame.draw(engine);
+#       if 0
+        using IntDistri = std::uniform_int_distribution<int>;
+        std::default_random_engine rng { 0x1201471 };
+        frame.iterate_children_const_f([&win, &rng](const asgl::Widget & widget) {
+            auto rnd_u8 = [](std::default_random_engine & rng)
+                { return IntDistri(0, 255)(rng); };
+            DrawRectangle rect(float(widget.location().x), float(widget.location().y),
+                               float(widget.width()), float(widget.height()),
+                               sf::Color(rnd_u8(rng), rnd_u8(rng), rnd_u8(rng), 100));
+            win.draw(rect);
+        });
+#       endif
         win.display();
         std::this_thread::sleep_for(std::chrono::microseconds(16667));
     }
@@ -327,17 +360,17 @@ void LocationsParamsFrame::setup(TesterBase * base_ptr) {
 void TestFrame::setup() {
     if (m_first_setup) first_setup();
 
-    //set_title(U"Text Area Tester App");
-
-    /*get_border().*/set_title(U"Text Area Tester App");
+    set_title(U"Text Area Tester App");
 
     int num_of_words = k_min_words + int(m_amount_of_text.selected_option_index())*k_word_step;
     m_test_text_area.set_string(UString(k_ipsum, after_n_words(num_of_words, k_ipsum)));
 
     begin_adding_widgets()
         .add(m_amount_of_text_notice).add(m_amount_of_text).add_horizontal_spacer().add_line_seperator()
+#       if 1
         .add(m_locs_frame).add(m_size_frame).add_line_seperator()
-        .add(m_exit).add_line_seperator()
+#       endif
+        .add(m_exit).add(m_force_geometry_update).add_line_seperator()
         .add_horizontal_spacer().add(m_test_text_area).add_horizontal_spacer();
 }
 
@@ -361,6 +394,9 @@ void TestFrame::process_event(const Event & event) {
 
     m_locs_frame.setup(this);
     m_size_frame.setup(this);
+
+    m_force_geometry_update.set_string(U"Force Geometry Update");
+    m_force_geometry_update.set_press_event([this]() { flag_needs_whole_family_geometry_update(); });
 }
 
 void TestFrame::on_parameters_update() {
@@ -408,6 +444,30 @@ void run_tests() {
     suite.test([]() {
         return ts::test(do_after_n_words_test("a b c d e", 5, ""));
     });
+}
+
+void run_engine_tests(asgl::SfmlFlatEngine & engine) {
+    {
+    TextArea test_text;
+    test_text.set_string(U"Hello World!");
+    engine.stylize(test_text);
+    test_text.update_size();
+    test_text.set_location(0, 0);
+    int width = test_text.width();
+    assert(width != 0);
+    for (int x = 1; x != 100; ++x) {
+        test_text.set_location(x, 0);
+        assert(width == test_text.width());
+    }
+    }
+    {
+    asgl::FrameBorder border;
+    border.request_size(300, 300);
+    border.update_geometry();
+    border.request_size(300, 300);
+    border.update_geometry();
+    int i = border.width();
+    }
 }
 
 // ----------------------------------------------------------------------------

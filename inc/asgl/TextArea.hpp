@@ -40,16 +40,16 @@ public:
     // <-------------------------- Basic Widget ------------------------------>
 
     /** Does nothing, as a plain text area does not interact with events. */
-    void process_event(const Event &) override {}
+    void process_event(const Event &) final {}
 
     /** @copydoc Widget::location() */
-    VectorI location() const override;
+    VectorI location() const final;
 
-    int width() const override;
+    int width() const final;
 
-    int height() const override;
+    int height() const final;
 
-    void stylize(const StyleMap &) override;
+    void stylize(const StyleMap &) final;
 
     // <----------------------------- TextWidget ----------------------------->
 
@@ -64,6 +64,8 @@ public:
     /** @copydoc asgl::Text::set_limiting_line(int) */
     void set_limiting_line(int x_limit);
 
+    void set_fixed_height(int height);
+
     /** @copydoc asgl::Text::set_viewport(const sf::IntRect&) */
     void set_viewport(const sf::IntRect &);
 
@@ -77,16 +79,23 @@ public:
         (Text &, const StyleField * font, const StyleField * style_key,
          const char * full_call);
 
-    void draw(WidgetRenderer &) const override;
+    void draw(WidgetRenderer &) const final;
+
+    void update_size() final;
 
 private:
-    void set_location_(int x, int y) override;
-
+    void set_location_(int x, int y) final;
+#   if 0
     void issue_auto_resize() override;
 
     void update_geometry() override;
+#   endif
+
+    // not perfect, and possibly only useful for American English
+    void check_and_adjust_for_text_too_big();
 
     Text m_draw_text;
+    int m_height_fix = 0, m_controls_y = 0;
 };
 
 } // end of asgl namespace

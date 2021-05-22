@@ -57,12 +57,29 @@ WidgetFlagsReceiver::~WidgetFlagsReceiver() {}
 Widget::~Widget() {}
 
 void Widget::set_location(int x, int y) {
+#   if 0
     flag_needs_whole_family_geometry_update();
+#   endif
+    // setting location should not affect the size of the widget, and this is
+    // strictly enforced
+    auto w = width(), h = height();
     set_location_(x, y);
+    if (w == width() && h == height()) return;
+    throw RtError("Widget::set_location: re-positioning the widget should not "
+                  "change its size.");
 }
 
-void Widget::issue_auto_resize() {}
+#if 0
+void Widget::update_location() {
+    // safeties here?
+    update_location_();
 
+}
+#endif
+
+#if 0
+void Widget::issue_auto_resize() {}
+#endif
 void Widget::iterate_children(const ChildWidgetIterator & itr)
     { iterate_children_(itr); }
 
@@ -80,6 +97,11 @@ void Widget::assign_flags_receiver(WidgetFlagsReceiver * ptr)
 /* protected */ void Widget::draw_to
     (WidgetRenderer & target, const sf::IntRect & rect, ItemKey key) const
 { target.render_rectangle(rect, key, this); }
+
+/* protected */ void Widget::draw_to
+    (WidgetRenderer & target, const sf::IntRect & lrect,
+     const sf::IntRect & rrect, ItemKey key) const
+{ target.render_rectangle_pair(lrect, rrect, key, this); }
 
 /* protected */ void Widget::draw_to
     (WidgetRenderer & target, const TriangleTuple & tri, ItemKey key) const
@@ -178,7 +200,9 @@ void WidgetFlagsReceiverWidget::receive_individual_update_needed(Widget * wid) {
         if (widget == before) continue;
         int old_width  = widget->width ();
         int old_height = widget->height();
+#       if 0
         widget->update_geometry();
+#       endif
         if (old_width != widget->width() || old_height != widget->height())
             { throw make_size_changed_error("unset_flags"); }
         before = widget;

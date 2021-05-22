@@ -52,7 +52,7 @@ void ArrowButton::stylize(const StyleMap & smap) {
                    smap.find(to_key(k_triangle_style)))
     });
 }
-
+#if 0
 void ArrowButton::set_arrow_style(ItemKey ky)
     { m_triangle_style = ky; }
 
@@ -60,7 +60,7 @@ void ArrowButton::update_geometry() {
     Button::update_geometry();
     update_points();
 }
-
+#endif
 void ArrowButton::draw(WidgetRenderer & target) const {
     Button::draw(target);
     if (m_dir != Direction::k_none) {

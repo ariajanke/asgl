@@ -25,7 +25,7 @@
 #include <asgl/EditableText.hpp>
 #include <asgl/Frame.hpp>
 #include <asgl/TextArea.hpp>
-#include <asgl/Button.hpp>
+#include <asgl/OptionsSlider.hpp>
 
 #include <cassert>
 
@@ -65,13 +65,13 @@ namespace asgl {
 void EditableText::set_text_width(int new_width) {
     Helpers::verify_non_negative(
         new_width, "EditableText::set_text_width", "text width");
-    m_text_width = new_width;
+    m_chosen_width = new_width;
     flag_needs_whole_family_geometry_update();
     check_invarients();
 }
 
 void EditableText::set_text_width_to_match_empty_text() {
-    m_text_width = styles::k_uninit_size;
+    m_chosen_width = styles::k_uninit_size;
     flag_needs_whole_family_geometry_update();
     check_invarients();
 }
@@ -81,7 +81,7 @@ void EditableText::set_check_string_event(StringCheckFunc && func)
 
 void EditableText::process_event(const Event & event) {
     switch (event.type_id()) {
-    case k_mouse_release_id:
+    case k_event_id_of<MouseRelease>:
         if (bounds().contains(to_vector(event.as<MouseRelease>()))) {
             request_focus();
         }
@@ -117,10 +117,10 @@ void EditableText::stylize(const StyleMap & stylemap) {
     Helpers::handle_required_fields("EditableText::stylize", {
         make_tuple(&m_border_appearance, "border",
                    stylemap.find(to_key(k_widget_border_style),
-                                 Button::to_key(Button::k_regular_back_style))),
+                                 OptionsSlider::to_key(OptionsSlider::k_back_style))),
         make_tuple(&m_border_hover_appearance, "border (hover)",
                    stylemap.find(to_key(k_widget_border_on_hover),
-                                 Button::to_key(Button::k_hover_back_style))),
+                                 OptionsSlider::to_key(OptionsSlider::k_front_style))),
         make_tuple(&m_area_appearance, "text area",
                    stylemap.find(to_key(k_text_background_style),
                                  Frame::to_key(Frame::k_widget_text_style))),
@@ -131,7 +131,7 @@ void EditableText::stylize(const StyleMap & stylemap) {
 
     flag_needs_whole_family_geometry_update();
 }
-
+#if 0
 void EditableText::update_geometry() {
     const auto & any_display_text = m_display_left;
     const auto & disp             = m_display_string;
@@ -178,7 +178,7 @@ void EditableText::update_geometry() {
 
     check_invarients();
 }
-
+#endif
 void EditableText::draw(WidgetRenderer & target) const {
     draw_to(target, bounds(),
             has_focus() ? m_border_hover_appearance : m_border_appearance);
@@ -248,12 +248,25 @@ const UString & EditableText::entered_string() const
     return std::get<1>(gv);
 }
 
+/* private */ void EditableText::set_location_(int x, int y) {
+    m_location = VectorI(x, y);
+    update_internals_locations();
+}
+
+/* private */ void EditableText::update_size() {
+    if (m_chosen_width == styles::k_uninit_size) {
+        m_used_width = m_empty_text.full_width();
+    } else {
+        m_used_width = m_chosen_width;
+    }
+}
+
 /* private */ void EditableText::process_focus_event(const Event & event) {
     switch (event.type_id()) {
-    case k_key_typed_id:
+    case k_event_id_of<KeyTyped>:
         handle_focused_key_typed(event.as<KeyTyped>());
         break;
-    case k_key_press_id:
+    case k_event_id_of<KeyPress>:
         handle_focused_key_press(event.as<KeyPress>());
         break;
     default: break;
@@ -266,10 +279,13 @@ const UString & EditableText::entered_string() const
 /* private */ void EditableText::notify_focus_lost() {}
 
 /* private */ int EditableText::text_width() const {
-    if (m_text_width == styles::k_uninit_size) {
+    return m_used_width;
+#   if 0
+    if (m_chosen_width == styles::k_uninit_size) {
         return m_empty_text.full_width();
     }
-    return m_text_width;
+    return m_chosen_width;
+#   endif
 }
 
 /* private */ int EditableText::text_height() const {
@@ -282,7 +298,7 @@ const UString & EditableText::entered_string() const
 /* private */ void EditableText::check_invarients() const {
     assert(is_display_string_ok(m_display_string, m_entered_string));
     assert(m_padding >= 0);
-    assert(m_text_width >= 0 || m_text_width == styles::k_uninit_size);
+    assert(m_chosen_width >= 0 || m_chosen_width == styles::k_uninit_size);
 }
 
 /* private */ void EditableText::handle_focused_key_typed(const KeyTyped & keytyped) {
@@ -364,6 +380,53 @@ const UString & EditableText::entered_string() const
 
 /* private */ sf::IntRect EditableText::bounds() const
     { return sf::IntRect(location().x, location().y, width(), height()); }
+
+/* private */ void EditableText::update_internals_locations() {
+    const auto & any_display_text = m_display_left;
+    const auto & disp             = m_display_string;
+
+    auto itr     = find_display_position(disp, m_entered_string, m_edit_position);
+    int on_left  = any_display_text.measure_text(disp.begin(), itr).width;
+    int on_right = any_display_text.measure_text(itr, disp.end()).width;
+
+    m_cursor.width  = cursor_width();
+    m_cursor.height = text_height ();
+
+    auto set_cursor_location = [this](int x_offset) {
+        m_cursor.left = m_location.x + x_offset + m_padding,
+        m_cursor.top  = m_location.y + m_padding;
+    };
+
+    set_string(m_display_left , disp.begin(), itr);
+    set_string(m_display_right, itr, disp.end());
+    m_display_left.set_location( m_location + VectorI(1, 1)*m_padding );
+    m_empty_text.set_location( m_display_left.location() );
+    if (on_left + on_right <= text_width()) {
+        // no ellipse
+        set_cursor_location(on_left);
+        m_display_right.set_location(
+            m_display_left.location() + VectorI(on_left + cursor_width(), 0) );
+    } else {
+        int set_aside_right = on_right;
+        if (on_right > text_width() / 2) {
+            set_aside_right = text_width() / 2;
+        }
+
+        int set_aside_left = text_width() - set_aside_right;
+        assert((on_left + on_right) >= set_aside_left);
+        sf::IntRect left_viewport((on_left + on_right) - set_aside_left, 0,
+                                  set_aside_left, text_height());
+        sf::IntRect right_viewport(0, 0, set_aside_right, text_height());
+
+        set_cursor_location(set_aside_left);
+        m_display_right.set_location(
+            m_display_left.location() + VectorI(set_aside_left + cursor_width(), 0) );
+        m_display_left .set_viewport(left_viewport );
+        m_display_right.set_viewport(right_viewport);
+    }
+
+    check_invarients();
+}
 
 } // end of asgl namespace
 

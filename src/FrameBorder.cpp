@@ -30,10 +30,6 @@
 
 #include <common/Util.hpp>
 
-#if 1
-#include <iostream>
-#endif
-
 #include <cassert>
 
 namespace {
@@ -80,48 +76,6 @@ void HorizontalSpacer::set_width(int w) {
 void FrameDecoration::assign_flags_updater(WidgetFlagsReceiver * ptr)
     { m_flags_receiver = ptr ? ptr : &WidgetFlagsReceiver::null_instance(); }
 
-/* static */ FrameDecoration & FrameDecoration::null_decoration() {
-    static constexpr const int k_int_max = std::numeric_limits<int>::max();
-    static auto make_calling_null_except = []() {
-        return RtError("[From NullDecoration]: frame needs another decorator.");
-    };
-    class NullDecoration final : public FrameDecoration {
-        VectorI widget_start() const override
-            { throw make_calling_null_except(); }
-
-        VectorI location() const override
-            { return VectorI(k_int_max, k_int_max); }
-
-        int width() const override { return 0; }
-
-        int height() const override { return 0; }
-
-        EventResponseSignal process_event(const Event &) override
-            { return EventResponseSignal(); }
-
-        void set_location(int, int) override {}
-
-        void stylize(const StyleMap &) override {}
-
-        void request_size(int, int) override
-            { throw make_calling_null_except(); }
-
-        void update_geometry() override {}
-
-        void draw(WidgetRenderer &) const override {}
-
-        int minimum_width() const override { return 0; }
-
-        int width_available_for_widgets() const override
-            { throw make_calling_null_except(); }
-
-        void set_click_inside_event(ClickFunctor &&) override
-            { throw make_calling_null_except(); }
-    };
-    static NullDecoration inst;
-    return inst;
-}
-
 /* protected */ void FrameDecoration::update_drag_position(int x, int y) {
     set_location(x, y);
     set_needs_geometry_update_flag();
@@ -130,6 +84,17 @@ void FrameDecoration::assign_flags_updater(WidgetFlagsReceiver * ptr)
 /* protected */ void FrameDecoration::set_needs_geometry_update_flag() {
     m_flags_receiver->receive_whole_family_upate_needed();
 }
+
+/* protected static */ VectorI FrameDecoration::defer_location_to_widgets() {
+    return VectorI(std::numeric_limits<int>::max(),
+                   std::numeric_limits<int>::max());
+}
+
+/* protected static */ int FrameDecoration::defer_width_to_widgets()
+    { return std::numeric_limits<int>::min(); }
+
+/* protected static */ int FrameDecoration::defer_height_to_widgets()
+    { return std::numeric_limits<int>::min(); }
 
 // ----------------------------------------------------------------------------
 // ---                             FrameBorder                              ---
@@ -158,16 +123,8 @@ FrameBorder::EventResponseSignal FrameBorder::process_event
 
     EventResponseSignal rv;
     if (   event.is_type<MousePress>()
-        && m_back.contains(to_vector(event.as<MousePress>()))
-        )
+        && m_back.contains(to_vector(event.as<MousePress>())))
     {
-#       if 0
-        auto loc = to_vector(event.as<MousePress>());
-        std::cout << "clicked inside; mouse (" << loc.x << ", "
-                  << loc.y << ") bounds (" << m_back.left << ", "
-                  << m_back.top << ", " << m_back.width << ", " << m_back.height
-                  << ")" << std::endl;
-#       endif
         assert(m_click_in_frame);
         rv.skip_other_events = (m_click_in_frame() == k_skip_other_events);
     }
@@ -186,6 +143,9 @@ void FrameBorder::stylize(const StyleMap & smap) {
         m_title, smap.find(styles::k_global_font),
         smap.find(Frame::to_key(Frame::k_title_text_style)),
         "FrameBorder::stylize");
+
+     m_outer_padding = Widget::Helpers::verify_padding(
+        smap.find(styles::k_global_padding), "FrameBorder::stylize");
 
     using std::make_tuple;
     Widget::Helpers::handle_required_fields("FrameBorder::stylize", {
@@ -228,13 +188,13 @@ void FrameBorder::update_geometry() {
     const auto loc = location();
     auto w = m_back.width;
     auto h = m_back.height;
-    const float k_title_bar_height = title_height();
-    const float k_title_bar_pad = title_is_visible() ? outer_padding() : 0.f;
+    const auto k_title_bar_height = title_height();
+    const auto k_title_bar_pad = title_is_visible() ? outer_padding() : 0;
     if (title_is_visible()) {
         m_title_bar.left = loc.x - outer_padding();
         m_title_bar.top  = loc.y - outer_padding();
         m_title_bar.width = w - outer_padding()*2;
-        m_title_bar.height = title_height();// h - outer_padding()*2;
+        m_title_bar.height = title_height();
 
         update_title_geometry(loc, m_title_bar, &m_title);
     }
@@ -249,8 +209,8 @@ void FrameBorder::update_geometry() {
 int FrameBorder::title_width_accommodation() const noexcept
     { return m_title.string().empty() ? 0 : m_title.width(); }
 
-int FrameBorder::width_available_for_widgets() const
-    { return m_widget_body.width; }
+int FrameBorder::maximum_width_for_widgets() const
+    { return std::max(m_width_maximum, title_width_accommodation()); }
 
 void FrameBorder::draw(WidgetRenderer & renderer) const {
     auto title_is_visible = [this] () { return !m_title.string().empty(); };
@@ -264,19 +224,19 @@ void FrameBorder::draw(WidgetRenderer & renderer) const {
 }
 
 /* private */ int FrameBorder::title_height() const noexcept
-    { return m_title.string().empty() ? 0 : /*m_title.character_size()*2*/(m_title.height() * 3) / 2; }
+    { return m_title.string().empty() ? 0 : (m_title.height() * 3) / 2; }
 
 /* private */ void FrameBorder::check_should_update_drag
     (const Event & event)
 {
     switch (event.type_id()) {
-    case k_mouse_press_id:
+    case k_event_id_of<MousePress>:
         mouse_click(event.as<MousePress>().x, event.as<MousePress>().y, m_title_bar);
         break;
-    case k_mouse_release_id:
+    case k_event_id_of<MouseRelease>:
         drag_release();
         break;
-    case k_mouse_move_id:
+    case k_event_id_of<MouseMove>:
         mouse_move(event.as<MouseMove>().x, event.as<MouseMove>().y);
         break;
     default: break;

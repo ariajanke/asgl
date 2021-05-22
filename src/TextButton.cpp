@@ -56,18 +56,34 @@ void TextButton::stylize(const StyleMap & stylemap) {
 const UString & TextButton::string() const { return m_text.string(); }
 
 void TextButton::draw(WidgetRenderer & target) const {
+#   if 1
     Button::draw(target);
+#   endif
+#   if 0
+    sf::IntRect outer_bounds(location(), VectorI(width(), height()));
+    sf::IntRect inner_bounds( location() + VectorI(1, 1)*padding(), VectorI(width(), height()) - VectorI(2, 2)*padding() );
+    target.render_rectangle_pair(inner_bounds, outer_bounds, ItemKey(), this);
+#   endif
     m_text.draw_to(target);
 }
-
+#if 0
 /* private */ void TextButton::issue_auto_resize() {
-    set_size(m_text.width() + padding()*2, m_text.height() + padding()*2);
+
+}
+#endif
+
+/* private */ void TextButton::set_location_(int x, int y) {
+    Button::set_location_(x, y);
+    m_text.set_location(x + padding(), y + padding());
 }
 
-/* private */ void TextButton::update_geometry() {
-    Button::update_geometry();
-    m_text.set_location(float( location().x + padding() ),
-                        float( location().y + padding() ));
+/* private */ void TextButton::update_size() {
+    set_button_frame_size(m_text.width() + padding()*2, m_text.height() + padding()*2);
+#   if 0
+    // this is now a pure virtual function
+    // (ends up being Widget::update_size()
+    Button::update_size();
+#   endif
 }
 
 } // end if asgl namespace
