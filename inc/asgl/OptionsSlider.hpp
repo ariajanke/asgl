@@ -39,7 +39,6 @@ namespace asgl {
  */
 class OptionsSlider final : public Widget {
 public:
-    using UString      = Text::UString;
     using BlankFunctor = ArrowButton::BlankFunctor;
 
     enum { k_back_style, k_front_style, k_style_count };
@@ -55,11 +54,9 @@ public:
 
     void process_event(const Event &) override;
 
-    VectorI location() const override;
+    Vector location() const override;
 
-    int width() const override;
-
-    int height() const override;
+    Size size() const override;
 
     void stylize(const StyleMap &) override;
 
@@ -84,15 +81,9 @@ public:
     void draw(WidgetRenderer &) const override;
 
 private:
-#   if 0
-    void issue_auto_resize() override;
-#   endif
     void iterate_children_(const ChildWidgetIterator &) override;
 
     void iterate_children_const_(const ChildConstWidgetIterator &) const override;
-#   if 0
-    void update_geometry() override;
-#   endif
 
     void update_size() override;
 
@@ -116,7 +107,7 @@ private:
     StyleKey m_padding_style = Button::to_key(Button::k_button_padding);
 
     // boundry around the text (includes the padding)
-    sf::IntRect m_inner_bounds;
+    Rectangle m_inner_bounds;
 
     Text m_text;
     std::vector<UString> m_options;

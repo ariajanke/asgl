@@ -129,22 +129,17 @@ void FrameFocusHandler::process_event(const Event & event) {
     }
 }
 
-void FrameFocusHandler::take_widgets_from(std::vector<FocusReceiver *> & widgets) {
-    m_focus_widgets.clear();
-    m_focus_widgets.swap(widgets);
-    m_current_position = m_focus_widgets.end();
-    log_change_focus("[asgl] Focus widgets have been reset.");
-}
-
 void FrameFocusHandler::check_for_child_widget_updates(Widget & parent) {
     bool mismatch_detected = false;
     auto itr = m_focus_widgets.begin();
     // O(n) in virtual calls
     parent.iterate_children_f([&mismatch_detected, &itr, this](Widget & child) {
+#       if 0
         if (auto * frame = dynamic_cast<BareFrame *>(&child)) {
             frame->turn_off_focus_widgets();
             // note: BareFrame may also be a FocusReceiver
         }
+#       endif
         auto * focwid = dynamic_cast<FocusReceiver *>(&child);
         if (!focwid) return;
         if (mismatch_detected) {

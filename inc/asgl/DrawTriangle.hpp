@@ -21,7 +21,7 @@
     DEALINGS IN THE SOFTWARE.
 
 *****************************************************************************/
-
+#if 0
 #pragma once
 
 #include <SFML/Graphics/Drawable.hpp>
@@ -73,3 +73,4 @@ private:
 
     FixedLengthArray<sf::Vertex, k_vertex_count> m_verticies;
 };
+#endif

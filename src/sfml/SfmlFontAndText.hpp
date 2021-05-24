@@ -99,8 +99,7 @@ private:
 /** This helper class is used by an internal algorithm, by the SfmlText class.
  */
 class RenderablesPlacer {
-public:
-    using UString = Text::UString;
+public:    
     using UCharIterVector = std::vector<UString::const_iterator>;
     using VectorF = sf::Vector2f;
 
@@ -143,7 +142,7 @@ public:
 
     void set_location(int x, int y) override;
 
-    VectorI location() const override;
+    Vector location() const override;
 
     int width() const override;
 
@@ -155,14 +154,14 @@ public:
 
     void set_limiting_line(int x_limit) override;
 
-    TextSize measure_text(UStringConstIter beg, UStringConstIter end) const override;
+    Size measure_text(UStringConstIter beg, UStringConstIter end) const override;
 
     ProxyPointer clone() const override
         { return make_clone<SfmlText>(*this); }
 
     int limiting_line() const override;
 
-    const sf::IntRect & viewport() const override;
+    const Rectangle & viewport() const override;
 
     void assign_font(const sf::Font & font);
 
@@ -171,7 +170,7 @@ public:
     void set_character_size_and_color(int char_size, sf::Color) override;
 
 private:
-    void set_viewport_(const sf::IntRect &) override;
+    void set_viewport_(const Rectangle &) override;
 
     void swap_string(UString & str) override;
 
@@ -190,7 +189,7 @@ private:
     std::unique_ptr<detail::RenderablesPlacer> m_placer_ptr;
     sf::FloatRect m_full_bounds;
     float m_limiting_line = k_inf;
-    sf::IntRect m_viewport = TextBase::k_default_viewport;
+    Rectangle m_viewport = TextBase::k_default_viewport;
 
     int m_char_size = k_default_font_size;
     sf::Color m_color;
@@ -198,21 +197,20 @@ private:
 
 class SfmlFont final : public Font {
 public:
-    using FontStyle = detail::SfmlText::FontStyle;
+    using FontStyle    = detail::SfmlText::FontStyle;
     using FontStyleMap = detail::SfmlText::FontStyleMap;
-    using UStringConstIter = TextBase::UStringConstIter;
 
     TextPointer fit_pointer_to_adaptor(TextPointer && ptr) const override;
 
-    TextSize measure_text
+    Size measure_text
         (ItemKey fontstyle, UStringConstIter beg, UStringConstIter end) const override;
 
     void load_font(const std::string & filename);
 
     void add_font_style(ItemKey key, int char_size, sf::Color color);
 
-    static TextSize measure_text(const sf::Font & font, int character_size,
-                                 UStringConstIter beg, UStringConstIter end);
+    static Size measure_text(const sf::Font & font, int character_size,
+                             UStringConstIter beg, UStringConstIter end);
 
 private:
     std::unique_ptr<sf::Font> m_font;

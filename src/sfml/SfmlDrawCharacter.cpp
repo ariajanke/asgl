@@ -30,6 +30,13 @@
 
 #include <cassert>
 
+namespace {
+
+using cul::magnitude;
+using cul::is_real;
+
+} // end of <anonymous> namespace
+
 namespace asgl {
 
 namespace {

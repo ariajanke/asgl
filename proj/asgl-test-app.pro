@@ -23,7 +23,7 @@ debug {
     LIBS   += -lcommon
 }
 
-SOURCES += ../demos/textarea-tests.cpp
+SOURCES += ../demos/select-menu-demo.cpp
 
 SOURCES += \
     \ # SFML Engine
@@ -77,7 +77,8 @@ HEADERS += \
     \#../inc/asgl/ForwardWidgets.hpp \
     ../inc/asgl/EditableText.hpp   \
     ../inc/asgl/FocusWidget.hpp    \
-    ../inc/asgl/Event.hpp
+    ../inc/asgl/Event.hpp          \
+    ../inc/asgl/Defs.hpp
 
 INCLUDEPATH += \
     ../inc           \

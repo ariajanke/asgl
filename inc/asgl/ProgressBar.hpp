@@ -42,7 +42,7 @@ public:
     /** ProgressBars do not respond to any event. */
     void process_event(const Event &) override {}
 
-    VectorI location() const override;
+    Vector location() const override;
 
     /** Sets the size of the control.
      *  @note if the size is smaller than the padding (times two), then the
@@ -50,9 +50,7 @@ public:
      */
     void set_size(int w, int h);
 
-    int width() const override;
-
-    int height() const override;
+    Size size() const override;
 
     void stylize(const StyleMap &) override;
 
@@ -79,9 +77,6 @@ public:
 
 private:
     void set_location_(int x, int y) override;
-#   if 0
-    void update_geometry() override;
-#   endif
 
     void update_size() override {}
 
@@ -89,8 +84,8 @@ private:
 
     int m_padding = styles::k_uninit_size;
     float m_fill_amount = 0.f;
-    sf::IntRect m_bounds;
-    sf::IntRect m_inner_bounds;
+    Rectangle m_bounds;
+    Rectangle m_inner_bounds;
 
     StyleKey m_outer_key = DefaultStyles::to_key(k_outer_style  );
     StyleKey m_fill_key  = DefaultStyles::to_key(k_fill_style   );

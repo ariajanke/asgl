@@ -60,11 +60,9 @@ public:
 
     void stylize(const StyleMap &) final {}
 
-    VectorI location() const final;
+    Vector location() const final;
 
-    int width() const final;
-
-    int height() const final;
+    Size size() const final;
 
     void set_size(int w, int h);
 
@@ -72,16 +70,15 @@ public:
 
     int image_height() const final;
 
-    void set_view_rectangle(sf::IntRect);
+    void set_view_rectangle(Rectangle);
 
     void draw(WidgetRenderer &) const final;
 
 private:
     void process_event(const Event &) final {}
-#   if 0
-    void update_geometry() override {}
-#   endif
+
     void update_size() final {}
+
     ItemKey item_key() const final;
 
     ImageResource & verify_image_present();
@@ -91,8 +88,7 @@ private:
     void set_location_(int x, int y) final;
 
     SharedImagePtr m_image;
-    sf::IntRect m_image_rect;
-    sf::IntRect m_bounds;
+    Rectangle m_image_rect, m_bounds;
 };
 
 } // end of asgl namespace

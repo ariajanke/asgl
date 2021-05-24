@@ -26,10 +26,10 @@
 
 namespace {
 
-using StyleMap = asgl::StyleMap;
-using InvArg   = std::invalid_argument;
-using RtError  = std::runtime_error;
-using VectorI  = asgl::Widget::VectorI;
+using namespace cul::exceptions_abbr;
+using asgl::StyleMap;
+using std::get;
+using std::make_tuple;
 
 } // end of <anonymous> namespace
 
@@ -82,8 +82,6 @@ void Button::stylize(const StyleMap & smap) {
         (smap.find(to_key(k_button_padding), styles::k_global_padding),
          "Button::stylize");
 
-    using std::get;
-    using std::make_tuple;
     Helpers::handle_required_fields("Button::stylize", {
         make_tuple(&get<k_regular_idx>(m_items), "regular style",
                    smap.find(get<k_regular_idx>(m_styles), to_key(k_regular_style))),
@@ -101,29 +99,10 @@ void Button::set_press_event(BlankFunctor && func)
 
 void Button::press() { m_press_functor(); }
 
-VectorI Button::location() const
-    { return VectorI(m_back.left, m_back.top); }
-#if 0
-void Button::set_size(int width_, int height_) {
-    set_button_frame_size(width_, height_);
+Vector Button::location() const { return top_left_of(m_back); }
 
-}
-#endif
-int Button::width() const { return m_back.width; }
+Size Button::size() const { return size_of(m_back); }
 
-int Button::height() const { return m_back.height; }
-#if 0
-void Button::update_geometry() {
-    if (m_back.width > padding()*2) {
-        m_front.left  = m_back.left  + padding();
-        m_front.width = m_back.width - padding()*2;
-    }
-    if (m_back.height > padding()*2) {
-        m_front.top    = m_back.top    + padding();
-        m_front.height = m_back.height - padding()*2;
-    }
-}
-#endif
 void Button::draw(WidgetRenderer & target) const
     { draw_to(target, m_front, m_back, get_active_item()); }
 
@@ -134,8 +113,7 @@ void Button::draw(WidgetRenderer & target) const
 {
     Helpers::verify_non_negative(width_ , "Button::set_button_frame_size", "width" );
     Helpers::verify_non_negative(height_, "Button::set_button_frame_size", "height");
-    m_back.width  = width_ ;
-    m_back.height = height_;
+    set_size_of(m_back, width_, height_);
     flag_needs_whole_family_geometry_update();
 }
 
@@ -170,8 +148,7 @@ void Button::draw(WidgetRenderer & target) const
     { m_is_focused = false; }
 
 /* protected */ void Button::set_location_(int x, int y) {
-    m_back.left = x;
-    m_back.top  = y;
+    set_top_left_of(m_back, x, y);
 
     if (m_back.width > padding()*2) {
         m_front.left  = m_back.left  + padding();
@@ -184,7 +161,6 @@ void Button::draw(WidgetRenderer & target) const
 }
 
 /* private */ ItemKey Button::get_active_item() const {
-    using std::get;
     if (m_is_focused) {
         return m_is_hovered ? get<k_hover_and_focus_idx>(m_items) : get<k_focus_idx>(m_items);
     } else {
@@ -193,7 +169,6 @@ void Button::draw(WidgetRenderer & target) const
 }
 
 /* private static */ Button::KeyTuple<StyleKey> Button::default_styles() {
-    using std::get;
     KeyTuple<StyleKey> def;
     get<k_regular_idx>(def) = to_key(k_regular_style);
     get<k_hover_idx>(def) = to_key(k_hover_style);

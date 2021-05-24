@@ -35,19 +35,15 @@ namespace asgl {
  */
 class TextArea final : public Widget {
 public:
-    using UString = Text::UString;
-
     // <-------------------------- Basic Widget ------------------------------>
 
     /** Does nothing, as a plain text area does not interact with events. */
     void process_event(const Event &) final {}
 
     /** @copydoc Widget::location() */
-    VectorI location() const final;
+    Vector location() const final;
 
-    int width() const final;
-
-    int height() const final;
+    Size size() const final;
 
     void stylize(const StyleMap &) final;
 
@@ -66,14 +62,14 @@ public:
 
     void set_fixed_height(int height);
 
-    /** @copydoc asgl::Text::set_viewport(const sf::IntRect&) */
-    void set_viewport(const sf::IntRect &);
+    /** @copydoc asgl::Text::set_viewport(const Rectangle&) */
+    void set_viewport(const Rectangle &);
 
     /** @copydoc asgl::Text::reset_viewport() */
     void reset_viewport();
 
     /** @copydoc asgl::Text::viewport() */
-    const sf::IntRect & viewport() const;
+    const Rectangle & viewport() const;
 
     static void set_required_text_fields
         (Text &, const StyleField * font, const StyleField * style_key,
@@ -85,11 +81,6 @@ public:
 
 private:
     void set_location_(int x, int y) final;
-#   if 0
-    void issue_auto_resize() override;
-
-    void update_geometry() override;
-#   endif
 
     // not perfect, and possibly only useful for American English
     void check_and_adjust_for_text_too_big();

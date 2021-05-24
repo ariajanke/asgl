@@ -155,7 +155,7 @@ private:
 class Font;
 
 // ItemKey and StyleKey should not be considered to be the same type
-using StyleField = MultiType<
+using StyleField = cul::MultiType<
     int,
     std::weak_ptr<const Font>,
     styles::AutomaticSize

@@ -24,10 +24,9 @@
 
 #pragma once
 
-#include <common/MultiType.hpp>
+#include <asgl/Defs.hpp>
 
-// needed for to_vector
-#include <SFML/System/Vector2.hpp>
+#include <common/MultiType.hpp>
 
 namespace asgl {
 
@@ -178,24 +177,20 @@ enum GeneralMotionEnum {
 
 using GeneralMotion = general_motion::GeneralMotionEnum;
 
-using Event = MultiType<
+using Event = cul::MultiType<
     MousePress, MouseRelease, MouseMove, KeyPress, KeyRelease, KeyTyped,
     GeneralMotion
 >;
 
 template <typename T>
 constexpr const int k_event_id_of = Event::GetTypeId<T>::k_value;
-#if 0
-constexpr const int k_mouse_press_id   = Event::GetTypeId<MousePress  >::k_value;
-constexpr const int k_mouse_move_id    = Event::GetTypeId<MouseMove   >::k_value;
-constexpr const int k_mouse_release_id = Event::GetTypeId<MouseRelease>::k_value;
-constexpr const int k_key_press_id     = Event::GetTypeId<KeyPress    >::k_value;
-constexpr const int k_key_release_id   = Event::GetTypeId<KeyRelease  >::k_value;
-constexpr const int k_key_typed_id     = Event::GetTypeId<KeyTyped    >::k_value;
-#endif
+
 Key collapse_numerics(Key);
+
 Key collapse_modifiers(Key);
+
 inline Key collapse_all(Key k) { return collapse_numerics(collapse_modifiers(k)); }
+
 char to_char(const keys::KeyEventImpl &);
 
 inline sf::Vector2i to_vector(const asgl::MouseLocation & loc)

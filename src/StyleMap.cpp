@@ -24,11 +24,11 @@
 
 #include <asgl/StyleMap.hpp>
 
-#include <stdexcept>
+#include <common/Util.hpp>
 
 namespace {
 
-using InvArg = std::invalid_argument;
+using namespace cul::exceptions_abbr;
 
 } // end of <anonymous> namespace
 

@@ -24,13 +24,9 @@
 
 #include <asgl/Draggable.hpp>
 
-#include <stdexcept>
-
-#include <cmath>
-
 namespace {
 
-using InvalidArg = std::invalid_argument;
+using namespace cul::exceptions_abbr;
 
 } // end of <anonymous> namespace
 
@@ -60,7 +56,7 @@ bool Draggable::mouse_click(int x, int y) {
 }
 
 bool Draggable::mouse_click
-    (int x, int y, const sf::IntRect & drect)
+    (int x, int y, const Rectangle & drect)
 {
     if (!m_watch_drag_events) return false;
     if (drect.contains(x, y)) {
@@ -69,7 +65,7 @@ bool Draggable::mouse_click
     return false;
 }
 
-bool Draggable::mouse_click(int x, int y, sf::Vector2i matrix_location,
+bool Draggable::mouse_click(int x, int y, Vector matrix_location,
                             const Grid<bool> & grid)
 {
     if (!m_watch_drag_events) return false;
@@ -80,18 +76,18 @@ bool Draggable::mouse_click(int x, int y, sf::Vector2i matrix_location,
     return false;
 }
 
-void Draggable::set_drag_contraints(const sf::IntRect & area) {
+void Draggable::set_drag_contraints(const Rectangle & area) {
     if (area.width == 0 || area.height == 0) {
-        throw InvalidArg("Draggable::set_position_contraints: Position "
-                         "constraint area may not have a zero sized area.\n"
-                         "Consider disabling this drag feature instead (if "
-                         "possible).");
+        throw InvArg("Draggable::set_position_contraints: Position "
+                     "constraint area may not have a zero sized area.\n"
+                     "Consider disabling this drag feature instead (if "
+                     "possible).");
     }
     m_position_contraints = area;
 }
 
 void Draggable::remove_drag_contraints() {
-    m_position_contraints = sf::IntRect();
+    m_position_contraints = Rectangle();
 }
 
 /* private */ bool Draggable::has_position_contraints() const {

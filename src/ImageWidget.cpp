@@ -26,8 +26,7 @@
 
 namespace {
 
-using VectorI = asgl::ImageWidget::VectorI;
-using RtError = std::runtime_error;
+using namespace cul::exceptions_abbr;
 
 } // end of <anonymous> namespace
 
@@ -45,7 +44,7 @@ SharedImagePtr ImageWidget::load_image
 
 void ImageWidget::set_image(SharedImagePtr resptr) {
     m_image = resptr;
-    m_image_rect = sf::IntRect(0, 0, m_image->image_width(), m_image->image_height());
+    m_image_rect = Rectangle(0, 0, m_image->image_width(), m_image->image_height());
     // (don't delete quite yet?)
     // it isn't clear to me how I should go about marking for needing redraw
 #   if 0
@@ -59,12 +58,10 @@ void ImageWidget::copy_image_from(ImageLoader & loader, const ImageWidget & rhs)
 void ImageWidget::copy_image_from(ImageLoader & loader, SharedImagePtr resptr)
     { set_image(loader.make_image_resource(resptr)); }
 
-VectorI ImageWidget::location() const
-    { return VectorI(m_bounds.left, m_bounds.top); }
+Vector ImageWidget::location() const
+    { return Vector(m_bounds.left, m_bounds.top); }
 
-int ImageWidget::width() const { return m_bounds.width; }
-
-int ImageWidget::height() const { return m_bounds.height; }
+Size ImageWidget::size() const { return size_of(m_bounds); }
 
 void ImageWidget::set_size(int w, int h) {
     Helpers::verify_non_negative(w, "ImageWidget::set_size", "width" );
@@ -79,7 +76,7 @@ int ImageWidget::image_width() const
 int ImageWidget::image_height() const
     { return verify_image_present().image_height(); }
 
-void ImageWidget::set_view_rectangle(sf::IntRect rect)
+void ImageWidget::set_view_rectangle(Rectangle rect)
     { m_image_rect = rect; }
 
 void ImageWidget::draw(WidgetRenderer & target) const

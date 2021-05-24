@@ -123,12 +123,12 @@ public:
      *         focus events to the current focus widget.
      */
     void process_event(const Event &);
-
+#   if 0
     /** This function provides a point for Frames to deposit all focus widgets
      *  to.
      */
     [[deprecated]] void take_widgets_from(std::vector<FocusReceiver *> &);
-
+#   endif
     void check_for_child_widget_updates(Widget &);
 
     /** @brief Clears all focus widgets, essentially disabling focus events.

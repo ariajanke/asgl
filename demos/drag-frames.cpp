@@ -49,7 +49,7 @@ using UChar    = ksg::Text::UChar;
 namespace {
 
 using VectorF = sf::Vector2f;
-using UChar   = asgl::Text::UString::value_type;
+using asgl::UChar;
 
 class AppFrame : public asgl::Frame {
 public:
@@ -80,10 +80,6 @@ class ExFrameA final : public AppFrame {
     void setup_widgets(/*const StyleMap &*/) override;
     asgl::TextArea m_text;
     asgl::TextButton m_ok;
-#   if 0
-    ksg::TextArea m_text;
-    ksg::TextButton m_ok;
-#   endif
 };
 
 class ExFrameB final : public AppFrame {
@@ -93,10 +89,6 @@ class ExFrameB final : public AppFrame {
     void setup_widgets(/*const StyleMap &*/) override;
     asgl::TextArea m_text;
     asgl::OptionsSlider m_slider;
-#   if 0
-    ksg::TextArea m_text;
-    ksg::OptionsSlider m_slider;
-#   endif
 };
 
 class ExFrameC final : public AppFrame {
@@ -107,10 +99,6 @@ class ExFrameC final : public AppFrame {
 
     asgl::TextArea m_exit_notice;
     asgl::TextButton m_exit_button;
-#   if 0
-    ksg::TextArea m_exit_notice;
-    ksg::TextButton m_exit_button;
-#   endif
 };
 
 sf::Event filter_mouse_only_events(sf::Event);
@@ -127,16 +115,6 @@ int main() {
     engine.setup_default_styles();
     engine.assign_target_and_states(window, sf::RenderStates::Default);
 
-#   if 0
-    auto styles = ksg::styles::construct_system_styles();
-    auto font   = ksg::styles::load_font("font.ttf");
-    if (!font.is_valid()) {
-        std::cerr << "Error loading font." << std::endl;
-        return ~0;
-    }
-    styles[ksg::styles  ::k_global_font] = font;
-    styles[ksg::TextArea::k_text_size  ] = ksg::StylesField(18.f);
-#   endif
     std::vector<std::shared_ptr<AppFrame>> frame_list;
     frame_list.push_back(std::make_shared<ExFrameA>());
     frame_list.push_back(std::make_shared<ExFrameB>());
@@ -216,7 +194,7 @@ void ExFrameA::setup_widgets(/*const StyleMap & smap*/) {
 void ExFrameB::setup_widgets(/*const StyleMap & smap*/) {
     m_text.set_string(U"Sample text for frame B,\ndifferent from frame A.");
 
-    std::vector<asgl::Frame::UString> options =
+    std::vector<asgl::UString> options =
         { U"Option one", U"Option two", U"Option three" };
     m_slider.set_options(std::move(options));
 #   if 0

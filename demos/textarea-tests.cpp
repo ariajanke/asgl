@@ -51,8 +51,9 @@ using asgl::TextArea;
 using asgl::OptionsSlider;
 using asgl::TextButton;
 using asgl::Event;
-using UString = asgl::Text::UString;
+using asgl::UString;
 using UChar = decltype(U'l');
+using cul::for_split;
 
 bool is_space(UChar c) { return c == ' '; }
 
@@ -410,6 +411,7 @@ void TestFrame::on_parameters_update() {
 // --- free fn ---
 
 void run_tests() {
+    using namespace cul;
     ts::TestSuite suite;
     suite.start_series("end_of_str");
     suite.test([]() {
@@ -463,9 +465,9 @@ void run_engine_tests(asgl::SfmlFlatEngine & engine) {
     {
     asgl::FrameBorder border;
     border.request_size(300, 300);
-    border.update_geometry();
+    //border.update_geometry();
     border.request_size(300, 300);
-    border.update_geometry();
+    //border.update_geometry();
     int i = border.width();
     }
 }
@@ -490,6 +492,7 @@ std::vector<UString> make_range
 
 template <typename CharType>
 const CharType * after_n_words(int n, const CharType * beg) {
+    using namespace cul::fc_signal;
     const int org_n = n;
     const CharType * rv = beg;
     for_split<is_space>(beg, end_of_str(beg),
@@ -498,9 +501,9 @@ const CharType * after_n_words(int n, const CharType * beg) {
         rv = beg;
         if (n) {
             --n;
-            return fc_signal::k_continue;
+            return k_continue;
         } else {
-            return fc_signal::k_break;
+            return k_break;
         }
     });
     if (n > 1) {

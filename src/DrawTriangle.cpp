@@ -21,7 +21,7 @@
     DEALINGS IN THE SOFTWARE.
 
 *****************************************************************************/
-
+#if 0
 #include <asgl/DrawTriangle.hpp>
 
 #include <SFML/Graphics/RenderTarget.hpp>
@@ -82,3 +82,4 @@ void DrawTriangle::set_color(sf::Color color_) {
 /* private */ void DrawTriangle::draw
     (sf::RenderTarget & target, sf::RenderStates states) const
     { target.draw(&*m_verticies.begin(), m_verticies.size(), sf::Triangles, states); }
+#endif

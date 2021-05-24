@@ -30,8 +30,11 @@
 #include <SFML/Graphics/Vertex.hpp>
 #include <SFML/Graphics/Texture.hpp>
 
-#include <common/FixedLengthArray.hpp>
+#include <array>
 
+#if 0
+#include <common/FixedLengthArray.hpp>
+#endif
 namespace asgl {
 
 namespace detail {
@@ -95,7 +98,7 @@ private:
 
     void check_invarients() const;
 
-    FixedLengthArray<sf::Vertex, 4> m_verticies;
+    std::array<sf::Vertex, 4> m_verticies;
 };
 
 } // end of detail namespace -> into ::asgl

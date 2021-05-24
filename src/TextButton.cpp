@@ -26,11 +26,11 @@
 #include <asgl/TextArea.hpp>
 #include <asgl/Frame.hpp>
 
-#include <cmath>
-
 namespace {
 
-using UString = asgl::TextButton::UString;
+using std::get;
+static constexpr const int k_big    = 0;
+static constexpr const int k_small = 1;
 
 } // end of <anonymous> namespace
 
@@ -56,34 +56,27 @@ void TextButton::stylize(const StyleMap & stylemap) {
 const UString & TextButton::string() const { return m_text.string(); }
 
 void TextButton::draw(WidgetRenderer & target) const {
-#   if 1
     Button::draw(target);
-#   endif
-#   if 0
-    sf::IntRect outer_bounds(location(), VectorI(width(), height()));
-    sf::IntRect inner_bounds( location() + VectorI(1, 1)*padding(), VectorI(width(), height()) - VectorI(2, 2)*padding() );
-    target.render_rectangle_pair(inner_bounds, outer_bounds, ItemKey(), this);
-#   endif
     m_text.draw_to(target);
 }
-#if 0
-/* private */ void TextButton::issue_auto_resize() {
-
-}
-#endif
 
 /* private */ void TextButton::set_location_(int x, int y) {
     Button::set_location_(x, y);
-    m_text.set_location(x + padding(), y + padding());
+    auto inpad = inner_padding();
+    m_text.set_location(x + padding() + get<k_small>(inpad)
+                       ,y + padding() + get<k_big  >(inpad));
 }
 
 /* private */ void TextButton::update_size() {
-    set_button_frame_size(m_text.width() + padding()*2, m_text.height() + padding()*2);
-#   if 0
-    // this is now a pure virtual function
-    // (ends up being Widget::update_size()
-    Button::update_size();
-#   endif
+    auto inpad = inner_padding();
+    set_button_frame_size
+        (m_text.width () + padding()*2 + get<k_small>(inpad)*2
+        ,m_text.height() + padding()*2 + get<k_small>(inpad) + get<k_big>(inpad));
+}
+
+std::tuple<int, int> TextButton::inner_padding() const {
+    int full_pad = std::max(1, m_text.height() / 4);
+    return std::make_tuple(full_pad - (full_pad / 2), full_pad / 2);
 }
 
 } // end if asgl namespace

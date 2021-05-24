@@ -25,27 +25,20 @@
 #include <asgl/TextArea.hpp>
 #include <asgl/Frame.hpp>
 
-#include <cmath>
 #include <cassert>
 
 namespace {
 
-using RtError = std::runtime_error;
-using VectorI = asgl::Widget::VectorI;
-using UString = asgl::TextArea::UString;
+using namespace cul::exceptions_abbr;
 
 } // end of <anonymous> namespace
 
 namespace asgl {
 
-VectorI TextArea::location() const
-    { return VectorI(m_draw_text.location().x, m_controls_y); }
+Vector TextArea::location() const { return m_draw_text.location(); }
 
-int TextArea::width() const
-    { return m_draw_text.width(); }
-
-int TextArea::height() const
-    { return std::max(m_draw_text.height(), m_height_fix); }
+Size TextArea::size() const
+    { return Size(m_draw_text.width(), std::max(m_draw_text.height(), m_height_fix)); }
 
 void TextArea::stylize(const StyleMap & stylemap) {
     set_required_text_fields(
@@ -75,7 +68,7 @@ void TextArea::set_fixed_height(int height) {
     flag_needs_whole_family_geometry_update();
 }
 
-void TextArea::set_viewport(const sf::IntRect & rect) {
+void TextArea::set_viewport(const Rectangle & rect) {
     m_draw_text.set_viewport(rect);
     flag_needs_whole_family_geometry_update();
 }
@@ -85,7 +78,7 @@ void TextArea::reset_viewport() {
     flag_needs_whole_family_geometry_update();
 }
 
-const sf::IntRect & TextArea::viewport() const
+const Rectangle & TextArea::viewport() const
     { return m_draw_text.viewport(); }
 
 void TextArea::draw(WidgetRenderer & target) const
@@ -140,7 +133,7 @@ void TextArea::update_size() {
 
 void TextArea::check_and_adjust_for_text_too_big() {
     if (m_draw_text.height() <= m_height_fix) return;
-    using UStrIter = TextBase::UStringConstIter;
+    using UStrIter = UStringConstIter;
     UString whole_string = m_draw_text.string();
     if (whole_string.empty()) {
         throw RtError("bad");
@@ -176,60 +169,5 @@ void TextArea::check_and_adjust_for_text_too_big() {
     }
     m_draw_text.set_string( take_and_append(whole_string.begin(), runder, m_draw_text.give_cleared_string()) );
 }
-#if 0
-/* private */ void TextArea::update_geometry() {
-    if (m_height_fix == 0) {
-        m_draw_text.set_location(m_draw_text.location().x, m_draw_text.location().y);
-        m_controls_y = m_draw_text.location().y;
-        return;
-    }
 
-    static const UString k_est_min = U"a";
-    m_height_fix = std::max(
-        m_height_fix,
-        m_draw_text.measure_text(k_est_min.begin(), k_est_min.end()).height);
-
-    if (m_draw_text.height() > m_height_fix) {
-        using UStrIter = TextBase::UStringConstIter;
-        UString whole_string = m_draw_text.string();
-        if (whole_string.empty()) {
-            throw RtError("bad");
-        }
-        auto rbeg = whole_string.begin();
-        auto rend = whole_string.end  ();
-        // have to find a shorten string
-        // have to copy u.u
-        auto runder = rbeg + ((rend - rbeg) / 2);
-        static auto take_and_append = [](UStrIter beg, UStrIter end, UString && target) {
-            target.insert(target.begin(), beg, end);
-            target += U"...";
-            return std::move(target);
-        };
-        // find any under
-        while (true) {
-            m_draw_text.set_string( take_and_append(whole_string.begin(), runder, m_draw_text.give_cleared_string()) );
-            bool under_fits = m_draw_text.height() <= m_height_fix;
-            m_draw_text.set_string( take_and_append(whole_string.begin(), runder + 1, m_draw_text.give_cleared_string()) );
-            bool over_too_big = m_draw_text.height() > m_height_fix;
-            if (under_fits && over_too_big) break;
-            if (under_fits && !over_too_big) {
-                if (rend - rbeg == 1) break;
-                // go right
-                rbeg = runder + 1;
-            } else if (!under_fits && over_too_big) {
-                // go left
-                rend = runder;
-            } else {
-                throw RtError("bad branch");
-            }
-            runder = rbeg + ((rend - rbeg) / 2);
-        }
-        m_draw_text.set_string( take_and_append(whole_string.begin(), runder, m_draw_text.give_cleared_string()) );
-    }
-
-    m_draw_text.set_location(
-        m_draw_text.location().x,
-        m_draw_text.location().y + (m_height_fix - m_draw_text.height()) / 2);
-}
-#endif
 } // end of asgl namespace

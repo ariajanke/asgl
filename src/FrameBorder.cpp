@@ -34,13 +34,7 @@
 
 namespace {
 
-using VectorI = asgl::Widget::VectorI;
-using Text    = asgl::Text;
-using InvArg  = std::invalid_argument;
-using RtError = std::runtime_error;
-
-void update_title_geometry(VectorI location,
-                           const sf::IntRect & title_bar, Text * title);
+using namespace cul::exceptions_abbr;
 
 } // end of <anonymous> namespace
 
@@ -52,20 +46,17 @@ namespace detail {
 // implemenation here, to keep vtable out of every translation unit
 // (revealed by clang static analysis)
 
-// method used as anchor for LineSeperator
-LineSeperator::~LineSeperator() {}
-
 void HorizontalSpacer::set_location_(int x_, int y_)
-    { m_location = VectorI(x_, y_); }
+    { m_location = Vector(x_, y_); }
 
-VectorI HorizontalSpacer::location() const
+Vector HorizontalSpacer::location() const
     { return m_location; }
 
-int HorizontalSpacer::width() const
-    { return m_width; }
+Size HorizontalSpacer::size() const
+    { return Size(m_width, 0); }
 
 void HorizontalSpacer::set_width(int w) {
-    assert(w >= 0.f);
+    assert(w >= 0);
     m_width = w;
 }
 
@@ -76,163 +67,128 @@ void HorizontalSpacer::set_width(int w) {
 void FrameDecoration::assign_flags_updater(WidgetFlagsReceiver * ptr)
     { m_flags_receiver = ptr ? ptr : &WidgetFlagsReceiver::null_instance(); }
 
+void FrameDecoration::inform_is_child() {
+    m_is_child = true;
+    on_inform_is_child();
+}
+
 /* protected */ void FrameDecoration::update_drag_position(int x, int y) {
     set_location(x, y);
     set_needs_geometry_update_flag();
 }
 
-/* protected */ void FrameDecoration::set_needs_geometry_update_flag() {
-    m_flags_receiver->receive_whole_family_upate_needed();
-}
-
-/* protected static */ VectorI FrameDecoration::defer_location_to_widgets() {
-    return VectorI(std::numeric_limits<int>::max(),
-                   std::numeric_limits<int>::max());
-}
-
-/* protected static */ int FrameDecoration::defer_width_to_widgets()
-    { return std::numeric_limits<int>::min(); }
-
-/* protected static */ int FrameDecoration::defer_height_to_widgets()
-    { return std::numeric_limits<int>::min(); }
+/* protected */ void FrameDecoration::set_needs_geometry_update_flag()
+    { m_flags_receiver->receive_whole_family_upate_needed(); }
 
 // ----------------------------------------------------------------------------
-// ---                             FrameBorder                              ---
 
-VectorI FrameBorder::widget_start() const {
-    VectorI offset(outer_padding(), outer_padding() + title_height());
-    if (!m_title.string().empty()) {
-        offset.y += outer_padding();
+TitleBar::TitleBar():
+    m_bar_style(Frame::to_key(Frame::k_title_bar_style))
+{ check_invarients(); }
+
+void TitleBar::set_location(int x, int y) {
+    set_top_left_of(m_bounds, x, y);
+    update_title_location_and_height();
+    check_invarients();
+}
+
+Vector TitleBar::location() const { return top_left_of(m_bounds); }
+
+Size TitleBar::size() const { return size_of(m_bounds); }
+
+Rectangle TitleBar::bounds() const { return cul::compose(location(), size()); }
+
+int TitleBar::request_width(int w_) {
+    // this maybe poor design
+    // accepting a width and then not taking it...
+    if (!is_visible()) return w_;
+    m_bounds.width = std::max(w_, minimum_width());
+    update_title_location_and_height();
+    check_invarients();
+    return m_bounds.width;
+}
+
+int TitleBar::minimum_width() const { return m_title.width(); }
+
+void TitleBar::set_string(const UString & str) {
+    m_title.set_string(str);
+    m_bounds.width = std::max(m_bounds.width, m_title.width());
+    update_title_location_and_height();
+    check_invarients();
+}
+
+void TitleBar::draw(WidgetRenderer & target) const {
+    using namespace cul::exceptions_abbr;
+    if (!is_visible()) {
+        throw RtError("TitleBar::draw: should not be called when not visible.");
     }
-    return location() + offset;
+    target.render_rectangle(m_bounds, m_bar_item, this);
+    m_title.draw_to(target);
 }
 
-VectorI FrameBorder::location() const
-    { return VectorI(m_back.left, m_back.top); }
+bool TitleBar::is_visible() const { return !m_title.string().empty(); }
 
-int FrameBorder::width() const
-    { return m_back.width; }
-
-int FrameBorder::height() const
-    { return m_back.height; }
-
-FrameBorder::EventResponseSignal FrameBorder::process_event
-    (const Event & event)
-{
-    check_should_update_drag(event);
-
-    EventResponseSignal rv;
-    if (   event.is_type<MousePress>()
-        && m_back.contains(to_vector(event.as<MousePress>())))
-    {
-        assert(m_click_in_frame);
-        rv.skip_other_events = (m_click_in_frame() == k_skip_other_events);
-    }
-
-    return rv;
-}
-
-void FrameBorder::set_location(int x, int y) {
-    m_back.left = x;
-    m_back.top  = y;
-}
-
-void FrameBorder::stylize(const StyleMap & smap) {
+void TitleBar::stylize(const StyleMap & smap) {
     using namespace styles;
     TextArea::set_required_text_fields(
         m_title, smap.find(styles::k_global_font),
         smap.find(Frame::to_key(Frame::k_title_text_style)),
-        "FrameBorder::stylize");
-
-     m_outer_padding = Widget::Helpers::verify_padding(
-        smap.find(styles::k_global_padding), "FrameBorder::stylize");
+        "TitleBar::stylize");
 
     using std::make_tuple;
-    Widget::Helpers::handle_required_fields("FrameBorder::stylize", {
-        make_tuple(&m_back_style, "frame border",
-                   smap.find(Frame::to_key(Frame::k_title_bar_style))),
-        make_tuple(&m_title_bar_style, "title bar",
-                   smap.find(Frame::to_key(Frame::k_title_bar_style))),
-        make_tuple(&m_widget_body_style, "widget body",
-                   smap.find(Frame::to_key(Frame::k_widget_body_style))),
+    Widget::Helpers::handle_required_fields("TitleBar::stylize", {
+        make_tuple(&m_bar_item, "title bar",
+                   smap.find(m_bar_style, Frame::to_key(Frame::k_title_bar_style))),
     });
+    m_bounds.width = std::max(m_bounds.width, m_title.width());
+    update_title_location_and_height();
+    check_invarients();
 }
 
-void FrameBorder::set_size(int w, int h) {
-    if (w < 0 || h < 0) {
-        throw InvArg("FrameBorder::set_size: size values must be non-negative integers.");
-    }
-    m_back.width  = w;
-    m_back.height = h;
+/* private */ void TitleBar::check_invarients() const {
+    assert(m_bounds.width  >= m_title.width ());
+    assert(m_bounds.height >= m_title.height());
+    assert(size_of(m_bounds) == Size() || (m_bounds.width != 0 && m_bounds.height != 0));
 }
 
-void FrameBorder::set_title(const UString & title_text) {
-    m_title.set_string(title_text);
-    if (title_text.empty()) {
-        ignore_drag_events();
-    } else {
-        watch_for_drag_events();
-    }
+/* private */ void TitleBar::update_title_location_and_height() {
+    m_bounds.height = (m_title.height() * 3) / 2;
+    m_title.set_location(
+        Vector(m_bounds.width -  m_title.width ()
+              ,m_bounds.height - m_title.height()) / 2
+        + top_left_of(m_bounds));
 }
 
-void FrameBorder::set_title_size(int font_size) {
-    (void)font_size;
-    throw std::runtime_error("");
+// ----------------------------------------------------------------------------
+// ---                             FrameBorder                              ---
+
+Vector FrameBorder::widget_start() const {
+    auto rv = Vector(1, 1)*m_inner_padding;
+    rv += Vector(1, 1)*(is_child() ? 0 : m_outer_padding);
+    return rv + top_left_of(m_widget_bounds);
 }
 
-void FrameBorder::reset_register_click_event()
-    { m_click_in_frame = do_default_click_event; }
+Vector FrameBorder::location() const { return m_title_bar.location(); }
 
-void FrameBorder::update_geometry() {
-    auto title_is_visible = [this] () { return !m_title.string().empty(); };
-    const auto loc = location();
-    auto w = m_back.width;
-    auto h = m_back.height;
-    const auto k_title_bar_height = title_height();
-    const auto k_title_bar_pad = title_is_visible() ? outer_padding() : 0;
-    if (title_is_visible()) {
-        m_title_bar.left = loc.x - outer_padding();
-        m_title_bar.top  = loc.y - outer_padding();
-        m_title_bar.width = w - outer_padding()*2;
-        m_title_bar.height = title_height();
-
-        update_title_geometry(loc, m_title_bar, &m_title);
-    }
-
-    m_widget_body.left = loc.x + outer_padding();
-    m_widget_body.top  = loc.y + k_title_bar_height + outer_padding() + k_title_bar_pad;
-
-    m_widget_body.width  = w - outer_padding()*2;
-    m_widget_body.height = h - (k_title_bar_height + outer_padding()*2 + k_title_bar_pad);
+Size FrameBorder::size() const {
+    return Size(m_widget_bounds.width
+               ,m_widget_bounds.height + m_title_bar.size().height);
 }
 
-int FrameBorder::title_width_accommodation() const noexcept
-    { return m_title.string().empty() ? 0 : m_title.width(); }
-
-int FrameBorder::maximum_width_for_widgets() const
-    { return std::max(m_width_maximum, title_width_accommodation()); }
-
-void FrameBorder::draw(WidgetRenderer & renderer) const {
-    auto title_is_visible = [this] () { return !m_title.string().empty(); };
-    renderer.render_rectangle(m_back, m_back_style, this);
-    renderer.render_rectangle(m_widget_body, m_widget_body_style, this);
-
-    if (title_is_visible()) {
-        renderer.render_rectangle(m_title_bar, m_title_bar_style, this);
-        m_title.draw_to(renderer);
-    }
-}
-
-/* private */ int FrameBorder::title_height() const noexcept
-    { return m_title.string().empty() ? 0 : (m_title.height() * 3) / 2; }
-
-/* private */ void FrameBorder::check_should_update_drag
+FrameBorder::EventResponseSignal FrameBorder::process_event
     (const Event & event)
 {
     switch (event.type_id()) {
-    case k_event_id_of<MousePress>:
-        mouse_click(event.as<MousePress>().x, event.as<MousePress>().y, m_title_bar);
-        break;
+    case k_event_id_of<MousePress>: {
+        EventResponseSignal rv;
+        auto mousepress = event.as<MousePress>();
+        mouse_click(mousepress.x, mousepress.y, m_title_bar.bounds());
+        if (m_widget_bounds.contains(to_vector(mousepress))) {
+            rv.skip_other_events = (m_click_in_frame() == k_skip_other_events);
+        }
+        check_invarients();
+        return rv;
+        }
     case k_event_id_of<MouseRelease>:
         drag_release();
         break;
@@ -241,26 +197,115 @@ void FrameBorder::draw(WidgetRenderer & renderer) const {
         break;
     default: break;
     }
+
+    check_invarients();
+    return EventResponseSignal();
 }
 
-/* private static */ FrameBorder::ClickResponse
-    FrameBorder::do_default_click_event()
-    { return k_continue_other_events; }
+void FrameBorder::set_location(int frame_x, int frame_y) {
+    m_title_bar.set_location(frame_x, frame_y);
+    update_geometry();
+    check_invarients();
+}
 
-/* private */ int FrameBorder::outer_padding() const noexcept
-    { return std::max(0, m_outer_padding); }
+void FrameBorder::stylize(const StyleMap & smap) {
+    using namespace styles;
+    m_title_bar.stylize(smap);
+
+    m_inner_padding = m_outer_padding = Widget::Helpers::verify_padding(
+        smap.find(styles::k_global_padding), "FrameBorder::stylize");
+
+    using std::make_tuple;
+    Widget::Helpers::handle_required_fields("FrameBorder::stylize", {
+        make_tuple(&m_border_item, "frame border",
+                   smap.find(Frame::to_key(Frame::k_title_bar_style))),
+        make_tuple(&m_widget_body_item, "widget body",
+                   smap.find(Frame::to_key(Frame::k_widget_body_style))),
+    });
+    update_geometry();
+    int total_pad = (m_outer_padding + m_inner_padding)*2;
+    m_widget_bounds.width  = std::max(total_pad, m_title_bar.size().width);
+    m_widget_bounds.height = total_pad;
+    check_invarients();
+}
+
+Size FrameBorder::request_size(int w, int h) {
+    Size accepted_size;
+    accepted_size.height = h;
+    accepted_size.width  = std::max(                  w, m_width_minimum);
+    accepted_size.width  = std::min(accepted_size.width, m_width_maximum);
+    auto total_pad = (m_outer_padding + m_inner_padding)*2;
+    int requested_title_width = accepted_size.width + total_pad;
+    int accepted_title_width  = m_title_bar.request_width(requested_title_width);
+    if (requested_title_width != accepted_title_width) {
+        accepted_size.width = accepted_title_width - total_pad;
+    }
+    m_widget_bounds.width  = accepted_size.width  + total_pad;
+    m_widget_bounds.height = accepted_size.height + total_pad;
+
+    update_geometry();
+    check_invarients();
+    return accepted_size;
+}
+
+void FrameBorder::draw(WidgetRenderer & target) const {
+    if (is_child()) {
+        if (!m_title_bar.is_visible()) return;
+        m_title_bar.draw(target);
+        target.render_rectangle(m_widget_bounds, m_widget_body_item, this);
+    } else {
+        target.render_rectangle(m_widget_bounds, m_border_item, this);
+        target.render_rectangle(inner_rectangle(), m_widget_body_item, this);
+        if (m_title_bar.is_visible()) m_title_bar.draw(target);
+    }
+}
+
+int FrameBorder::maximum_width_for_widgets() const { return m_width_maximum; }
+
+void FrameBorder::set_click_inside_event(ClickFunctor && func)
+    { m_click_in_frame = std::move(func); }
+
+void FrameBorder::set_title(const UString & str) {
+    m_title_bar.set_string(str);
+    update_geometry();
+    check_invarients();
+}
+
+void FrameBorder::reset_register_click_event()
+    { m_click_in_frame = do_default_click_event; }
+
+void FrameBorder::set_width_minimum(int i) {
+    Widget::Helpers::verify_non_negative(i, "set_width_minimum", "minimum width");
+    m_width_minimum = i;
+}
+
+void FrameBorder::set_width_maximum(int i) {
+    Widget::Helpers::verify_non_negative(i, "set_width_maximum", "maximum width");
+    m_width_maximum = i;
+}
+
+/* private */ void FrameBorder::update_geometry() {
+    set_top_left_of(m_widget_bounds, location() + Vector(0, m_title_bar.size().height));
+}
+
+/* private */ int FrameBorder::width_max_with_title() const {
+    return std::max(m_title_bar.size().width, m_width_maximum);
+}
+
+/* private */ Rectangle FrameBorder::inner_rectangle() const {
+    auto inner_loc = top_left_of(m_widget_bounds) + Vector(1, 1)*m_outer_padding;
+    auto inner_size = size_of(m_widget_bounds);
+    inner_size.width  -= m_outer_padding*2;
+    inner_size.height -= m_outer_padding*2;
+    return cul::compose(inner_loc, inner_size);
+}
+
+/* private */ void FrameBorder::check_invarients() const {
+    assert(m_title_bar.is_visible() ? m_title_bar.size().width <= m_widget_bounds.width : true);
+    assert(m_click_in_frame);
+    assert(m_widget_bounds.width  >= (m_outer_padding + m_inner_padding)*2);
+    assert(m_widget_bounds.height >= (m_outer_padding + m_inner_padding)*2);
+    assert(m_title_bar.location().y + m_title_bar.size().height <= m_widget_bounds.top);
+}
 
 } // end of asgl namespace
-
-namespace {
-
-void update_title_geometry(VectorI location,
-                           const sf::IntRect & title_bar, Text * title)
-{
-    VectorI title_offset(
-        (title_bar.width  - title->width ()) / 2,
-        (title_bar.height - title->height()) / 2);
-    title->set_location(location + title_offset);
-}
-
-} // end of <anonymous> namespace

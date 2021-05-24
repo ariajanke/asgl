@@ -52,8 +52,6 @@ public:
     inline static StyleKey to_key(StyleEnum e)
         { return styles::StyleKeysEnum<StyleEnum, k_style_count>::to_key(e); }
 
-    using UString          = Text::UString;
-    using UStringConstIter = Text::UStringConstIter;
     using StringCheckFunc  = std::function<bool(const UString &, UString &)>;
 
     /** Width maybe set, though height may not be, as that is controlled by the
@@ -89,13 +87,9 @@ public:
     void process_event(const Event &) final;
 
     /** @copydoc asgl::Widget::location() */
-    VectorI location() const final { return m_location; }
+    Vector location() const final { return m_location; }
 
-    /** @copydoc asgl::Widget::width() */
-    int width() const final;
-
-    /** @copydoc asgl::Widget::height() */
-    int height() const final;
+    Size size() const final;
 
     /** Sets the style for the text cursor, "empty string" text, "display
      *  string" text, the background, and the border.
@@ -192,7 +186,7 @@ private:
     /** @returns true if character was deleted successfully */
     bool delete_character_at(std::size_t);
 
-    sf::IntRect bounds() const;
+    Rectangle bounds() const;
 
     void update_internals_locations();
 
@@ -207,8 +201,8 @@ private:
 
     UString m_entered_string, m_display_string;
 
-    VectorI m_location;
-    sf::IntRect m_cursor;
+    Vector m_location;
+    Rectangle m_cursor;
     /** indicates the position where a character is inserted in the entered string. */
     std::size_t m_edit_position = 0;
 

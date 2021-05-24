@@ -32,10 +32,16 @@
 #include <SFML/Window/Event.hpp>
 
 #include <common/DrawRectangle.hpp>
+#include <common/DrawTriangle.hpp>
 #include <common/SubGrid.hpp>
 #include <asgl/DrawTriangle.hpp>
 
 namespace asgl {
+
+using cul::DrawRectangle;
+using cul::DrawTriangle;
+template <typename T>
+using ConstSubGrid = cul::ConstSubGrid<T>;
 
 namespace detail {
 
@@ -105,11 +111,11 @@ public:
     public:
         explicit ColorItem(sf::Color);
 
-        void update(const sf::IntRect &);
-        void update(const TriangleTuple &);
+        void update(const Rectangle &);
+        void update(const Triangle  &);
 
         const DrawRectangle & rectangle() const { return m_rectangle; }
-        const DrawTriangle & triangle() const { return m_triangle; }
+        const DrawTriangle  & triangle () const { return m_triangle ; }
 
     private:
         DrawRectangle m_rectangle;
@@ -131,7 +137,7 @@ public:
 
     using SfmlImageResource = detail::SfmlImageResource;
     using SfmlImageResPtr   = std::shared_ptr<SfmlImageResource>;
-    using SfmlRenderItem    = MultiType<ColorItem, SfmlImageResPtr, RoundedBorder, SquareBorder>;
+    using SfmlRenderItem    = cul::MultiType<ColorItem, SfmlImageResPtr, RoundedBorder, SquareBorder>;
     using SfmlRenderItemMap = std::map<ItemKey, SfmlRenderItem>;
     using ItemColorEnum     = sfml_items::ItemColorEnum;
     using ItemEnum          = sfml_items::ItemEnum;
@@ -139,7 +145,7 @@ public:
     // going to change name... not now until refactoring is done
     using DescItemStyles    = styles::ItemKeysEnum<ItemEnum, sfml_items::k_item_count>;
 
-    static void update_draw_rectangle(DrawRectangle &, const sf::IntRect &);
+    static void update_draw_rectangle(DrawRectangle &, const Rectangle &);
 
     inline static ItemKey to_item_key(sfml_items::ItemColorEnum e)
         { return ColorItemStyles::to_key(e); }
@@ -148,18 +154,18 @@ public:
         { return DescItemStyles::to_key(e); }
 
 private:
-    void render_rectangle(const sf::IntRect   &, ItemKey, const void *) final;
-    void render_triangle (const TriangleTuple &, ItemKey, const void *) final;
+    void render_rectangle(const Rectangle &, ItemKey, const void *) final;
+    void render_triangle (const Triangle  &, ItemKey, const void *) final;
     void render_text(const TextBase &) final;
 
-    void render_rectangle_pair(const sf::IntRect &, const sf::IntRect &, ItemKey, const void *) final;
+    void render_rectangle_pair(const Rectangle &, const Rectangle &, ItemKey, const void *) final;
 
-    void render_rectangle(const sf::IntRect &, ColorItem &) const;
-    void render_triangle(const TriangleTuple &, ColorItem &) const;
+    void render_rectangle(const Rectangle &, ColorItem &) const;
+    void render_triangle (const Triangle  &, ColorItem &) const;
 
-    void render_rectangle_pair(const sf::IntRect &, const sf::IntRect &, RoundedBorder &) const;
-    void render_rectangle_pair(const sf::IntRect &, const sf::IntRect &, SquareBorder &) const;
-    void render_rectangle_pair(const sf::IntRect &, const sf::IntRect &, SfmlImageResource &) const;
+    void render_rectangle_pair(const Rectangle &, const Rectangle &, RoundedBorder &) const;
+    void render_rectangle_pair(const Rectangle &, const Rectangle &, SquareBorder &) const;
+    void render_rectangle_pair(const Rectangle &, const Rectangle &, SfmlImageResource &) const;
 
     SharedImagePtr make_image_resource(const std::string & filename) final;
     SharedImagePtr make_image_resource(SharedImagePtr) final;

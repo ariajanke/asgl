@@ -31,10 +31,6 @@ ArrowButton::ArrowButton(): m_dir(Direction::k_none) {}
 void ArrowButton::set_direction(Direction dir_) {
     if (m_dir == dir_) return;
     m_dir = dir_;
-    // it isn't clear to me how I should go about marking for needing redraw
-#   if 0
-    set_needs_geometry_update_flag();
-#   endif
     flag_needs_individual_geometry_update();
 }
 
@@ -52,15 +48,7 @@ void ArrowButton::stylize(const StyleMap & smap) {
                    smap.find(to_key(k_triangle_style)))
     });
 }
-#if 0
-void ArrowButton::set_arrow_style(ItemKey ky)
-    { m_triangle_style = ky; }
 
-void ArrowButton::update_geometry() {
-    Button::update_geometry();
-    update_points();
-}
-#endif
 void ArrowButton::draw(WidgetRenderer & target) const {
     Button::draw(target);
     if (m_dir != Direction::k_none) {
@@ -71,33 +59,33 @@ void ArrowButton::draw(WidgetRenderer & target) const {
 /* private */ void ArrowButton::update_points() {
     using std::get;
     if (width() < padding()*2 || height() < padding()*2) {
-        get<0>(m_tri) = get<1>(m_tri) = get<2>(m_tri) = VectorI();
+        get<0>(m_tri) = get<1>(m_tri) = get<2>(m_tri) = Vector();
         return;
     }
 
-    VectorI anchor = location() + VectorI(width() / 2, height() / 2);
+    Vector anchor = location() + Vector(width() / 2, height() / 2);
     int offset = std::min(width () / 2 - padding()*2,
                           height() / 2 - padding()*2);
     switch (m_dir) {
     case Direction::k_down:
-        get<0>(m_tri) = anchor + VectorI(      0,  offset);
-        get<1>(m_tri) = anchor + VectorI(-offset, -offset);
-        get<2>(m_tri) = anchor + VectorI( offset, -offset);
+        get<0>(m_tri) = anchor + Vector(      0,  offset);
+        get<1>(m_tri) = anchor + Vector(-offset, -offset);
+        get<2>(m_tri) = anchor + Vector( offset, -offset);
         break;
     case Direction::k_left:
-        get<0>(m_tri) = anchor + VectorI(-offset,       0);
-        get<1>(m_tri) = anchor + VectorI( offset, -offset);
-        get<2>(m_tri) = anchor + VectorI( offset,  offset);
+        get<0>(m_tri) = anchor + Vector(-offset,       0);
+        get<1>(m_tri) = anchor + Vector( offset, -offset);
+        get<2>(m_tri) = anchor + Vector( offset,  offset);
         break;
     case Direction::k_right:
-        get<0>(m_tri) = anchor + VectorI( offset,       0);
-        get<1>(m_tri) = anchor + VectorI(-offset, -offset);
-        get<2>(m_tri) = anchor + VectorI(-offset,  offset);
+        get<0>(m_tri) = anchor + Vector( offset,       0);
+        get<1>(m_tri) = anchor + Vector(-offset, -offset);
+        get<2>(m_tri) = anchor + Vector(-offset,  offset);
         break;
     case Direction::k_up:
-        get<0>(m_tri) = anchor + VectorI(      0, -offset);
-        get<1>(m_tri) = anchor + VectorI(-offset,  offset);
-        get<2>(m_tri) = anchor + VectorI( offset,  offset);
+        get<0>(m_tri) = anchor + Vector(      0, -offset);
+        get<1>(m_tri) = anchor + Vector(-offset,  offset);
+        get<2>(m_tri) = anchor + Vector( offset,  offset);
         break;
     case Direction::k_none:
         deselect();

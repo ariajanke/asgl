@@ -31,16 +31,12 @@
 
 namespace {
 
-using UString          = asgl::Text::UString;
-using RtError          = std::runtime_error;
-using InvArg           = std::invalid_argument;
-using UStringConstIter = asgl::Text::UStringConstIter;
-using OutOfRange       = std::out_of_range;
-using UChar            = asgl::Text::UString::value_type;
-using Text             = asgl::Text;
-
-template <typename ... Types>
-using Tuple = std::tuple<Types...>;
+using namespace cul::exceptions_abbr;
+using asgl::Text;
+using asgl::UStringConstIter;
+using asgl::UString;
+using asgl::UChar;
+using cul::Tuple;
 
 Tuple<bool, UStringConstIter> find_display_position
     (const UString & display_string, const UString & entered_string);
@@ -91,11 +87,10 @@ void EditableText::process_event(const Event & event) {
     check_invarients();
 }
 
-int EditableText::width() const
-    { return text_width() + cursor_width() + m_padding*2; }
-
-int EditableText::height() const
-    { return text_height() + m_padding*2; }
+Size EditableText::size() const {
+    return Size(text_width() + cursor_width() + m_padding*2
+               ,text_height() + m_padding*2);
+}
 
 void EditableText::stylize(const StyleMap & stylemap) {
     auto set_fields_for_fill_text = [&stylemap]
@@ -183,8 +178,8 @@ void EditableText::draw(WidgetRenderer & target) const {
     draw_to(target, bounds(),
             has_focus() ? m_border_hover_appearance : m_border_appearance);
     auto inner = bounds();
-    set_top_left(inner, m_location + VectorI(1, 1)*m_padding);
-    inner.width -= m_padding*2;
+    set_top_left_of(inner, m_location + Vector(1, 1)*m_padding);
+    inner.width  -= m_padding*2;
     inner.height -= m_padding*2;
     draw_to(target, inner, m_area_appearance);
     if (m_display_left.string().empty() && m_display_right.string().empty()) {
@@ -249,7 +244,7 @@ const UString & EditableText::entered_string() const
 }
 
 /* private */ void EditableText::set_location_(int x, int y) {
-    m_location = VectorI(x, y);
+    m_location = Vector(x, y);
     update_internals_locations();
 }
 
@@ -378,8 +373,8 @@ const UString & EditableText::entered_string() const
     return true;
 }
 
-/* private */ sf::IntRect EditableText::bounds() const
-    { return sf::IntRect(location().x, location().y, width(), height()); }
+/* private */ Rectangle EditableText::bounds() const
+    { return Rectangle(location().x, location().y, width(), height()); }
 
 /* private */ void EditableText::update_internals_locations() {
     const auto & any_display_text = m_display_left;
@@ -399,13 +394,13 @@ const UString & EditableText::entered_string() const
 
     set_string(m_display_left , disp.begin(), itr);
     set_string(m_display_right, itr, disp.end());
-    m_display_left.set_location( m_location + VectorI(1, 1)*m_padding );
+    m_display_left.set_location( m_location + Vector(1, 1)*m_padding );
     m_empty_text.set_location( m_display_left.location() );
     if (on_left + on_right <= text_width()) {
         // no ellipse
         set_cursor_location(on_left);
-        m_display_right.set_location(
-            m_display_left.location() + VectorI(on_left + cursor_width(), 0) );
+        m_display_right.set_location
+            (m_display_left.location() + Vector(on_left + cursor_width(), 0) );
     } else {
         int set_aside_right = on_right;
         if (on_right > text_width() / 2) {
@@ -414,13 +409,13 @@ const UString & EditableText::entered_string() const
 
         int set_aside_left = text_width() - set_aside_right;
         assert((on_left + on_right) >= set_aside_left);
-        sf::IntRect left_viewport((on_left + on_right) - set_aside_left, 0,
-                                  set_aside_left, text_height());
-        sf::IntRect right_viewport(0, 0, set_aside_right, text_height());
+        Rectangle left_viewport((on_left + on_right) - set_aside_left, 0
+                               , set_aside_left, text_height());
+        Rectangle right_viewport(0, 0, set_aside_right, text_height());
 
         set_cursor_location(set_aside_left);
         m_display_right.set_location(
-            m_display_left.location() + VectorI(set_aside_left + cursor_width(), 0) );
+            m_display_left.location() + Vector(set_aside_left + cursor_width(), 0) );
         m_display_left .set_viewport(left_viewport );
         m_display_right.set_viewport(right_viewport);
     }
@@ -445,8 +440,8 @@ Tuple<bool, UStringConstIter> find_display_position
 {
     using std::make_tuple;
     if (pos > entered_string.size()) {
-        throw OutOfRange("EditableText::right_before_next: given position is "
-                         "outside the string.");
+        throw OorError("EditableText::right_before_next: given position is "
+                       "outside the string.");
     }
 
     assert(display_string.size() >= entered_string.size());

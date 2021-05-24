@@ -68,13 +68,6 @@ public:
     void set_size(int w, int h)
         { set_button_frame_size(w, h); }
 
-#   if 0
-    // maybe "reinstated" still though, stylize will overwrite any value given!
-    [[deprecated]] void set_arrow_style(ItemKey);
-
-    /** Rearranges geometric internals. */
-    void update_geometry() override;
-#   endif
     void draw(WidgetRenderer &) const override;
 
 private:
@@ -88,7 +81,7 @@ private:
     void update_size() override {}
 
     ItemKey m_triangle_style;
-    TriangleTuple m_tri;
+    Triangle m_tri;
     Direction m_dir;
 };
 

@@ -30,22 +30,22 @@
 #include <asgl/sfml/SfmlEngine.hpp>
 
 #include <common/Grid.hpp>
+#include <common/Util.hpp>
 #include <SFML/Graphics/RenderWindow.hpp>
 
 #include <SFML/System/Vector2.hpp>
 #include <SFML/System/Sleep.hpp>
 
 #include <iostream>
+#include <random>
 
 #include <cassert>
 
 namespace {
 
-using InvArg = std::invalid_argument;
-template <typename ... Types>
-using Tuple = std::tuple<Types...>;
-using VectorI = asgl::Widget::VectorI;
-
+using namespace cul::exceptions_abbr;
+using cul::Tuple;
+using cul::Grid;
 using namespace asgl;
 
 // ------------------------------ generalization ------------------------------
@@ -53,41 +53,75 @@ using namespace asgl;
 class SelectionEntryDecoration final : public FrameDecoration {
 public:
 
-    VectorI widget_start() const final { return get_top_left(m_bounds); }
+    Vector widget_start() const final { return location(); }
 
-    VectorI location() const final { return get_top_left(m_bounds); }
+    Vector location() const final { return top_left_of(m_bounds); }
 
-    int width() const final { return 0; }//m_bounds.width; }
-
-    int height() const final { return 0; } //m_bounds.height; }
+    Size size() const final { return size_of(m_bounds); }
 
     EventResponseSignal process_event(const asgl::Event &) final
         { return EventResponseSignal(); }
 
     void set_location(int frame_x, int frame_y) final {
-        set_top_left(m_bounds, frame_x, frame_y);
+        std::cout << "Frame decoration location set: " << frame_x << ", " << frame_y << std::endl;
+        set_top_left_of(m_bounds, frame_x, frame_y);
     }
 
     void stylize(const StyleMap &) final {}
 
-    void update_geometry() final {}
-
     void draw(WidgetRenderer &) const final {}
 
-    int minimum_width() const final { return 0; }
-
-    int width_available_for_widgets() const final { return width(); }
+    int maximum_width_for_widgets() const final
+        { return FrameDecoration::k_no_width_limit_for_widgets; }
 
     void set_click_inside_event(ClickFunctor &&) final {
         throw InvArg("SelectionEntryDecoration::set_click_inside_event: "
                      "This decoration does not accept click events.");
     }
 
-private:
-    void request_size(int, int) final
-        { /* reject size requests */ }
+    void accept_any_size() {
+        m_accepting_any_size = true;
+        check_invarients();
+    }
 
-    sf::IntRect m_bounds;
+    void constrain_to(const SelectionEntryDecoration * ptr) {
+        if (!ptr) {
+            throw InvArg("");
+        } else if (this == ptr) {
+            throw InvArg("");
+        }
+        m_constraint = ptr;
+        check_invarients();
+    }
+
+    Size request_size(int w, int h) final {
+        assert(m_accepting_any_size || m_constraint);
+
+        if (m_accepting_any_size) {
+            m_has_accepted_a_size = true;
+            set_size_of(m_bounds, Size(w, h));
+            return Size(w, h);
+        } else if (m_constraint) {
+            if (!m_constraint->m_has_accepted_a_size) {
+                throw RtError("");
+            }
+            return size_of(m_constraint->m_bounds);
+        }
+        throw RtError("bad branch");
+    }
+
+private:
+    void check_invarients() const {
+        assert(!(m_accepting_any_size && m_constraint));
+    }
+
+    void on_inform_is_child() final {}
+
+    bool m_has_accepted_a_size = false;
+    bool m_accepting_any_size = false;
+    const SelectionEntryDecoration * m_constraint = nullptr;
+
+    Rectangle m_bounds;
 };
 
 class SelectionEntryFrame : public BareFrame {
@@ -96,7 +130,7 @@ public:
     template <bool kt_is_const>
     class ShapeViewImpl {
     public:
-        using PointerType = std::conditional_t<kt_is_const, const VectorI *, VectorI *>;
+        using PointerType = std::conditional_t<kt_is_const, const Vector *, Vector *>;
         ShapeViewImpl(PointerType beg, PointerType end);
 
         PointerType begin() const { return m_beg; }
@@ -109,6 +143,16 @@ public:
 
     using ShapeView = ShapeViewImpl<true>;
 
+    void accept_any_size()
+        { m_deco.accept_any_size(); }
+
+    void constrain_to(const SelectionEntryFrame * ptr) {
+        if (!ptr) {
+            throw InvArg("");
+        }
+        m_deco.constrain_to(&ptr->m_deco);
+    }
+
 protected:
     SelectionEntryFrame() {}
 
@@ -119,7 +163,7 @@ private:
 
     SelectionEntryDecoration m_deco;
 };
-
+#if 0
 class SelectionMenu : public BareFrame {
 public:
 
@@ -133,7 +177,7 @@ private:
     int padding = 0;
     Grid<SelectionEntryFrame *> m_menu_grid;
 };
-
+#endif
 // ------------------------------ specialization ------------------------------
 
 // It's true I don't need an abstract class, but the attempt here is to limit
@@ -147,11 +191,11 @@ public:
     void draw(const Widget & parent, WidgetRenderer & target) const
         { draw_(parent.location(), target); }
 
-    void draw(const VectorI & offset, WidgetRenderer & target) const
+    void draw(const Vector & offset, WidgetRenderer & target) const
         { draw_(offset, target); }
 
 protected:
-    virtual void draw_(const VectorI &, WidgetRenderer &) const = 0;
+    virtual void draw_(const Vector &, WidgetRenderer &) const = 0;
 };
 
 class ForegroundDraggableImage final :
@@ -164,8 +208,8 @@ public:
     void set_click_matrix(ConstSubGrid<bool> mask)
         { m_click_mask = mask; }
 private:
-    sf::IntRect bounds(VectorI offset_) const {
-        return sf::IntRect(offset_.x + m_offset.x, offset_.y + m_offset.y,
+    Rectangle bounds(Vector offset_) const {
+        return Rectangle(offset_.x + m_offset.x, offset_.y + m_offset.y,
                            width(), height());
     }
 public:
@@ -175,15 +219,17 @@ public:
     int height() const
         { return (m_click_mask.height() + 1)*scale(); }
 
+    Size size() const { return Size(width(), height()); }
+
     using Draggable::mouse_move;
 
     void drag_release() {
-        m_offset = VectorI();
+        m_offset = Vector();
         Draggable::drag_release();
     }
 
     bool mouse_click(int x, int y, sf::Vector2i matrix_location) {
-        auto pos = VectorI(x, y) - matrix_location;
+        auto pos = Vector(x, y) - matrix_location;
         pos /= scale();
         if (!m_click_mask.has_position(pos)) return false;
         if (m_click_mask(pos))
@@ -199,10 +245,10 @@ public:
     }
     int scale() const { return m_scale; }
 
-    void set_frame(const sf::IntRect & rect)
+    void set_frame(const Rectangle & rect)
         { m_tx_bounds = rect; }
 private:
-    void draw_(const VectorI & offset, WidgetRenderer & renderer) const final {
+    void draw_(const Vector & offset, WidgetRenderer & renderer) const final {
         renderer.render_rectangle_pair(bounds(offset), m_tx_bounds, m_foreground_image->item_key(), this);
     }
 public:
@@ -211,13 +257,13 @@ public:
 
 private:
     void update_drag_position(int x, int y) final {
-        m_offset = VectorI(x, y);
+        m_offset = Vector(x, y);
     }
 
-    VectorI m_offset;
+    Vector m_offset;
     ConstSubGrid<bool> m_click_mask;
     SharedImagePtr m_foreground_image;
-    sf::IntRect m_tx_bounds;
+    Rectangle m_tx_bounds;
     int m_scale = 4;
 };
 
@@ -227,15 +273,13 @@ class DraggableImageWidget final : public Widget {
 public:
     void process_event(const Event &) override;
 
-    VectorI location() const override;
+    Vector location() const override;
 
-    int width() const override;
-
-    int height() const override;
+    Size size() const override;
 
     void stylize(const StyleMap &) override;
 
-    void update_geometry() override;
+    void update_size() override;
 
     void draw(WidgetRenderer &) const override;
 
@@ -245,8 +289,8 @@ public:
     void set_images(SharedImagePtr foreground_image,
                     SharedImagePtr background_image);
 
-    void set_frames(const sf::IntRect & foreground,
-                    const sf::IntRect & background);
+    void set_frames(const Rectangle & foreground,
+                    const Rectangle & background);
 
     void set_mask(ConstSubGrid<bool>);
 
@@ -263,11 +307,11 @@ private:
 
     void set_location_(int x, int y) override;
 
-    VectorI m_location;
+    Vector m_location;
 
     ForegroundDraggableImage m_foreground_image;
     SharedImagePtr m_background_image;
-    sf::IntRect m_background_frame;
+    Rectangle m_background_frame;
 };
 
 class ImageTextSelectionEntry final : public SelectionEntryFrame {
@@ -287,8 +331,8 @@ public:
         SharedImagePtr foreground;
         SharedImagePtr background;
 
-        sf::IntRect foreground_tx_bounds;
-        sf::IntRect background_tx_bounds;
+        Rectangle foreground_tx_bounds;
+        Rectangle background_tx_bounds;
 
         ConstSubGrid<bool> click_mask;
         UString string;
@@ -307,7 +351,8 @@ public:
     void process_event(const Event & event) final {
         BareFrame::process_event(event);
         if (!event.is_type<MouseMove>()) return;
-        sf::IntRect text_bounds(m_text.location(), VectorI(m_text.width(), m_text.height()));
+        auto text_bounds = cul::compose(m_text.location(), m_text.size());
+        //Rectangle text_bounds(m_text.location(), Vector(m_text.width(), m_text.height()));
         if (text_bounds.contains(to_vector(event.as<MouseMove>()))) {
             m_show_full_text = true;
             m_full_text.set_location(m_text.location());
@@ -335,11 +380,6 @@ public:
         { return std::make_tuple(m_image.get_hold_request(), &m_image); }
 
 private:
-
-    void update_geometry() final {
-        BareFrame::update_geometry();
-    }
-
     void on_frame_geometry_update() final {
 
     }
@@ -363,6 +403,22 @@ public:
 
     void process_event(const Event & event) final {
         Frame::process_event(event);
+
+        bool should_show = false;
+        for (auto & ptr : m_owned_widgets) {
+            if (!event.is_type<MouseMove>()) break;
+            auto mouserel = to_vector(event.as<MouseMove>());
+            if (ptr->mouse_is_over(event.as<MouseMove>())) {
+                set_top_left_of(m_here, mouserel - Vector(1, 1)*25);
+                set_size_of(m_here, 50, 50);
+                should_show = true;
+                break;
+            }
+        }
+        if (!should_show) {
+            set_size_of(m_here, 0, 0);
+        }
+
         // really not sure what to do style wise
         // if (ptr && ptr->method()) is considered problematic since
         // short-circuiting is not immediately appearent
@@ -375,6 +431,7 @@ public:
             IconTilePtr * hovering_over = nullptr;
             for (auto & ptr : m_owned_widgets) {
                 if (ptr->mouse_is_over(event.as<MouseRelease>())) {
+                    std::cout << "Hello" << std::endl;
                     hovering_over = &ptr;
                     break;
                 }
@@ -405,6 +462,7 @@ public:
             assert(m_held_items_parent);
             m_held_item->draw(*m_held_items_parent, target);
         }
+        target.render_rectangle(m_here, asgl::SfmlFlatEngine::to_item_key(asgl::sfml_items::k_secondary_light), nullptr);
     }
 
 private:
@@ -432,6 +490,7 @@ private:
     // test frame will have to own the mask grid
     std::shared_ptr<const Grid<bool>> m_mask_ptr;
 
+    Rectangle m_here;
     TextButton m_exit;
     bool m_request_exit = false;
 };
@@ -450,8 +509,8 @@ struct LoadIconsRt {
     SharedImagePtr icons;
     SharedImagePtr icon_shadows;
     std::shared_ptr<const Grid<bool>> mask_ptr;
-    std::vector<sf::IntRect> icon_frames;
-    std::vector<sf::IntRect> icon_shadows_frames;
+    std::vector<Rectangle> icon_frames;
+    std::vector<Rectangle> icon_shadows_frames;
 };
 
 LoadIconsRt load_icons(const std::string & filename, SfmlFlatEngine &,
@@ -494,11 +553,27 @@ int main() {
             }
         }
         }
+
         sf::sleep(sf::microseconds(16667));
 
         test_frame.check_for_geometry_updates();
         win.clear(sf::Color(40, 180, 40));
         test_frame.draw(engine);
+
+        std::default_random_engine rng { 0x827ABE21 };
+        test_frame.iterate_children_const_f([&rng, &win](const Widget & widget) {
+            auto rnd_u8 = [&rng]()
+                { return uint8_t(std::uniform_int_distribution<int>(0, 255)(rng)); };
+            auto rnd_color = [&rnd_u8]()
+                { return sf::Color(rnd_u8(), rnd_u8(), rnd_u8(), 140); };
+
+            auto bounds = widget.bounds();
+            win.draw(DrawRectangle(float(bounds.left), float(bounds.top)
+                                  ,float(bounds.width), float(bounds.height)
+                                  ,rnd_color()));
+        });
+
+
         win.display();
     }
     return 0;
@@ -529,15 +604,13 @@ void DraggableImageWidget::process_event(const Event & event) {
     }
 }
 
-VectorI DraggableImageWidget::location() const { return m_location; }
+Vector DraggableImageWidget::location() const { return m_location; }
 
-int DraggableImageWidget::width() const { return m_foreground_image.width(); }
-
-int DraggableImageWidget::height() const { return m_foreground_image.height(); }
+Size DraggableImageWidget::size() const { return m_foreground_image.size(); }
 
 void DraggableImageWidget::stylize(const StyleMap &) {}
 
-void DraggableImageWidget::update_geometry() {
+void DraggableImageWidget::update_size() {
     // not any real visible changes
     // probably not having the stale state problem
 #   if 0
@@ -552,8 +625,8 @@ void DraggableImageWidget::draw(WidgetRenderer & target) const {
     if (m_foreground_image.is_requesting_drop()) {
         m_foreground_image.draw(location(), target);
     } else if (!m_foreground_image.is_requesting_drop())  {
-        sf::IntRect bounds;
-        set_top_left(bounds, m_location);
+        Rectangle bounds;
+        set_top_left_of(bounds, m_location);
         bounds.width = m_foreground_image.width();
         bounds.height = m_foreground_image.height();
         draw_to(target, bounds, m_background_frame, m_background_image->item_key());
@@ -585,7 +658,7 @@ void DraggableImageWidget::set_images
 }
 
 void DraggableImageWidget::set_frames
-    (const sf::IntRect & foreground, const sf::IntRect & background)
+    (const Rectangle & foreground, const Rectangle & background)
 {
     m_foreground_image.set_frame(foreground);
     m_background_frame = background;
@@ -597,7 +670,7 @@ void DraggableImageWidget::set_mask(ConstSubGrid<bool> mask) {
 }
 
 /* private */ void DraggableImageWidget::set_location_(int x, int y) {
-    m_location = VectorI(x, y);
+    m_location = Vector(x, y);
 }
 
 /* private static */ const std::string DraggableImageWidget::k_no_file_filename = "";
@@ -670,7 +743,7 @@ void TestFrame::setup(const LoadIconsRt & icon_info) {
         params.foreground_tx_bounds = icon_info.icon_frames.at(frame);
         params.background_tx_bounds = icon_info.icon_shadows_frames.at(frame);
         params.click_mask = make_sub_grid
-            (*icon_info.mask_ptr, get_top_left(params.foreground_tx_bounds)
+            (*icon_info.mask_ptr, top_left_of(params.foreground_tx_bounds)
             ,params.foreground_tx_bounds.width, params.foreground_tx_bounds.height);
         auto rv = std::make_unique<ImageTextSelectionEntry>();
         rv->setup(const_shared_params, params);
@@ -680,11 +753,17 @@ void TestFrame::setup(const LoadIconsRt & icon_info) {
     m_owned_widgets.emplace_back(mk_icon
         (7, U"Wand of Squadilla - Here's some more text to test the limits behavior of text."));
     m_owned_widgets.emplace_back(mk_icon
-        (6, U"Wand of Squadilla - Here's some more text to test the limits behavior of text."));
+        (6, U"Topaz Ring Thing - Here's some more text to test the limits behavior of text."));
     m_owned_widgets.emplace_back(mk_icon
-        (5, U"Wand of Squadilla - Here's some more text to test the limits behavior of text."));
+        (5, U"Gross Potion - Here's some more text to test the limits behavior of text."));
     m_owned_widgets.emplace_back(mk_icon
-        (4, U"Wand of Squadilla - Here's some more text to test the limits behavior of text."));
+        (4, U"Sphere Friend - Here's some more text to test the limits behavior of text."));
+
+    m_owned_widgets.front()->accept_any_size();
+    for (auto & uptr : m_owned_widgets) {
+        if (uptr == m_owned_widgets.front()) continue;
+        uptr->constrain_to(m_owned_widgets.front().get());
+    }
 
     // not related to icons
     m_exit.set_string(U"Exit App");
@@ -718,12 +797,12 @@ static const auto k_shadow_pallete = {
 };
 
 static const auto k_neighbors =
-    { VectorI(1, 0), VectorI(-1, 0), VectorI(0, 1), VectorI(0, -1) };
+    { Vector(1, 0), Vector(-1, 0), Vector(0, 1), Vector(0, -1) };
 
 template <typename T, typename Predicate>
 inline std::enable_if_t<std::is_invocable_v<Predicate, const T &>, bool>
     any_are_edge
-    (const Grid<T> & grid, VectorI r, Predicate && is_inside)
+    (const Grid<T> & grid, Vector r, Predicate && is_inside)
 {
     assert(grid.has_position(r));
     assert(is_inside(grid(r)));
@@ -740,18 +819,18 @@ inline std::enable_if_t<std::is_invocable_v<Predicate, const T &>, bool>
 
 template <typename T>
 inline bool any_are_edge
-    (const Grid<T> & grid, VectorI r, const T & inside_value)
+    (const Grid<T> & grid, Vector r, const T & inside_value)
 {
     return any_are_edge(grid, r, [&inside_value](const T & obj) { return obj == inside_value; });
 }
 
-auto make_strict_weak_vector_orderer(const std::vector<VectorI> & col) {
+auto make_strict_weak_vector_orderer(const std::vector<Vector> & col) {
     int max_x = std::max_element(col.begin(), col.end(),
-        [](const VectorI & a, const VectorI & b) { return a.x < b.x; })->x + 1;
+        [](const Vector & a, const Vector & b) { return a.x < b.x; })->x + 1;
     if (max_x*max_x <= max_x) {
         throw std::overflow_error("make_strict_weak_vector_orderer: maximum value x squared overflows the data type.");
     }
-    return [max_x](const VectorI & a, const VectorI & b) {
+    return [max_x](const Vector & a, const Vector & b) {
         int a_v = a.x + a.y*max_x;
         int b_v = b.x + b.y*max_x;
         return a_v < b_v;
@@ -772,10 +851,10 @@ inline Grid<sf::Color> load_image(const std::string & fn) {
     return imgout;
 }
 
-inline void clean_up_edge_pixels(std::vector<VectorI> & edge_pixels) {
+inline void clean_up_edge_pixels(std::vector<Vector> & edge_pixels) {
     std::sort(edge_pixels.begin(), edge_pixels.end(), make_strict_weak_vector_orderer(edge_pixels));
-    static const VectorI k_remove_cand(-1, -1);
-    static auto is_remove_cand = [](VectorI r) { return r == k_remove_cand; };
+    static const Vector k_remove_cand(-1, -1);
+    static auto is_remove_cand = [](Vector r) { return r == k_remove_cand; };
     if (std::any_of(edge_pixels.begin(), edge_pixels.end(), is_remove_cand)) {
         throw InvArg("No edge pixel maybe the remove candidate (should not be possible, the remove candidate is not a valid location on *any* grid).");
     }
@@ -791,13 +870,13 @@ inline void clean_up_edge_pixels(std::vector<VectorI> & edge_pixels) {
 }
 
 inline Grid<bool> expand_mask
-    (const Grid<bool> & mask, std::vector<VectorI> edge_pixels_copy,
+    (const Grid<bool> & mask, std::vector<Vector> edge_pixels_copy,
      std::size_t expansion_size = icon_fields::k_expansion_size,
      std::size_t reserve_offset = 0)
 {
     auto temp_mask = mask;
     do_n_times(expansion_size, [&]() {
-        std::vector<VectorI> new_edge_pixels;
+        std::vector<Vector> new_edge_pixels;
         new_edge_pixels.reserve(edge_pixels_copy.size() + reserve_offset);
         for (auto r : edge_pixels_copy) {
             assert(temp_mask(r));
@@ -815,7 +894,7 @@ inline Grid<bool> expand_mask
     return temp_mask;
 }
 
-inline void mark_pixel(sf::Color & pixel, VectorI r) {
+inline void mark_pixel(sf::Color & pixel, Vector r) {
     int idx = (r.x + r.y % int(k_shadow_pallete.size())) % int(k_shadow_pallete.size());
     pixel = *(k_shadow_pallete.begin() + idx);
 }
@@ -826,14 +905,14 @@ inline Grid<bool> make_icon_shadows(const Grid<bool> & shadow_mask, int icon_siz
     icon_shadows.set_size((shadow_mask.width () / icon_size)*shadow_size,
                           (shadow_mask.height() / icon_size)*shadow_size,
                           false);
-    for (VectorI icon_r; icon_r.y != shadow_mask.height() / icon_size; ++icon_r.y) {
+    for (Vector icon_r; icon_r.y != shadow_mask.height() / icon_size; ++icon_r.y) {
     for (icon_r.x = 0  ; icon_r.x != shadow_mask.width () / icon_size; ++icon_r.x) {
         auto icon_tile   = make_sub_grid(shadow_mask , icon_r*icon_size, icon_size, icon_size);
         auto shadow_tile = make_sub_grid(icon_shadows, icon_r*shadow_size, shadow_size, shadow_size);
         // note the following:
         assert(icon_tile.width() + expansion_size*2 == shadow_tile.width());
-        VectorI shadow_offset = VectorI(1, 1)*expansion_size;
-        for (VectorI r; r != icon_tile.end_position(); r = icon_tile.next(r)) {
+        Vector shadow_offset = Vector(1, 1)*expansion_size;
+        for (Vector r; r != icon_tile.end_position(); r = icon_tile.next(r)) {
             if (!icon_tile(r)) continue;
             shadow_tile(r + shadow_offset) = true;
         }
@@ -842,10 +921,10 @@ inline Grid<bool> make_icon_shadows(const Grid<bool> & shadow_mask, int icon_siz
 }
 
 inline Grid<bool> grow_shadow_mask(const Grid<bool> & shadow_mask, int expansion_size) {
-    std::vector<VectorI> edge_pixels;
+    std::vector<Vector> edge_pixels;
     // guess reserve
     edge_pixels.reserve( shadow_mask.size() / 4 );
-    for (VectorI r; r != shadow_mask.end_position(); r = shadow_mask.next(r)) {
+    for (Vector r; r != shadow_mask.end_position(); r = shadow_mask.next(r)) {
         if (!shadow_mask(r)) continue;
         if (any_are_edge(shadow_mask, r, true)) {
             edge_pixels.push_back(r);
@@ -864,26 +943,26 @@ inline Grid<sf::Color> make_shadow_image(const Grid<bool> & shadow_mask, int ico
     {
     sf::Image img;
     img.create(unsigned(icon_shadows.width()), unsigned(icon_shadows.height()));
-    for (VectorI r; r != icon_shadows.end_position(); r = icon_shadows.next(r)) {
+    for (Vector r; r != icon_shadows.end_position(); r = icon_shadows.next(r)) {
         img.setPixel(unsigned(r.x), unsigned(r.y), icon_shadows(r) ? sf::Color::Black : sf::Color::White);
     }
     img.saveToFile("/media/ramdisk/firstmask.png");
     }
     Grid<sf::Color> image;
     image.set_size(icon_shadows.width(), icon_shadows.height(), k_transparency);
-    for (VectorI r; r != image.end_position(); r = image.next(r)) {
+    for (Vector r; r != image.end_position(); r = image.next(r)) {
         if (!icon_shadows(r)) continue;
         mark_pixel(image(r), r);
     }
     return image;
 }
 
-inline std::vector<sf::IntRect> make_frames_for_size(int width_in_frames, int height_in_frames, int frame_size) {
-    std::vector<sf::IntRect> rv;
+inline std::vector<Rectangle> make_frames_for_size(int width_in_frames, int height_in_frames, int frame_size) {
+    std::vector<Rectangle> rv;
     rv.reserve(width_in_frames*height_in_frames);
-    for (VectorI icon_r; icon_r.y != height_in_frames; ++icon_r.y) {
+    for (Vector icon_r; icon_r.y != height_in_frames; ++icon_r.y) {
     for (icon_r.x = 0  ; icon_r.x != width_in_frames ; ++icon_r.x) {
-        rv.emplace_back(icon_r*frame_size, VectorI(1, 1)*frame_size);
+        rv.emplace_back(icon_r*frame_size, Vector(1, 1)*frame_size);
     }}
     return rv;
 }
@@ -897,7 +976,7 @@ LoadIconsRt load_icons
     Grid<bool> mask;
     // guess reserve
     mask.set_size(image_grid.width(), image_grid.height(), false);
-    for (VectorI r; r != image_grid.end_position(); r = image_grid.next(r)) {
+    for (Vector r; r != image_grid.end_position(); r = image_grid.next(r)) {
         if (image_grid(r).a < opacity_limit) continue;
         mask(r) = true;
     }
@@ -908,9 +987,9 @@ LoadIconsRt load_icons
     Grid<sf::Color> icon_shadows = make_shadow_image(mask, icon_size, expansion_size);
     int width_in_frames  = image_grid.width () / icon_size;
     int height_in_frames = image_grid.height() / icon_size;
-    std::vector<sf::IntRect> icon_frames
+    std::vector<Rectangle> icon_frames
         = make_frames_for_size(width_in_frames, height_in_frames, icon_size);
-    std::vector<sf::IntRect> icon_shadow_frames = make_frames_for_size
+    std::vector<Rectangle> icon_shadow_frames = make_frames_for_size
         (width_in_frames, height_in_frames, icon_size + expansion_size*2);
 
     LoadIconsRt rv;
@@ -923,7 +1002,7 @@ LoadIconsRt load_icons
     // temp
     sf::Image img;
     img.create(unsigned(icon_shadows.width()), unsigned(icon_shadows.height()));
-    for (VectorI r; r != icon_shadows.end_position(); r = icon_shadows.next(r)) {
+    for (Vector r; r != icon_shadows.end_position(); r = icon_shadows.next(r)) {
         img.setPixel(unsigned(r.x), unsigned(r.y), icon_shadows(r));
     }
     img.saveToFile("/media/ramdisk/shadows.png");

@@ -22,38 +22,18 @@
 
 *****************************************************************************/
 
-#pragma once
-
-#include <asgl/Button.hpp>
-#include <asgl/Text.hpp>
+#include <common/Vector2Util.hpp>
 
 namespace asgl {
 
-class TextButton final : public Button {
-public:
-    /** TextButton defaults to TextArea text's styles */
+using Vector    = cul::Vector2<int>;
+using Size      = cul::Size2<int>;
+using Triangle  = std::tuple<Vector, Vector, Vector>;
+using Rectangle = cul::Rectangle<int>;
 
-    void set_string(const UString & str);
-
-    void set_string(UString && str);
-
-    UString give_cleared_string();
-
-    void stylize(const StyleMap &) final;
-
-    const UString & string() const;
-
-    void draw(WidgetRenderer &) const final;
-
-private:
-    void set_location_(int x, int y) final;
-
-    void update_size() final;
-
-    // top, bottom
-    std::tuple<int, int> inner_padding() const;
-
-    Text m_text;
-};
+using cul::top_left_of;
+using cul::set_top_left_of;
+using cul::size_of;
+using cul::set_size_of;
 
 } // end of asgl namespace

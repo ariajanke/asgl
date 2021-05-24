@@ -24,8 +24,7 @@
 
 #pragma once
 
-#include <SFML/System/Vector2.hpp>
-#include <SFML/Graphics/Rect.hpp>
+#include <asgl/Defs.hpp>
 
 #include <memory>
 #include <string>
@@ -35,17 +34,15 @@ namespace asgl {
 class Text;
 class WidgetRenderer;
 class ItemKey;
+using UString          = std::u32string;
+using UChar            = UString::value_type;
+using UStringConstIter = UString::const_iterator;
 
 // ----------------------------------------------------------------------------
 //             this is *sort of* beyond what the client should see
 
 class TextBase {
 public:
-    using UString          = std::u32string;
-    using UChar            = UString::value_type;
-    using UStringConstIter = UString::const_iterator;
-    using VectorI          = sf::Vector2i;
-
     struct ProxyDeleter {
         void operator () (TextBase *) const;
     };
@@ -58,8 +55,6 @@ public:
         static ProxyPointer make_default_instance();
         static ProxyPointer make_basic_instance();
     };
-
-    struct TextSize { int width = 0, height = 0; };
 
     virtual ~TextBase() {}
 
@@ -83,7 +78,7 @@ public:
     virtual void set_location(int x, int y) = 0;
 
     /** @returns the pixel location of the text */
-    virtual VectorI location() const = 0;
+    virtual Vector location() const = 0;
 
     /** @returns the appearent width of the text (in pixels) */
     virtual int width() const = 0;
@@ -115,19 +110,19 @@ public:
      */
     virtual void stylize(ItemKey) = 0;
 
-    virtual TextSize measure_text(UStringConstIter beg, UStringConstIter end) const = 0;
+    virtual Size measure_text(UStringConstIter beg, UStringConstIter end) const = 0;
 
     virtual ProxyPointer clone() const = 0;
 
     virtual int limiting_line() const = 0;
 
-    void set_viewport(const sf::IntRect &);
+    void set_viewport(const Rectangle &);
 
     void reset_viewport();
 
-    virtual const sf::IntRect & viewport() const = 0;
+    virtual const Rectangle & viewport() const = 0;
 
-    static const sf::IntRect k_default_viewport;
+    static const Rectangle k_default_viewport;
     static const int k_default_limiting_line;
 
 protected:
@@ -137,7 +132,7 @@ protected:
         return std::unique_ptr<T, ProxyDeleter>(new T (obj));
     }
 
-    virtual void set_viewport_(const sf::IntRect &) = 0;
+    virtual void set_viewport_(const Rectangle &) = 0;
 
     virtual void swap_string(UString &) = 0;
 
@@ -148,13 +143,10 @@ protected:
 
 class Font {
 public:
-    using TextSize         = TextBase::TextSize;
-    using UString          = TextBase::UString;
-    using UStringConstIter = TextBase::UStringConstIter;
-    using TextPointer      = TextBase::ProxyPointer;
+    using TextPointer = TextBase::ProxyPointer;
 
     virtual TextPointer fit_pointer_to_adaptor(TextPointer &&) const = 0;
-    virtual TextSize measure_text(ItemKey, UStringConstIter beg, UStringConstIter end) const = 0;
+    virtual Size measure_text(ItemKey, UStringConstIter beg, UStringConstIter end) const = 0;
 
 protected:
     template <typename T>
@@ -166,11 +158,7 @@ protected:
 // this should be the client's interface
 class Text final {
 public:
-    using UString          = TextBase::UString;
-    using UStringConstIter = TextBase::UStringConstIter;
-    using VectorI          = TextBase::VectorI;
-    using ProxyPointer     = TextBase::ProxyPointer;
-    using TextSize         = TextBase::TextSize;
+    using ProxyPointer = TextBase::ProxyPointer;
 
     Text() {}
     Text(const Text &);
@@ -193,11 +181,11 @@ public:
 
     const UString & string() const;
 
-    void set_location(const VectorI &);
+    void set_location(const Vector &);
 
     void set_location(int x, int y);
 
-    VectorI location() const;
+    Vector location() const;
 
     /** @returns the appearent width of the text (in pixels) */
     int width() const;
@@ -229,13 +217,13 @@ public:
      */
     void stylize(ItemKey);
 
-    TextSize measure_text(UStringConstIter beg, UStringConstIter end) const;
+    Size measure_text(UStringConstIter beg, UStringConstIter end) const;
 
-    void set_viewport(const sf::IntRect &);
+    void set_viewport(const Rectangle &);
 
     void reset_viewport();
 
-    const sf::IntRect & viewport() const;
+    const Rectangle & viewport() const;
 
     void set_font(const Font &);
 

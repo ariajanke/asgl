@@ -49,15 +49,11 @@ namespace detail {
  */
 class LineSeperator final : public Widget {
 public:
-    ~LineSeperator() final;
-
     void process_event(const Event &) final {}
 
-    VectorI location() const final { return VectorI(); }
+    Vector location() const final { return Vector(); }
 
-    int width() const final { return 0; }
-
-    int height() const final { return 0; }
+    Size size() const final { return Size(); }
 
     void stylize(const StyleMap &) final {}
 
@@ -70,15 +66,11 @@ private:
 
 class HorizontalSpacer final : public Widget {
 public:
-    HorizontalSpacer(): m_width(0) {}
-
     void process_event(const Event &) final {}
 
-    VectorI location() const final;
+    Vector location() const final;
 
-    int width() const final;
-
-    int height() const final { return 0; }
+    Size size() const final;
 
     void set_width(int w);
 
@@ -90,8 +82,8 @@ private:
     void set_location_(int x, int y) final;
     void update_size() final {}
 
-    VectorI m_location;
-    int m_width;
+    Vector m_location;
+    int m_width = 0;
 };
 
 } // end of detail namespace
@@ -104,39 +96,33 @@ private:
  *  @code
 class MyDecoration final : public asgl::FrameDecoration {
 public:
-    VectorI widget_start() const final;
+    Vector widget_start() const override;
 
-    VectorI location() const final;
+    Vector location() const override;
 
-    int width() const final;
+    Size size() const override;
 
-    int height() const final;
+    EventResponseSignal process_event(const Event &) override;
 
-    EventResponseSignal process_event(const asgl::Event &) final;
+    void set_location(int frame_x, int frame_y) override;
 
-    void set_location(int frame_x, int frame_y) final;
+    void stylize(const StyleMap &) override;
 
-    void stylize(const asgl::StyleMap &) final;
+    Size request_size(int w, int h) override;
 
-    void request_size(int w, int h) final;
+    void draw(WidgetRenderer &) const override;
 
-    void update_geometry() final;
+    int maximum_width_for_widgets() const override;
 
-    void draw(asgl::WidgetRenderer &) const final;
+    void set_click_inside_event(ClickFunctor &&) override;
 
-    int minimum_width() const final;
-
-    int width_available_for_widgets() const final;
-
-    void set_click_inside_event(ClickFunctor &&) final;
+private:
+    void on_inform_is_child() override;
 };
  *  @endcode
  */
 class FrameDecoration : public Draggable {
 public:
-    using VectorI = Widget::VectorI;
-    using UString = Text::UString;
-
     enum ClickResponse {
         k_skip_other_events,
         k_continue_other_events
@@ -145,10 +131,6 @@ public:
 
     struct EventResponseSignal {
         bool skip_other_events = false;
-    };
-    struct AcceptedSize {
-        int width  = 0;
-        int height = 0;
     };
 
     static constexpr const int k_no_width_limit_for_widgets
@@ -159,28 +141,35 @@ public:
      *
      *  @returns the actual location for placement, not an offset
      */
-    virtual VectorI widget_start() const = 0;
+    virtual Vector widget_start() const = 0;
 
     /** @returns the top left location of the decoration.
      *
      *  @note The frame identifies its location by the highest leftmost point
      *  between this decoration object and its own highest leftmost widget.
      */
-    virtual VectorI location() const = 0;
+    virtual Vector location() const = 0;
 
     /** @returns the width of the decoration.
      *
      *  @note The frame identifies its width by whichever is greatest, the
      *        total occupying width of its widgets or the decoration's width.
      */
-    virtual int width() const = 0;
+    int width() const { return size().width; }
 
     /** @returns the width of the decoration.
      *
      *  @note The frame identifies its height by whichever is greatest, the
      *        total occupying height of its widgets or the decoration's height.
      */
-    virtual int height() const = 0;
+    int height() const { return size().height; }
+
+    /** @returns the size of the decoration.
+     *
+     *  @note The frame identifies its size by whichever size would enclose
+     *        both the widgets and the decoration.
+     */
+    virtual Size size() const = 0;
 
     virtual EventResponseSignal process_event(const Event &) = 0;
 
@@ -201,10 +190,7 @@ public:
      * @note Values given to this function depend on previous feedback from
      *       this instance.
      */
-    virtual AcceptedSize request_size(int w, int h) = 0;
-
-    /** Called by frame, whenever it's time for resizing/relocating widgets. */
-    virtual void update_geometry() = 0;
+    virtual Size request_size(int w, int h) = 0;
 
     /** All frame decoration needs to specify how it's drawn. */
     virtual void draw(WidgetRenderer &) const = 0;
@@ -220,19 +206,55 @@ public:
 
     void assign_flags_updater(WidgetFlagsReceiver *);
 
+    bool is_child() const { return m_is_child; }
+
+    void inform_is_child();
+
 protected:
     void update_drag_position(int x, int y) final;
 
+    virtual void on_inform_is_child() = 0;
+
     void set_needs_geometry_update_flag();
 
-    static VectorI defer_location_to_widgets();
+private:
+    bool m_is_child = false;
+    WidgetFlagsReceiver * m_flags_receiver = &WidgetFlagsReceiver::null_instance();
+};
 
-    static int defer_width_to_widgets();
+class TitleBar final {
+public:
+    TitleBar();
 
-    static int defer_height_to_widgets();
+    void set_location(int x, int y);
+
+    Vector location() const;
+
+    Size size() const;
+
+    Rectangle bounds() const;
+
+    int request_width(int w_);
+
+    int minimum_width() const;
+
+    void set_string(const UString & str);
+
+    void draw(WidgetRenderer & target) const;
+
+    bool is_visible() const;
+
+    void stylize(const StyleMap & smap);
 
 private:
-    WidgetFlagsReceiver * m_flags_receiver = &WidgetFlagsReceiver::null_instance();
+    void check_invarients() const;
+
+    void update_title_location_and_height();
+
+    StyleKey m_bar_style; // default value setup by Frame :/
+    ItemKey m_bar_item;
+    Rectangle m_bounds;
+    Text m_title;
 };
 
 /** A helper class for Frame. The object manages the border graphics, events,
@@ -243,22 +265,25 @@ private:
  */
 class FrameBorder final : public FrameDecoration {
 public:
-    VectorI widget_start() const final;
+    Vector widget_start() const final;
 
-    VectorI location() const final;
+    Vector location() const final;
 
-    int width() const final;
+    Size size() const final;
 
-    int height() const final;
+    EventResponseSignal process_event(const Event & event) final;
 
-    EventResponseSignal process_event(const Event &) final;
+    void set_location(int frame_x, int frame_y) final;
 
-    void set_location(int x, int y) final;
-
-    // takes styles from frame
     void stylize(const StyleMap &) final;
 
-    void set_size(int w, int h);
+    Size request_size(int w, int h) final;
+
+    void draw(WidgetRenderer & target) const final;
+
+    int maximum_width_for_widgets() const final;
+
+    void set_click_inside_event(ClickFunctor && func) final;
 
     /** Sets the title of the border.
      *  @note Title bar becomes invisible if empty string is given. If a blank
@@ -266,86 +291,41 @@ public:
      *        the desired effect.
      *  @note An empty string will also disable dragging.
      */
-    void set_title(const UString &);
-
-    /** @brief Sets the font size for the border title.
-     *  @param font_size font size in points
-     */
-    void set_title_size(int font_size);
-
-    /** Sets the function/functor to call in the event that the mouse is
-     *  clicked inside the frame.
-     *  @param f function that takes no arguments and returns a ClickResponse
-     *  If function f returns k_skip_other_events, then no other events which
-     *  may occur with this frame will fire. If function f returns
-     *  k_continue_other_events, then event processing will continue normally
-     *  after f returns.
-     *  @see Frame::ClickResponse
-     */
-    template <typename Func>
-    void set_register_click_event(Func && f);
+    void set_title(const UString & str);
 
     /** Resets the register click event function back to its default value. */
     void reset_register_click_event();
 
-    void set_click_inside_event(ClickFunctor && bfunc) final {
-        set_register_click_event(std::move(bfunc));
-    }
+    void set_width_minimum(int);
 
-    void update_geometry() final;
-
-    /** @return the pixels needed to be set aside for rendering the title's
-     *          width
-     *  @note   accommodations for the title's height can be made from the
-     *          difference between widget_start and location vertical distance.
-     */
-    int title_width_accommodation() const noexcept;
-
-    /** @return the pixel width available for widgets */
-    int maximum_width_for_widgets() const final;
-
-    void draw(WidgetRenderer &) const final;
-
-    AcceptedSize request_size(int w, int h) final {
-        AcceptedSize sz;
-        sz.width = std::max(title_width_accommodation(), w);
-        sz.width = std::max(sz.width, m_width_minimum);
-        sz.height = h;
-        set_size(sz.width, title_height() + sz.height);
-        return sz;
-    }
-
-    void set_width_minimum(int i) {
-        Widget::Helpers::verify_non_negative(i, "set_width_minimum", "minimum width");
-        m_width_minimum = i;
-    }
+    void set_width_maximum(int);
 
 private:
-    int title_height() const noexcept;
+    void on_inform_is_child() final {}
 
-    void check_should_update_drag(const Event &);
+    void update_geometry();
 
-    static ClickResponse do_default_click_event();
+    int width_max_with_title() const;
 
-    int outer_padding() const noexcept;
+    Rectangle inner_rectangle() const;
 
-    int m_outer_padding = styles::k_uninit_size;
+    void check_invarients() const;
+
+    static ClickResponse do_default_click_event()
+        { return k_continue_other_events; }
+
+    Rectangle m_widget_bounds;
+    TitleBar m_title_bar;
+
+    int m_outer_padding = 0;
+    int m_inner_padding = 0;
+
     int m_width_maximum = FrameDecoration::k_no_width_limit_for_widgets;
     int m_width_minimum = 0;
 
-    sf::IntRect m_back, m_title_bar, m_widget_body;
-    ItemKey m_back_style, m_title_bar_style, m_widget_body_style;
+    ItemKey m_border_item, m_widget_body_item;
 
-    Text m_title;
-
-    std::function<ClickResponse()> m_click_in_frame = do_default_click_event;
+    ClickFunctor m_click_in_frame = do_default_click_event;
 };
-
-// ----------------------------------------------------------------------------
-
-template <typename Func>
-void FrameBorder::set_register_click_event(Func && f) {
-    m_click_in_frame = std::move(f);
-}
 
 } // end of asgl namespace

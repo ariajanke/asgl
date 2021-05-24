@@ -46,14 +46,12 @@
 
 namespace {
 
-using SharedImagePtr   = asgl::SharedImagePtr;
-using RtError          = std::runtime_error;
-using InvArg           = std::invalid_argument;
-using StyleField       = asgl::StyleField;
-using SfmlRenderItem   = asgl::SfmlFlatEngine::SfmlRenderItem;
-using VectorI          = asgl::Widget::VectorI;
-using RoundedBorder    = asgl::SfmlFlatEngine::RoundedBorder;
-using SquareBorder     = asgl::SfmlFlatEngine::SquareBorder;
+using namespace cul::exceptions_abbr;
+using SharedImagePtr    = asgl::SharedImagePtr;
+using StyleField        = asgl::StyleField;
+using SfmlRenderItem    = asgl::SfmlFlatEngine::SfmlRenderItem;
+using RoundedBorder     = asgl::SfmlFlatEngine::RoundedBorder;
+using SquareBorder      = asgl::SfmlFlatEngine::SquareBorder;
 using SfmlRenderItemMap = asgl::SfmlFlatEngine::SfmlRenderItemMap;
 
 const std::array k_palette = []() {
@@ -223,14 +221,14 @@ void SfmlFlatEngine::setup_default_styles() {
     m_font_handler->add_font_style(to_item_key(k_editable_text_empty), 18, sf::Color(100, 100, 100));
 
     using sf::Color;
-    m_items[to_item_key(k_primary_light  )] = to_color_item(k_palette[k_primary_light]);
-    m_items[to_item_key(k_primary_mid    )] = to_color_item(k_palette[k_primary_mid]);
-    m_items[to_item_key(k_primary_dark   )] = to_color_item(k_palette[k_primary_dark]);
+    m_items[to_item_key(k_primary_light  )] = to_color_item(k_palette[k_primary_light  ]);
+    m_items[to_item_key(k_primary_mid    )] = to_color_item(k_palette[k_primary_mid    ]);
+    m_items[to_item_key(k_primary_dark   )] = to_color_item(k_palette[k_primary_dark   ]);
     m_items[to_item_key(k_secondary_light)] = to_color_item(k_palette[k_secondary_light]);
-    m_items[to_item_key(k_secondary_mid  )] = to_color_item(k_palette[k_secondary_mid]);
-    m_items[to_item_key(k_secondary_dark )] = to_color_item(k_palette[k_secondary_dark]);
-    m_items[to_item_key(k_mono_light     )] = to_color_item(k_palette[k_mono_light]);
-    m_items[to_item_key(k_mono_dark      )] = to_color_item(k_palette[k_mono_dark]);
+    m_items[to_item_key(k_secondary_mid  )] = to_color_item(k_palette[k_secondary_mid  ]);
+    m_items[to_item_key(k_secondary_dark )] = to_color_item(k_palette[k_secondary_dark ]);
+    m_items[to_item_key(k_mono_light     )] = to_color_item(k_palette[k_mono_light     ]);
+    m_items[to_item_key(k_mono_dark      )] = to_color_item(k_palette[k_mono_dark      ]);
 
     auto make_button_item =  [](ItemColorEnum back, ItemColorEnum fore) {
         return SfmlRenderItem( make_rounded_border( k_palette[back], k_palette[fore], k_chosen_padding ) );
@@ -264,7 +262,7 @@ void SfmlFlatEngine::load_global_font(const std::string & filename) {
 SharedImagePtr SfmlFlatEngine::make_image_from(ConstSubGrid<sf::Color> data) {
     sf::Image img;
     img.create(unsigned(data.width()), unsigned(data.height()));
-    for (VectorI r; r != data.end_position(); r = data.next(r)) {
+    for (Vector r; r != data.end_position(); r = data.next(r)) {
         img.setPixel(unsigned(r.x), unsigned(r.y), data(r));
     }
     auto image_res = std::make_shared<SfmlImageResource>();
@@ -292,11 +290,11 @@ SfmlFlatEngine::ColorItem::ColorItem(sf::Color color) {
     m_rectangle.set_color(color);
 }
 
-void SfmlFlatEngine::ColorItem::update(const sf::IntRect & rect) {
+void SfmlFlatEngine::ColorItem::update(const Rectangle & rect) {
     SfmlFlatEngine::update_draw_rectangle(m_rectangle, rect);
 }
 
-void SfmlFlatEngine::ColorItem::update(const TriangleTuple & trituple) {
+void SfmlFlatEngine::ColorItem::update(const Triangle & trituple) {
     using std::get;
     m_triangle.set_point_a(sf::Vector2f(std::get<0>(trituple)));
     m_triangle.set_point_b(sf::Vector2f(std::get<1>(trituple)));
@@ -304,7 +302,7 @@ void SfmlFlatEngine::ColorItem::update(const TriangleTuple & trituple) {
 }
 
 /* static */ void SfmlFlatEngine::update_draw_rectangle
-    (DrawRectangle & rectangle, const sf::IntRect & irect)
+    (DrawRectangle & rectangle, const Rectangle & irect)
 {
     rectangle = DrawRectangle(
         float(irect.left), float(irect.top), float(irect.width), float(irect.height),
@@ -312,7 +310,7 @@ void SfmlFlatEngine::ColorItem::update(const TriangleTuple & trituple) {
 }
 
 /* private */ void SfmlFlatEngine::render_rectangle
-    (const sf::IntRect & rect, ItemKey itemkey, const void *)
+    (const Rectangle & rect, ItemKey itemkey, const void *)
 {
     auto itr = m_items.find(itemkey);
     if (itr == m_items.end())
@@ -335,7 +333,7 @@ void SfmlFlatEngine::ColorItem::update(const TriangleTuple & trituple) {
 }
 
 /* private */ void SfmlFlatEngine::render_triangle
-    (const TriangleTuple & tuple, ItemKey itemkey, const void *)
+    (const Triangle & tuple, ItemKey itemkey, const void *)
 {
     auto itr = m_items.find(itemkey);
     if (itr == m_items.end())
@@ -359,7 +357,7 @@ void SfmlFlatEngine::ColorItem::update(const TriangleTuple & trituple) {
 }
 
 /* private */ void SfmlFlatEngine::render_rectangle_pair
-    (const sf::IntRect & first, const sf::IntRect & second, ItemKey key, const void *)
+    (const Rectangle & first, const Rectangle & second, ItemKey key, const void *)
 {
     auto itr = m_items.find(key);
     if (itr == m_items.end()) return;
@@ -381,28 +379,28 @@ void SfmlFlatEngine::ColorItem::update(const TriangleTuple & trituple) {
 }
 
 /* private */ void SfmlFlatEngine::render_rectangle
-    (const sf::IntRect & rect, ColorItem & color_item) const
+    (const Rectangle & rect, ColorItem & color_item) const
 {
     color_item.update(rect);
     m_target_ptr->draw(color_item.rectangle(), m_states);
 }
 
 /* private */ void SfmlFlatEngine::render_triangle
-    (const TriangleTuple & trituple, ColorItem & color_item) const
+    (const Triangle & trituple, ColorItem & color_item) const
 {
     color_item.update(trituple);
     m_target_ptr->draw(color_item.triangle(), m_states);
 }
 
 /* private */ void SfmlFlatEngine::render_rectangle_pair
-    (const sf::IntRect & front, const sf::IntRect & back, RoundedBorder & obj) const
+    (const Rectangle & front, const Rectangle & back, RoundedBorder & obj) const
 {
     SfmlFlatEngine::update_draw_rectangle
-        (obj.back_rectangle, sf::IntRect(front.left, back.top, front.width, back.height));
+        (obj.back_rectangle, Rectangle(front.left, back.top, front.width, back.height));
     m_target_ptr->draw(obj.back_rectangle, m_states);
 
     SfmlFlatEngine::update_draw_rectangle
-        (obj.back_rectangle, sf::IntRect(back.left, front.top, back.width, front.height));
+        (obj.back_rectangle, Rectangle(back.left, front.top, back.width, front.height));
     m_target_ptr->draw(obj.back_rectangle, m_states);
 
     auto draw_circle_at = [&obj, this](float x, float y) {
@@ -421,7 +419,7 @@ void SfmlFlatEngine::ColorItem::update(const TriangleTuple & trituple) {
 }
 
 /* private */ void SfmlFlatEngine::render_rectangle_pair
-    (const sf::IntRect & front, const sf::IntRect & back, SquareBorder & obj) const
+    (const Rectangle & front, const Rectangle & back, SquareBorder & obj) const
 {
     SfmlFlatEngine::update_draw_rectangle(obj.back_rectangle, front);
     m_target_ptr->draw(obj.back_rectangle, m_states);
@@ -431,7 +429,7 @@ void SfmlFlatEngine::ColorItem::update(const TriangleTuple & trituple) {
 }
 
 /* private */ void SfmlFlatEngine::render_rectangle_pair
-    (const sf::IntRect & bounds, const sf::IntRect & txrect, SfmlImageResource & obj) const
+    (const Rectangle & bounds, const Rectangle & txrect, SfmlImageResource & obj) const
 {
     obj.sprite.setTextureRect(txrect);
     obj.sprite.setPosition(float(bounds.left), float(bounds.top));
@@ -477,7 +475,7 @@ void SfmlFlatEngine::ColorItem::update(const TriangleTuple & trituple) {
     if (gv.second) {
         return gv.first->second;
     }
-    throw std::invalid_argument("Cannot insert dupelicate item key.");
+    throw InvArg("Cannot insert dupelicate item key.");
 }
 
 } // end of asgl namespace
@@ -616,7 +614,7 @@ Key convert(sf::Keyboard::Key k) {
     case Ky::Pause: return k_pause;
     case Ky::KeyCount: return k_count;
     }
-    throw std::runtime_error("impossible branch");
+    throw RtError("impossible branch");
 }
 
 MouseButton convert(sf::Mouse::Button b) {

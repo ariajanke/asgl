@@ -151,7 +151,6 @@ public:
  */
 class BareFrame : public WidgetFlagsReceiverWidget {
 public:
-    using UString      = std::u32string;
     using ClickFunctor = FrameDecoration::ClickFunctor;
 
     // style stuff should be pushed into "BorderedFrame"
@@ -171,11 +170,9 @@ public:
     /** Gets the pixel location of the frame.
      *  @return returns a vector for location in pixels
      */
-    VectorI location() const override;
+    Vector location() const override;
 
-    int width() const override;
-
-    int height() const override;
+    Size size() const override;
 
     // <------------------ Frame specific functionality ---------------------->
 
@@ -226,7 +223,7 @@ public:
     void stylize(const StyleMap &) override;
 
     // detail
-    using WidgetPlacementVector = std::vector<std::tuple<Widget *, VectorI>>;
+    using WidgetPlacementVector = std::vector<std::tuple<Widget *, Vector>>;
 
 protected:
     BareFrame();
@@ -237,6 +234,7 @@ protected:
     ~BareFrame();
 
     virtual void on_frame_geometry_update() {}
+
     /** Sets the pixel location of the frame.
      *  @param x the x coordinate
      *  @param y the y coordinate
@@ -253,21 +251,29 @@ private:
     class WidgetBoundsFinder {
     public:
 
-        void record_widget_bounds(VectorI location, const Widget & widget) {
+        void record_widget_bounds(Vector location, const Widget & widget) {
             x_low  = std::min(x_low , location.x);
             y_low  = std::min(y_low , location.y);
             x_high = std::max(x_high, location.x + widget.width ());
             y_high = std::max(y_high, location.y + widget.height());
         }
 
-        VectorI recorded_location() const
-            { return VectorI(x_low, y_low); }
+        Vector recorded_location() const
+            { return Vector(x_low, y_low); }
 
         int recorded_width() const { return x_high - x_low; }
 
         int recorded_height() const { return y_high - y_low; }
 
+        bool operator == (const WidgetBoundsFinder & rhs) const { return  are_same(rhs); }
+        bool operator != (const WidgetBoundsFinder & rhs) const { return !are_same(rhs); }
+
     private:
+        bool are_same(const WidgetBoundsFinder & rhs) const {
+            return    x_low == rhs.x_low && x_high == rhs.x_high
+                   && y_low == rhs.y_low && y_high == rhs.y_high;
+        }
+
         using IntLims = std::numeric_limits<int>;
         int x_low = IntLims::max(), y_low = IntLims::max(), x_high = IntLims::min(), y_high = IntLims::min();
     };
@@ -292,11 +298,9 @@ private:
 
     void check_invarients() const;
 
-    int padding() const { return std::max(0, m_padding); }
-
     std::vector<Widget *> m_widgets;
     WidgetPlacementVector m_widget_placements;
-    int m_padding = styles::k_uninit_size;
+    int m_padding = 0;
 
     //! unique per instance
     LineSeperator m_the_line_seperator;

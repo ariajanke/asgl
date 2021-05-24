@@ -54,21 +54,10 @@ public:
     using BlankFunctor = std::function<void()>;
 
     /** @returns pixel location of the button. */
-    VectorI location() const final;
-#   if 0
-    /** Allows the setting of the width and height of Button.
-     *
-     *  (what about TextButton??)
-     *  @param w width  in pixels
-     *  @param h height in pixels
-     */
-    void set_size(int w, int h);
-#   endif
-    /** @return This returns width of the button in pixels. */
-    int width() const final;
+    Vector location() const final;
 
-    /** @return This returns height of the button in pixels. */
-    int height() const final;
+    /** @returns the size of the button in pixels */
+    Size size() const final;
 
     /** Listens for events that would press the button, and changes its
      *  appearance.
@@ -113,9 +102,7 @@ public:
     int padding() const noexcept { return std::max(0, m_padding); }
 
     void process_focus_event(const Event &) final;
-#   if 0
-    void update_geometry() override;
-#   endif
+
     void draw(WidgetRenderer &) const override;
 
 protected:
@@ -162,7 +149,7 @@ private:
     KeyTuple<ItemKey> m_items;
     KeyTuple<StyleKey> m_styles = default_styles();
 
-    sf::IntRect m_back, m_front;
+    Rectangle m_back, m_front;
 
     int m_padding = styles::k_uninit_size;
     bool m_is_focused = false;

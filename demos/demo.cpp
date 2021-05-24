@@ -41,7 +41,7 @@
 
 #include <random>
 
-using UString = asgl::Text::UString;
+using asgl::UString;
 
 namespace {
 
@@ -50,11 +50,6 @@ public:
     void setup_frame(asgl::ImageLoader &);
 
 private:
-#   if 0
-    void draw(asgl::WidgetRenderer &) const final {
-
-    }
-#   endif
     asgl::ImageWidget   m_image_widget;
     asgl::OptionsSlider m_slider;
 
@@ -70,7 +65,7 @@ public:
 private:
     asgl::TextArea   m_text_area    ;
     asgl::TextButton m_text_button  ;
-    FruitFrame      m_embeded_frame;
+    FruitFrame       m_embeded_frame;
 
     bool m_close_flag;
 };
@@ -177,14 +172,16 @@ void DemoText::setup_frame(asgl::ImageLoader & loader) {
         "(3.0) license.");
 
     m_text_button.set_string(U"Close Application");
-
+#   if 1
     m_embeded_frame.setup_frame(loader);
-
+#   endif
     begin_adding_widgets().
         add(m_text_area).
         add_horizontal_spacer().
+#       if 1
         add(m_embeded_frame).
         add_line_seperator().
+#       endif
         add_horizontal_spacer().
         add(m_text_button).
         add_horizontal_spacer();

@@ -26,8 +26,7 @@
 
 #include <asgl/StyleMap.hpp> // we need to know ItemKey
 #include <asgl/Event.hpp>
-
-#include <SFML/Graphics/Rect.hpp>
+#include <asgl/Defs.hpp>
 
 #include <vector>
 
@@ -78,19 +77,17 @@ class TextBase;
 
 // ----------------------------------------------------------------------------
 
-using TriangleTuple = std::tuple<sf::Vector2i, sf::Vector2i, sf::Vector2i>;
-
 class WidgetRenderer {
 public:
     virtual ~WidgetRenderer();
 
-    virtual void render_rectangle(const sf::IntRect &, ItemKey, const void * widget_spec_ptr) = 0;
+    virtual void render_rectangle(const Rectangle &, ItemKey, const void * widget_spec_ptr) = 0;
     // this solves two problems:
     // - rendering buttons with rounded/special borders
     // - rendering images with any texture rectangle
     virtual void render_rectangle_pair
-        (const sf::IntRect &, const sf::IntRect &, ItemKey, const void * widget_spec_ptr) = 0;
-    virtual void render_triangle (const TriangleTuple &, ItemKey, const void * widget_spec_ptr) = 0;
+        (const Rectangle &, const Rectangle &, ItemKey, const void * widget_spec_ptr) = 0;
+    virtual void render_triangle (const Triangle &, ItemKey, const void * widget_spec_ptr) = 0;
     virtual void render_text(const TextBase &) = 0;
 };
 
@@ -140,8 +137,6 @@ private:
  */
 class Widget {
 public:
-    using VectorI = sf::Vector2i;
-
     virtual ~Widget();
 
     virtual void process_event(const Event &) = 0;
@@ -158,42 +153,23 @@ public:
     void set_location(int x, int y);
 
     /** @returns the top left location of the widget */
-    virtual VectorI location() const = 0;
+    virtual Vector location() const = 0;
 
-    virtual int width() const = 0;
+    virtual Size size() const = 0;
 
-    virtual int height() const = 0;
+    int width() const { return size().width; }
+
+    int height() const { return size().height; }
+
+    Rectangle bounds() const { return cul::compose(location(), size()); }
 
     /** Sets all common fonts, paddings, colors
      *
      */
     virtual void stylize(const StyleMap &) = 0;
-#   if 0
-    /** This function is called whenever it's time for the widget to
-     *  rearrange its internals and recompute geometry of its various features.
-     *
-     *  @note When widgets are added to a frame they're given a "first signal"
-     *        with a call. This first call allows widgets to compute their
-     *        sizes. Then a second call is issued by the frame after each are
-     *        placed. If a widget then changes size again, it's size change is
-     *        disregarded. (Unless perhaps until the next geometry update check
-     *        if the widget flags the frame).
-     */
-    [[deprecated]] virtual void update_geometry() = 0;
-#   endif
-    virtual void update_size() = 0;
-#   if 0
-    void update_location();
 
-    /** @brief Called by frame for automatic widget sizing.
-     *  Widget computes its own size.
-     *  @note This is called after styles are set, so fonts for widgets and
-     *        others will be accessible on this call.
-     *  @note The default behavior is for the widget to do nothing (no resize)
-     *  @note Presently Frame and TextArea both use this function.
-     */
-    virtual void issue_auto_resize();
-#   endif
+    virtual void update_size() = 0;
+
     virtual void draw(WidgetRenderer &) const = 0;
 
     template <typename Func>
@@ -236,11 +212,11 @@ protected:
 
     virtual void set_location_(int x, int y) = 0;
 
-    void draw_to(WidgetRenderer &, const sf::IntRect &, ItemKey) const;
+    void draw_to(WidgetRenderer &, const Rectangle &, ItemKey) const;
 
-    void draw_to(WidgetRenderer &, const sf::IntRect &, const sf::IntRect &, ItemKey) const;
+    void draw_to(WidgetRenderer &, const Rectangle &, const Rectangle &, ItemKey) const;
 
-    void draw_to(WidgetRenderer &, const TriangleTuple &, ItemKey) const;
+    void draw_to(WidgetRenderer &, const Triangle &, ItemKey) const;
 
     /** Set this flag if you need to resize the whole frame/family of widgets,
      *  in addition to local geometric computations.
@@ -255,10 +231,6 @@ protected:
      */
     void flag_needs_individual_geometry_update();
 
-
-#   if 0
-    virtual void update_location_() = 0;
-#   endif
 private:
     WidgetFlagsReceiver * m_flags_receiver = &WidgetFlagsReceiver::null_instance();
 };
@@ -305,15 +277,6 @@ private:
     bool m_geo_update_flag = false;
 };
 
-template <typename T>
-sf::Vector2<T> get_top_left(const sf::Rect<T> &);
-
-template <typename T>
-void set_top_left(sf::Rect<T> &, const sf::Vector2<T> &);
-
-template <typename T>
-void set_top_left(sf::Rect<T> &, const T & x, const T & y);
-
 // ----------------------------------------------------------------------------
 
 template <typename Func>
@@ -342,22 +305,6 @@ template <typename Func>
 void Widget::iterate_children_const_f(Func && f) const {
     ConstChildIteratorFunctor<Func> itr(std::move(f));
     iterate_children(itr);
-}
-
-template <typename T>
-sf::Vector2<T> get_top_left(const sf::Rect<T> & rect)
-    { return sf::Vector2<T>(rect.left, rect.top); }
-
-template <typename T>
-void set_top_left(sf::Rect<T> & rect, const sf::Vector2<T> & r) {
-    rect.left = r.x;
-    rect.top  = r.y;
-}
-
-template <typename T>
-void set_top_left(sf::Rect<T> & rect, const T & x, const T & y) {
-    rect.left = x;
-    rect.top  = y;
 }
 
 } // end of asgl namespace

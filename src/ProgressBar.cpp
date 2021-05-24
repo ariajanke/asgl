@@ -30,11 +30,7 @@
 
 namespace {
 
-using VectorI    = asgl::ProgressBar::VectorI;
-using InvArg     = std::invalid_argument;
-using RtError    = std::runtime_error;
-using ItemKey    = asgl::ItemKey;
-using StyleField = asgl::StyleField;
+using namespace cul::exceptions_abbr;
 
 void verify_padding_ok(int, const char * caller);
 
@@ -42,18 +38,16 @@ void verify_padding_ok(int, const char * caller);
 
 namespace asgl {
 
-VectorI ProgressBar::location() const
-    { return VectorI (m_bounds.left, m_bounds.top); }
+Vector ProgressBar::location() const { return top_left_of(m_bounds); }
 
 void ProgressBar::set_size(int w, int h) {
-    m_bounds.width  = w;
-    m_bounds.height = h;
+    Helpers::verify_non_negative(w, "ProgressBar::set_size", "width" );
+    Helpers::verify_non_negative(h, "ProgressBar::set_size", "height");
+    set_size_of(m_bounds, w, h);
     flag_needs_whole_family_geometry_update();
 }
 
-int ProgressBar::width() const { return m_bounds.width; }
-
-int ProgressBar::height() const { return m_bounds.height; }
+Size ProgressBar::size() const { return size_of(m_bounds); }
 
 void ProgressBar::stylize(const StyleMap & map) {
     m_padding = Helpers::verify_padding
@@ -111,7 +105,7 @@ void ProgressBar::set_padding(StyleKey key) {
 int ProgressBar::padding() const { return m_padding; }
 
 void ProgressBar::set_fill_amount(float fill_amount) {
-    if (!is_real(fill_amount) || fill_amount < 0.f || fill_amount > 1.f) {
+    if (!cul::is_real(fill_amount) || fill_amount < 0.f || fill_amount > 1.f) {
         throw InvArg("ProgressBar::set_fill_amount: fill amount must be in [0 1].");
     }
     m_fill_amount = fill_amount;
@@ -141,26 +135,20 @@ void ProgressBar::draw(WidgetRenderer & renderer) const {
 }
 
 /* private */ void ProgressBar::set_location_(int x, int y) {
-    m_bounds.left = x;
-    m_bounds.top  = y;
+    set_top_left_of(m_bounds, x, y);
 
     verify_padding_set("on_geometry_update");
-    if (m_padding*2 >= m_bounds.width) {
-        m_inner_bounds = sf::IntRect();
+    const int & pad = m_padding;
+    if (pad*2 >= m_bounds.width) {
+        m_inner_bounds = Rectangle();
         return;
     }
 
-    m_inner_bounds.left = m_bounds.left + m_padding;
-    m_inner_bounds.top  = m_bounds.top  + m_padding;
-
-    m_inner_bounds.width  = m_bounds.width  - m_padding*2;
-    m_inner_bounds.height = m_bounds.height - m_padding*2;
+    m_inner_bounds = Rectangle
+        (m_bounds.left  + pad  , m_bounds.top    + pad
+        ,m_bounds.width + pad*2, m_bounds.height + pad*2);
 }
-#if 0
-/* private */ void ProgressBar::update_geometry() {
 
-}
-#endif
 /* private */ void ProgressBar::verify_padding_set(const char * caller) const {
     if (m_padding != styles::k_uninit_size) return;
     throw RtError("ProgressBar::" + std::string(caller) + ": padding has not"

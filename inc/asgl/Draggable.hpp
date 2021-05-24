@@ -24,8 +24,7 @@
 
 #pragma once
 
-#include <SFML/System/Vector2.hpp>
-#include <SFML/Graphics/Rect.hpp>
+#include <asgl/Defs.hpp>
 
 #include <common/Grid.hpp>
 
@@ -42,6 +41,9 @@ namespace asgl {
  */
 class Draggable {
 public:
+    template <typename T>
+    using Grid = cul::Grid<T>;
+
     /** Ignores all potential drag events regardless of where a mouse click
      *  event occurs.
      */
@@ -89,7 +91,7 @@ protected:
      *  @param drect The given rectangle.
      *  @return Returns true if the object has entered the drag state.
      */
-    bool mouse_click(int x, int y, const sf::IntRect & drect);
+    bool mouse_click(int x, int y, const Rectangle & drect);
 
     /** @brief mouse_click Handles mouse click events.
      *
@@ -104,7 +106,7 @@ protected:
      *                      clickable (true meaning clickable, false otherwise)
      *  @return Returns true if the object has entered the drag state.
      */
-    bool mouse_click(int x, int y, sf::Vector2i matrix_location,
+    bool mouse_click(int x, int y, Vector matrix_location,
                      const Grid<bool> & click_matrix);
 
     /** @brief drag_release Causes object to leave its drag state.
@@ -118,7 +120,7 @@ protected:
      *  @note Set constraints will not take size into account, so this will
      *        have to be subtracted from the area parameter.
      */
-    void set_drag_contraints(const sf::IntRect & area);
+    void set_drag_contraints(const Rectangle & area);
 
     /** Allows the draggable to be dragged to any position. */
     void remove_drag_contraints();
@@ -149,8 +151,8 @@ private:
 
     bool m_watch_drag_events = true;
     bool m_dragged = false;
-    sf::Vector2i m_drag_offset;
-    sf::IntRect m_position_contraints;
+    Vector m_drag_offset;
+    Rectangle m_position_contraints;
 };
 
 } // end of asgl namespace

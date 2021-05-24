@@ -47,6 +47,9 @@
 ////////////////////////////////////////////////////////////
 
 #include "SfmlFontAndText.hpp"
+
+#include <asgl/Widget.hpp>
+
 #include <common/Util.hpp>
 
 #include <SFML/Graphics/RenderTarget.hpp>
@@ -60,19 +63,22 @@
 
 namespace {
 
-using UChar             = asgl::detail::SfmlText::UString::value_type;
-using UString           = asgl::detail::SfmlText::UString;
-using TextSize          = asgl::detail::SfmlText::TextSize;
+using namespace cul::exceptions_abbr;
+using cul::round_to;
+using asgl::UString;
+using asgl::UChar;
+using asgl::Rectangle;
 using VectorF           = sf::Vector2f;
 using LineBreakList     = std::vector<int>;
 using VertexContainer   = std::vector<sf::Vertex>;
-using InvalidArg        = std::invalid_argument;
 using DrawableCharacter = asgl::detail::DrawableCharacter;
 using UCharIterVector   = std::vector<UString::const_iterator>;
 using RenderablesPlacer = asgl::detail::RenderablesPlacer;
 
-bool is_whitespace(UChar c) { return c == ' ' || c == '\t' || c == '\r' || c == '\n'; }
-bool is_newline   (UChar c) { return c == '\n'; }
+inline bool is_whitespace(UChar c)
+    { return c == ' ' || c == '\t' || c == '\r' || c == '\n'; }
+
+inline bool is_newline(UChar c) { return c == '\n'; }
 
 class AlgoPlacer final : public RenderablesPlacer {
 public:
@@ -99,7 +105,7 @@ public:
     std::vector<DrawableCharacter> * renderables = nullptr;
     const sf::Color * color = nullptr;
     sf::FloatRect * full_bounds = nullptr;
-    const sf::IntRect * viewport = nullptr;
+    const Rectangle * viewport = nullptr;
 
 private:
     UCharIterVector m_cont;
@@ -117,7 +123,7 @@ namespace detail {
 
 void TextWithFontStyle::stylize(ItemKey itemkey) {
     auto make_error = [](const char * what)
-        { return std::runtime_error("TextWithFontStyle::stylize: " + std::string(what)); };
+        { return RtError("TextWithFontStyle::stylize: " + std::string(what)); };
     if (m_font_styles.expired()) {
         throw make_error("Font styles map is missing.");
     }
@@ -155,13 +161,12 @@ SfmlText & SfmlText::operator = (const SfmlText & rhs) {
 
 const UString & SfmlText::string() const { return m_string; }
 
-void SfmlText::set_location(int x, int y) {
-    m_full_bounds.left = float(x);
-    m_full_bounds.top  = float(y);
-}
+void SfmlText::set_location(int x, int y)
+    { set_top_left_of(m_full_bounds, float(x), float(y)); }
 
-SfmlText::VectorI SfmlText::location() const {
-    return VectorI(int(std::round(m_full_bounds.left)), int(std::round(m_full_bounds.top)));
+Vector SfmlText::location() const {
+    return Vector(round_to<int>(m_full_bounds.left)
+                 ,round_to<int>(m_full_bounds.top));
 }
 
 int SfmlText::width() const {
@@ -175,29 +180,28 @@ int SfmlText::height() const {
 }
 
 int SfmlText::full_width() const
-    { return int(std::round(m_full_bounds.width)); }
+    { return round_to<int>(m_full_bounds.width); }
 
 int SfmlText::full_height() const
-    { return int(std::round(m_full_bounds.height)); }
+    { return round_to<int>(m_full_bounds.height); }
 
 void SfmlText::set_limiting_line(int x_limit) {
+    Widget::Helpers::verify_non_negative(x_limit, "SfmlText::set_limiting_line", "x limit");
     m_limiting_line = float(x_limit);
 }
 
-SfmlText::TextSize SfmlText::measure_text(UStringConstIter beg, UStringConstIter end) const {
+Size SfmlText::measure_text(UStringConstIter beg, UStringConstIter end) const {
     if (!m_font_ptr || m_char_size == 0) {
-        return TextSize();
+        return Size();
     }
     return SfmlFont::measure_text(*m_font_ptr, m_char_size, beg, end);
 }
 
-int SfmlText::limiting_line() const { return int(std::round(m_limiting_line)); }
+int SfmlText::limiting_line() const { return round_to<int>(m_limiting_line); }
 
-const sf::IntRect & SfmlText::viewport() const { return m_viewport; }
+const Rectangle & SfmlText::viewport() const { return m_viewport; }
 
-void SfmlText::assign_font(const sf::Font & font) {
-    m_font_ptr = &font;
-}
+void SfmlText::assign_font(const sf::Font & font) { m_font_ptr = &font; }
 
 void SfmlText::update_geometry() {
     if (!m_font_ptr || m_char_size == 0) {
@@ -234,9 +238,8 @@ void SfmlText::set_character_size_and_color
     update_geometry();
 }
 
-/* private */ void SfmlText::set_viewport_(const sf::IntRect & rect) {
-    m_viewport = rect;
-}
+/* private */ void SfmlText::set_viewport_(const Rectangle & rect)
+    { m_viewport = rect; }
 
 /* private */ void SfmlText::swap_string(UString & str) {
     m_string.swap(str);
@@ -262,7 +265,9 @@ void SfmlText::set_character_size_and_color
 
 SfmlFont::TextPointer SfmlFont::fit_pointer_to_adaptor(TextPointer && ptr) const {
     if (!m_font || !m_font_styles) {
-        throw std::runtime_error("SfmlFont::fit_pointer_to_adaptor: underlying font pointer and styles pointer is not set, not able to transform text pointer.");
+        throw RtError("SfmlFont::fit_pointer_to_adaptor: underlying font "
+                      "pointer and styles pointer is not set, not able to "
+                      "transform text pointer.");
     }
     // no idea what to do with the rv
     auto & text = check_and_transform_text<detail::SfmlText>(ptr);
@@ -272,11 +277,11 @@ SfmlFont::TextPointer SfmlFont::fit_pointer_to_adaptor(TextPointer && ptr) const
     return std::move(ptr);
 }
 
-TextSize SfmlFont::measure_text
+Size SfmlFont::measure_text
     (ItemKey fontstyle, UStringConstIter beg, UStringConstIter end) const
 {
     auto make_not_found_error = []()
-        { return std::runtime_error("SfmlFont::measure_text: cannot find font style for given item key."); };
+        { return RtError("SfmlFont::measure_text: cannot find font style for given item key."); };
     if (!m_font_styles) throw make_not_found_error();
     auto itr = m_font_styles->find(fontstyle);
     if (itr == m_font_styles->end()) throw make_not_found_error();
@@ -289,7 +294,7 @@ void SfmlFont::load_font(const std::string & filename) {
     }
     if (!m_font->loadFromFile(filename)) {
         m_font = nullptr;
-        throw std::invalid_argument("SfmlFont::load_font: cannot load font \"" + filename + "\".");
+        throw InvArg("SfmlFont::load_font: cannot load font \"" + filename + "\".");
     }
 }
 
@@ -297,14 +302,14 @@ void SfmlFont::add_font_style(ItemKey key, int char_size, sf::Color color) {
     m_font_styles = (m_font_styles ? m_font_styles : std::make_shared<FontStyleMap>());
     auto gv = m_font_styles->insert(std::make_pair(key, FontStyle(char_size, color) ));
     if (gv.second) return;
-    throw std::runtime_error("SfmlFont::add_font_style: Failed to insert font style, dupelicate item key.");
+    throw RtError("SfmlFont::add_font_style: Failed to insert font style, dupelicate item key.");
 }
 
-/* static */ TextSize SfmlFont::measure_text
+/* static */ Size SfmlFont::measure_text
     (const sf::Font & font, int character_size,
      UStringConstIter beg, UStringConstIter end)
 {
-    if (character_size < 1) return TextSize();
+    if (character_size < 1) return Size();
     assert(beg <= end);
     float w = 0.f;
     for (auto itr = beg; itr != end; ++itr) {
@@ -315,10 +320,8 @@ void SfmlFont::add_font_style(ItemKey key, int char_size, sf::Color color) {
         }
     }
 
-    TextSize rv2;
-    rv2.width  = int(std::round(w));
-    rv2.height = int(std::round(font.getLineSpacing(character_size)));
-    return rv2;
+    return Size(round_to<int>(w)
+               ,round_to<int>(font.getLineSpacing(character_size)));
 }
 
 } // end of detail namespace -> into ::asgl
@@ -329,12 +332,14 @@ namespace {
 
 // each iterator is a chunk begining
 // we can and SHOULD test this! :)
-UCharIterVector find_chunks_dividers(const UString & ustr, UCharIterVector && = UCharIterVector());
+UCharIterVector find_chunks_dividers
+    (const UString & ustr, UCharIterVector && = UCharIterVector());
 
 void place_renderables
     (const sf::Font & font, const UString & ustr, float width_constraint,
      int char_size, RenderablesPlacer & placer)
 {
+    using SfFont = asgl::detail::SfmlFont;
     // nothing to render
     if (ustr.empty()) return;
 
@@ -351,7 +356,7 @@ void place_renderables
             continue;
         }
 
-        auto chunk_width = float( asgl::detail::SfmlFont::measure_text(font, char_size, itr, chunk_end).width );
+        auto chunk_width = float( SfFont::measure_text(font, char_size, itr, chunk_end).width );
         if (write_pos.x + chunk_width > width_constraint) {
             write_pos.x = 0.f;
             write_pos.y += font.getLineSpacing(char_size);

@@ -24,12 +24,9 @@
 
 #include <asgl/Widget.hpp>
 
-#include <stdexcept>
-
 namespace {
 
-using RtError = std::runtime_error;
-using InvArg  = std::invalid_argument;
+using namespace cul::exceptions_abbr;
 
 } // end of <anonymous> namespace
 
@@ -57,9 +54,6 @@ WidgetFlagsReceiver::~WidgetFlagsReceiver() {}
 Widget::~Widget() {}
 
 void Widget::set_location(int x, int y) {
-#   if 0
-    flag_needs_whole_family_geometry_update();
-#   endif
     // setting location should not affect the size of the widget, and this is
     // strictly enforced
     auto w = width(), h = height();
@@ -69,17 +63,6 @@ void Widget::set_location(int x, int y) {
                   "change its size.");
 }
 
-#if 0
-void Widget::update_location() {
-    // safeties here?
-    update_location_();
-
-}
-#endif
-
-#if 0
-void Widget::issue_auto_resize() {}
-#endif
 void Widget::iterate_children(const ChildWidgetIterator & itr)
     { iterate_children_(itr); }
 
@@ -95,16 +78,16 @@ void Widget::assign_flags_receiver(WidgetFlagsReceiver * ptr)
     (const ChildConstWidgetIterator &) const {}
 
 /* protected */ void Widget::draw_to
-    (WidgetRenderer & target, const sf::IntRect & rect, ItemKey key) const
+    (WidgetRenderer & target, const Rectangle & rect, ItemKey key) const
 { target.render_rectangle(rect, key, this); }
 
 /* protected */ void Widget::draw_to
-    (WidgetRenderer & target, const sf::IntRect & lrect,
-     const sf::IntRect & rrect, ItemKey key) const
+    (WidgetRenderer & target, const Rectangle & lrect,
+     const Rectangle & rrect, ItemKey key) const
 { target.render_rectangle_pair(lrect, rrect, key, this); }
 
 /* protected */ void Widget::draw_to
-    (WidgetRenderer & target, const TriangleTuple & tri, ItemKey key) const
+    (WidgetRenderer & target, const Triangle & tri, ItemKey key) const
 { target.render_triangle(tri, key, this); }
 
 /* protected */ void Widget::flag_needs_whole_family_geometry_update()
@@ -116,7 +99,6 @@ void Widget::assign_flags_receiver(WidgetFlagsReceiver * ptr)
 /* static */ void Widget::Helpers::handle_required_fields
     (const char * caller, std::initializer_list<FieldFindTuple> && fields)
 {
-    using InvArg = std::invalid_argument;
     for (auto & [style_ptr, name, field] : fields) {
         if (!style_ptr) {
             throw InvArg("Widget::Helpers::handle_required_fields: all "
@@ -127,7 +109,6 @@ void Widget::assign_flags_receiver(WidgetFlagsReceiver * ptr)
                   + ": map missing required field named \""
                   + std::string(name) + "\".");
         }
-
     }
     for (auto & [style_ptr, name, field] : fields) {
         if (*style_ptr != ItemKey()) continue;
@@ -198,15 +179,13 @@ void WidgetFlagsReceiverWidget::receive_individual_update_needed(Widget * wid) {
     Widget * before = nullptr;
     for (auto * widget : m_individuals) {
         if (widget == before) continue;
-        int old_width  = widget->width ();
-        int old_height = widget->height();
-#       if 0
-        widget->update_geometry();
-#       endif
-        if (old_width != widget->width() || old_height != widget->height())
+        // a different way to redo geometry
+        auto loc = widget->location();
+        auto old_size = widget->size();
+        widget->set_location(loc.x, loc.y);
+        if (old_size != widget->size())
             { throw make_size_changed_error("unset_flags"); }
         before = widget;
-
     }
     m_individuals.clear();
 }

@@ -27,9 +27,14 @@
 
 namespace {
 
-using TextBase = asgl::TextBase;
-using UString  = TextBase::UString;
-using ItemKey  = asgl::ItemKey;
+using namespace cul::exceptions_abbr;
+using asgl::TextBase;
+using asgl::ItemKey;
+using asgl::UString;
+using asgl::Vector;
+using asgl::UStringConstIter;
+using asgl::Size;
+using asgl::Rectangle;
 
 constexpr const int k_int_max = std::numeric_limits<int>::max();
 
@@ -48,7 +53,7 @@ public:
     void set_location(int, int) override
         { throw make_cannot_call_error("set_location"); }
 
-    VectorI location() const override { return VectorI(); }
+    Vector location() const override { return Vector(); }
     int width() const override { return 0; }
     int height() const override { return 0; }
     int full_width() const override { return 0; }
@@ -59,21 +64,21 @@ public:
 
     void stylize(ItemKey) override { throw make_cannot_call_error("stylize"); }
 
-    TextSize measure_text(UStringConstIter, UStringConstIter) const override
-        { return TextSize(); }
+    Size measure_text(UStringConstIter, UStringConstIter) const override
+        { return Size(); }
 
     ProxyPointer clone() const override
         { return ProxyPointer(&instance()); }
 
-    void set_viewport_(const sf::IntRect & rect) override {
-        if (rect == sf::IntRect()) return;
+    void set_viewport_(const Rectangle & rect) override {
+        if (rect == Rectangle()) return;
         throw make_cannot_call_error("set_viewport_");
     }
 
     void swap_string(UString &) override
         { throw make_cannot_call_error("swap_string"); }
 
-    const sf::IntRect & viewport() const override
+    const Rectangle & viewport() const override
         { return TextBase::k_default_viewport; }
 
     UString give_string_() override { return UString(); }
@@ -82,8 +87,6 @@ public:
         { return TextBase::k_default_limiting_line; }
 
 private:
-    using RtError = std::runtime_error;
-
     static RtError make_cannot_call_error(const char * caller) noexcept {
         return RtError(std::string("NullText::") + caller
                        + ": cannot call this method on the null instance.");
@@ -100,9 +103,9 @@ public:
         { return m_string; }
 
     void set_location(int x, int y) override
-        { m_location = VectorI(x, y); }
+        { m_location = Vector(x, y); }
 
-    VectorI location() const override { return m_location; }
+    Vector location() const override { return m_location; }
 
     int width() const override { return 0; }
 
@@ -117,19 +120,19 @@ public:
 
     void stylize(ItemKey) override {}
 
-    TextSize measure_text(UStringConstIter, UStringConstIter) const override
-        { return TextSize(); }
+    Size measure_text(UStringConstIter, UStringConstIter) const override
+        { return Size(); }
 
     ProxyPointer clone() const override
         { return make_clone<BasicText>(*this); }
 
-    void set_viewport_(const sf::IntRect & port) override
+    void set_viewport_(const Rectangle & port) override
         { m_viewport = port; }
 
     void swap_string(UString & str) override
         { m_string.swap(str); }
 
-    const sf::IntRect & viewport() const override
+    const Rectangle & viewport() const override
         { return m_viewport; }
 
     UString give_string_() override { return std::move(m_string); }
@@ -137,8 +140,8 @@ public:
     int limiting_line() const override { return m_limiting_line; }
 
 private:
-    VectorI m_location;
-    sf::IntRect m_viewport = TextBase::k_default_viewport;
+    Vector m_location;
+    Rectangle m_viewport = TextBase::k_default_viewport;
     UString m_string;
     int m_limiting_line = TextBase::k_default_limiting_line;
 };
@@ -165,9 +168,8 @@ void TextBase::set_string(const UString & str) {
     swap_string(temp);
 }
 
-void TextBase::set_string(UString && str) {
-    swap_string(str);
-}
+void TextBase::set_string(UString && str)
+    { swap_string(str); }
 
 UString TextBase::give_cleared_string() {
     UString temp = give_string();
@@ -175,10 +177,9 @@ UString TextBase::give_cleared_string() {
     return temp;
 }
 
-UString TextBase::give_string()
-    { return give_string_(); }
+UString TextBase::give_string() { return give_string_(); }
 
-void TextBase::set_viewport(const sf::IntRect & port) {
+void TextBase::set_viewport(const Rectangle & port) {
     bool valid_port =    port.left >= 0 && port.left <= full_width ()
                       && port.top  >= 0 && port.top  <= full_height();
     if (port.width != k_default_viewport.width) {
@@ -190,7 +191,6 @@ void TextBase::set_viewport(const sf::IntRect & port) {
         valid_port = valid_port && bottom >= 0;
     }
 
-    using InvArg = std::invalid_argument;
     if (!valid_port) {
         throw InvArg("TextN::set_viewport: invalid viewport supplied, must "
                      "fit in the (inclusive) text boundry, or be the special "
@@ -199,12 +199,11 @@ void TextBase::set_viewport(const sf::IntRect & port) {
     set_viewport_(port);
 }
 
-void TextBase::reset_viewport() {
-    set_viewport(k_default_viewport);
-}
+void TextBase::reset_viewport()
+    { set_viewport(k_default_viewport); }
 
-/* static */ const sf::IntRect TextBase::k_default_viewport =
-    sf::IntRect(0, 0, k_int_max, k_int_max);
+/* static */ const Rectangle TextBase::k_default_viewport =
+    Rectangle(0, 0, k_int_max, k_int_max);
 
 /* static */ const int TextBase::k_default_limiting_line = k_int_max;
 
@@ -231,37 +230,28 @@ void Text::set_string(UString && str) {
     m_proxy->set_string(std::move(str));
 }
 
-Text::UString Text::give_cleared_string()
-    { return m_proxy->give_cleared_string(); }
+UString Text::give_cleared_string() { return m_proxy->give_cleared_string(); }
 
-Text::UString Text::give_string()
-    { return m_proxy->give_cleared_string(); }
+UString Text::give_string() { return m_proxy->give_cleared_string(); }
 
-const UString & Text::string() const
-    { return m_proxy->string(); }
+const UString & Text::string() const { return m_proxy->string(); }
 
-void Text::set_location(const VectorI & r)
-    { set_location(r.x, r.y); }
+void Text::set_location(const Vector & r) { set_location(r.x, r.y); }
 
 void Text::set_location(int x, int y) {
     check_to_transform_to_basic();
     m_proxy->set_location(x, y);
 }
 
-Text::VectorI Text::location() const
-    { return m_proxy->location(); }
+Vector Text::location() const { return m_proxy->location(); }
 
-int Text::width() const
-    { return m_proxy->width(); }
+int Text::width() const { return m_proxy->width(); }
 
-int Text::height() const
-    { return m_proxy->height(); }
+int Text::height() const { return m_proxy->height(); }
 
-int Text::full_width() const
-    { return m_proxy->full_width(); }
+int Text::full_width() const { return m_proxy->full_width(); }
 
-int Text::full_height() const
-    { return m_proxy->full_height(); }
+int Text::full_height() const { return m_proxy->full_height(); }
 
 void Text::set_limiting_line(int x_limit) {
     check_to_transform_to_basic();
@@ -277,11 +267,10 @@ void Text::stylize(ItemKey item) {
     m_proxy->stylize(item);
 }
 
-Text::TextSize Text::measure_text
-    (UStringConstIter beg, UStringConstIter end) const
-{ return m_proxy->measure_text(beg, end); }
+Size Text::measure_text(UStringConstIter beg, UStringConstIter end) const
+    { return m_proxy->measure_text(beg, end); }
 
-void Text::set_viewport(const sf::IntRect & viewport) {
+void Text::set_viewport(const Rectangle & viewport) {
     check_to_transform_to_basic();
     m_proxy->set_viewport(viewport);
 }
@@ -292,12 +281,11 @@ void Text::reset_viewport() {
     m_proxy->reset_viewport();
 }
 
-const sf::IntRect & Text::viewport() const
+const Rectangle & Text::viewport() const
     { return m_proxy->viewport(); }
 
-void Text::set_font(const Font & font) {
-    m_proxy = font.fit_pointer_to_adaptor(std::move(m_proxy));
-}
+void Text::set_font(const Font & font)
+    { m_proxy = font.fit_pointer_to_adaptor(std::move(m_proxy)); }
 
 void Text::draw_to(WidgetRenderer & target) const
     { target.render_text(*m_proxy); }
