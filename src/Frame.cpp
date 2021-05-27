@@ -223,6 +223,7 @@ void WidgetAdder::swap(WidgetAdder & rhs) {
         m_widget_placements.clear();
     } else {
         get_widget_placements(m_widget_placements, m_widget_extremes.recorded_width());
+        m_widget_extremes = BareFrame::get_measurements(m_widget_placements);
         do_placements(m_widget_placements);
     }
 

@@ -179,6 +179,7 @@ public:
     void iterate_children_const_f(Func &&) const;
 
     void iterate_children(const ChildWidgetIterator &);
+
     void iterate_children(const ChildConstWidgetIterator &) const;
 
     /** Assigns the flags receiver pointer.
@@ -201,6 +202,8 @@ public:
             (const StyleField &, const char * full_caller, const char * key_name);
 
         static void verify_non_negative(int, const char * full_caller, const char * dim_name);
+
+        static const int * optional_padding(const StyleField *, const char * full_caller);
 
         static int verify_padding(const StyleField *, const char * full_caller);
     };

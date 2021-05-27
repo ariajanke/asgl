@@ -19,7 +19,7 @@ $(OBJECTS_DIR)/src:
 clean:
 	rm -rf $(OBJECTS_DIR)
 
-DEMO_OPTIONS = -g -L/usr/lib/ -L$(shell pwd) -L$(shell pwd)/lib/cul -lsfml-system -lsfml-graphics -lsfml-window -lcommon -lasg
+DEMO_OPTIONS = -g -L/usr/lib/ -L$(shell pwd) -L$(shell pwd)/lib/cul -lsfml-system -lsfml-graphics -lsfml-window -lasg -lcommon
 .PHONY: demos
 demos:
 	$(CXX) $(CXXFLAGS) demos/demo.cpp $(DEMO_OPTIONS) -o demos/.demo

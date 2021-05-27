@@ -49,7 +49,7 @@ void TextButton::stylize(const StyleMap & stylemap) {
     Button::stylize(stylemap);
     TextArea::set_required_text_fields(
         m_text, stylemap.find(styles::k_global_font),
-        stylemap.find(Frame::to_key(Frame::k_widget_text_style)),
+        stylemap.find(asgl::to_key(frame_styles::k_widget_text_style)),
         "TextArea::stylize");
 }
 

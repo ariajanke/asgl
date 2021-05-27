@@ -112,9 +112,10 @@ constexpr const int k_mouse_no_location = -1;
 
 }  // end of mouse namespace -> into ::asgl
 
-struct MouseLocation {
-    int x = mouse::k_mouse_no_location;
-    int y = mouse::k_mouse_no_location;
+struct MouseLocation : public Vector {
+    MouseLocation():
+        Vector(mouse::k_mouse_no_location, mouse::k_mouse_no_location) {}
+    MouseLocation(int x_, int y_): Vector(x_, y_) {}
 };
 
 namespace mouse {
@@ -192,10 +193,10 @@ Key collapse_modifiers(Key);
 inline Key collapse_all(Key k) { return collapse_numerics(collapse_modifiers(k)); }
 
 char to_char(const keys::KeyEventImpl &);
-
+#if 0
 inline sf::Vector2i to_vector(const asgl::MouseLocation & loc)
     { return sf::Vector2i(loc.x, loc.y); }
-
+#endif
 std::string to_string(const Event &);
 
 } // end of asgl namespace

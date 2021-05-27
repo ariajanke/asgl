@@ -51,7 +51,7 @@ void Draggable::mouse_move(int x, int y) {
 bool Draggable::mouse_click(int x, int y) {
     if (!m_watch_drag_events) return false;
     m_dragged     = true;
-    m_drag_offset = sf::Vector2i(x, y);
+    m_drag_offset = Vector(x, y);
     return true;
 }
 
@@ -59,7 +59,7 @@ bool Draggable::mouse_click
     (int x, int y, const Rectangle & drect)
 {
     if (!m_watch_drag_events) return false;
-    if (drect.contains(x, y)) {
+    if (is_contained_in(x, y, drect)) {
         return mouse_click(x - drect.left, y - drect.top);
     }
     return false;

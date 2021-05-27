@@ -38,12 +38,12 @@ namespace asgl {
 void Button::process_event(const Event & evnt) {
     switch (evnt.type_id()) {
     case k_event_id_of<MouseRelease>:
-        if (/*m_is_highlighted */ m_is_hovered && m_back.contains(to_vector(evnt.as<MouseRelease>()))) {
+        if (/*m_is_highlighted */ m_is_hovered && is_contained_in(evnt.as<MouseRelease>(), m_back)) {
             press();
         }
         break;
     case k_event_id_of<MouseMove>:
-        if (m_back.contains(to_vector(evnt.as<MouseMove>()))) {
+        if (is_contained_in(evnt.as<MouseMove>(), m_back)) {
             highlight();
         } else {
             deselect();

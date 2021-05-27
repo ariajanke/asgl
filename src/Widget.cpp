@@ -24,6 +24,8 @@
 
 #include <asgl/Widget.hpp>
 
+#include <algorithm>
+
 namespace {
 
 using namespace cul::exceptions_abbr;
@@ -134,20 +136,27 @@ void Widget::assign_flags_receiver(WidgetFlagsReceiver * ptr)
                  + " must be a non-negative integer.");
 }
 
-/* static */ int Widget::Helpers::verify_padding
+/* static */ const int * Widget::Helpers::optional_padding
     (const StyleField * field, const char * full_caller)
 {
     auto make_error = [full_caller](const char * msg)
         { return RtError(std::string(full_caller) + ": " + msg); };
-    if (!field) {
-        throw make_error("could not find global padding (or any alts to "
-                         "padding for this call.");
-    } else if (!field->is_type<int>()) {
+    if (!field) return nullptr;
+    if (!field->is_type<int>()) {
         throw make_error("padding style must be an integer.");
     } else if (field->as<int>() < 0) {
         throw make_error("padding must be a non-negative integer.");
     }
-    return field->as<int>();
+    return &field->as<int>();
+}
+
+/* static */ int Widget::Helpers::verify_padding
+    (const StyleField * field, const char * full_caller)
+{
+    auto rv = optional_padding(field, full_caller);
+    if (rv) return *rv;
+    throw RtError(std::string(full_caller) + ": could not find global padding "
+                  "(or any alts to padding for this call.");
 }
 
 // ----------------------------------------------------------------------------

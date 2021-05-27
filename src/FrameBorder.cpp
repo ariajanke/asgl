@@ -83,7 +83,7 @@ void FrameDecoration::inform_is_child() {
 // ----------------------------------------------------------------------------
 
 TitleBar::TitleBar():
-    m_bar_style(Frame::to_key(Frame::k_title_bar_style))
+    m_bar_style(to_key(frame_styles::k_title_bar_style))
 { check_invarients(); }
 
 void TitleBar::set_location(int x, int y) {
@@ -132,13 +132,13 @@ void TitleBar::stylize(const StyleMap & smap) {
     using namespace styles;
     TextArea::set_required_text_fields(
         m_title, smap.find(styles::k_global_font),
-        smap.find(Frame::to_key(Frame::k_title_text_style)),
+        smap.find(to_key(frame_styles::k_title_text_style)),
         "TitleBar::stylize");
 
     using std::make_tuple;
     Widget::Helpers::handle_required_fields("TitleBar::stylize", {
         make_tuple(&m_bar_item, "title bar",
-                   smap.find(m_bar_style, Frame::to_key(Frame::k_title_bar_style))),
+                   smap.find(m_bar_style, to_key(frame_styles::k_title_bar_style))),
     });
     m_bounds.width = std::max(m_bounds.width, m_title.width());
     update_title_location_and_height();
@@ -181,9 +181,9 @@ FrameBorder::EventResponseSignal FrameBorder::process_event
     switch (event.type_id()) {
     case k_event_id_of<MousePress>: {
         EventResponseSignal rv;
-        auto mousepress = event.as<MousePress>();
+        const auto & mousepress = event.as<MousePress>();
         mouse_click(mousepress.x, mousepress.y, m_title_bar.bounds());
-        if (m_widget_bounds.contains(to_vector(mousepress))) {
+        if (is_contained_in(mousepress, m_widget_bounds)) {
             rv.skip_other_events = (m_click_in_frame() == k_skip_other_events);
         }
         check_invarients();
@@ -210,17 +210,21 @@ void FrameBorder::set_location(int frame_x, int frame_y) {
 
 void FrameBorder::stylize(const StyleMap & smap) {
     using namespace styles;
+    using namespace frame_styles;
     m_title_bar.stylize(smap);
 
-    m_inner_padding = m_outer_padding = Widget::Helpers::verify_padding(
-        smap.find(styles::k_global_padding), "FrameBorder::stylize");
-
+    {
+    auto gv = Widget::Helpers::optional_padding(
+        smap.find(m_padding_style, styles::k_global_padding), "FrameBorder::stylize");
+    if (gv) m_inner_padding = m_outer_padding = *gv;
+    }
+    smap.find(m_widget_body_style, to_key(k_widget_body_style));
     using std::make_tuple;
     Widget::Helpers::handle_required_fields("FrameBorder::stylize", {
         make_tuple(&m_border_item, "frame border",
-                   smap.find(Frame::to_key(Frame::k_title_bar_style))),
+                   smap.find(to_key(k_title_bar_style))),
         make_tuple(&m_widget_body_item, "widget body",
-                   smap.find(Frame::to_key(Frame::k_widget_body_style))),
+                   smap.find(m_widget_body_style, to_key(k_widget_body_style))),
     });
     update_geometry();
     int total_pad = (m_outer_padding + m_inner_padding)*2;
@@ -254,7 +258,9 @@ void FrameBorder::draw(WidgetRenderer & target) const {
         m_title_bar.draw(target);
         target.render_rectangle(m_widget_bounds, m_widget_body_item, this);
     } else {
-        target.render_rectangle(m_widget_bounds, m_border_item, this);
+        if (m_outer_padding) {
+            target.render_rectangle(m_widget_bounds, m_border_item, this);
+        }
         target.render_rectangle(inner_rectangle(), m_widget_body_item, this);
         if (m_title_bar.is_visible()) m_title_bar.draw(target);
     }
@@ -282,6 +288,30 @@ void FrameBorder::set_width_minimum(int i) {
 void FrameBorder::set_width_maximum(int i) {
     Widget::Helpers::verify_non_negative(i, "set_width_maximum", "maximum width");
     m_width_maximum = i;
+}
+
+void FrameBorder::set_border_padding(int pad) {
+    Widget::Helpers::verify_non_negative(pad, "set_border_padding", "padding");
+    m_inner_padding = m_outer_padding = pad;
+    m_padding_style  = StyleKey();
+}
+
+void FrameBorder::set_style(FrameStyle e, ItemKey item) {
+    using namespace frame_styles;
+    switch (e) {
+    case k_widget_body_style:
+        m_widget_body_style = StyleKey();
+        m_widget_body_item  = item;
+        break;
+    case k_title_bar_style:
+    case k_border_size_style:
+    case k_widget_text_style:
+    case k_title_text_style:
+        throw InvArg("FrameBorder::set_style: unimplemented styles.");
+    default:
+        throw InvArg("FrameBorder::set_style: style enum must be any valid "
+                     "enum value except for count.");
+    }
 }
 
 /* private */ void FrameBorder::update_geometry() {

@@ -145,8 +145,8 @@ void ProgressBar::draw(WidgetRenderer & renderer) const {
     }
 
     m_inner_bounds = Rectangle
-        (m_bounds.left  + pad  , m_bounds.top    + pad
-        ,m_bounds.width + pad*2, m_bounds.height + pad*2);
+        (m_bounds.left  + pad  , m_bounds.top    + pad,
+         m_bounds.width - pad*2, m_bounds.height - pad*2);
 }
 
 /* private */ void ProgressBar::verify_padding_set(const char * caller) const {

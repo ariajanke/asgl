@@ -38,6 +38,8 @@
 #include <asgl/Frame.hpp>
 #include <asgl/Text.hpp>
 
+#include <common/SfmlVectorTraits.hpp>
+
 #include <SFML/Graphics/RenderTarget.hpp>
 #include <SFML/Window/Event.hpp>
 
@@ -79,6 +81,9 @@ template <typename T>
 constexpr const int k_item_type_id = asgl::SfmlFlatEngine::SfmlRenderItem::GetTypeId<T>::k_value;
 
 asgl::Event convert(const sf::Event &);
+
+sf::IntRect convert_to_sfml_rectangle(const asgl::Rectangle & rect)
+    { return sf::IntRect(rect.left, rect.top, rect.width, rect.height); }
 
 using ItemColorEnum = asgl::sfml_items::ItemColorEnum;
 using ItemEnum      = asgl::sfml_items::ItemEnum;
@@ -174,15 +179,18 @@ void SfmlFlatEngine::setup_default_styles() {
     auto & stylemap = m_style_map;
     stylemap.add(styles::k_global_padding, to_field(k_chosen_padding));
     stylemap.add(styles::k_global_font   , to_field( std::weak_ptr<const Font>( m_font_handler ) ));
-    // frame
-    auto add_frame_field = [&stylemap] (Frame::StyleEnum style, const StyleField & field)
-        { stylemap.add(Frame::to_key(style), field); };
-    add_frame_field(Frame::k_title_bar_style  , to_field(k_primary_mid));
-    add_frame_field(Frame::k_widget_body_style, to_field(k_primary_dark));
-    add_frame_field(Frame::k_border_size_style, to_field(k_chosen_padding));
+        // frame
+        {
+        using namespace frame_styles;
+        auto add_frame_field = [&stylemap] (FrameStyle style, const StyleField & field)
+            { stylemap.add(asgl::to_key(style), field); };
+        add_frame_field(k_title_bar_style  , to_field(k_primary_mid));
+        add_frame_field(k_widget_body_style, to_field(k_primary_dark));
+        add_frame_field(k_border_size_style, to_field(k_chosen_padding));
 
-    add_frame_field(Frame::k_title_text_style , to_field(k_title_text));
-    add_frame_field(Frame::k_widget_text_style, to_field(k_widget_text));
+        add_frame_field(k_title_text_style , to_field(k_title_text));
+        add_frame_field(k_widget_text_style, to_field(k_widget_text));
+        }
     // button
 
     auto add_button_field = [&stylemap](Button::ButtonStyleEnum style, const StyleField & field)
@@ -296,9 +304,10 @@ void SfmlFlatEngine::ColorItem::update(const Rectangle & rect) {
 
 void SfmlFlatEngine::ColorItem::update(const Triangle & trituple) {
     using std::get;
-    m_triangle.set_point_a(sf::Vector2f(std::get<0>(trituple)));
-    m_triangle.set_point_b(sf::Vector2f(std::get<1>(trituple)));
-    m_triangle.set_point_c(sf::Vector2f(std::get<2>(trituple)));
+    using cul::convert_to;
+    m_triangle.set_point_a(convert_to<sf::Vector2f>(get<0>(trituple)));
+    m_triangle.set_point_b(convert_to<sf::Vector2f>(get<1>(trituple)));
+    m_triangle.set_point_c(convert_to<sf::Vector2f>(get<2>(trituple)));
 }
 
 /* static */ void SfmlFlatEngine::update_draw_rectangle
@@ -431,7 +440,7 @@ void SfmlFlatEngine::ColorItem::update(const Triangle & trituple) {
 /* private */ void SfmlFlatEngine::render_rectangle_pair
     (const Rectangle & bounds, const Rectangle & txrect, SfmlImageResource & obj) const
 {
-    obj.sprite.setTextureRect(txrect);
+    obj.sprite.setTextureRect(convert_to_sfml_rectangle(txrect));
     obj.sprite.setPosition(float(bounds.left), float(bounds.top));
     obj.sprite.setScale(float( bounds.width ) / float(txrect.width ),
                         float( bounds.height) / float(txrect.height));

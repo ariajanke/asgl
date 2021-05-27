@@ -31,6 +31,7 @@
 
 #include <common/Grid.hpp>
 #include <common/Util.hpp>
+#include <common/SfmlVectorTraits.hpp>
 #include <SFML/Graphics/RenderWindow.hpp>
 
 #include <SFML/System/Vector2.hpp>
@@ -96,7 +97,6 @@ public:
 
     Size request_size(int w, int h) final {
         assert(m_accepting_any_size || m_constraint);
-
         if (m_accepting_any_size) {
             m_has_accepted_a_size = true;
             set_size_of(m_bounds, Size(w, h));
@@ -105,7 +105,8 @@ public:
             if (!m_constraint->m_has_accepted_a_size) {
                 throw RtError("");
             }
-            return size_of(m_constraint->m_bounds);
+            set_size_of(m_bounds, size_of(m_constraint->m_bounds));
+            return size_of(m_bounds);
         }
         throw RtError("bad branch");
     }
@@ -163,21 +164,7 @@ private:
 
     SelectionEntryDecoration m_deco;
 };
-#if 0
-class SelectionMenu : public BareFrame {
-public:
 
-private:
-    FrameDecoration & decoration() final { return m_deco; }
-
-    const FrameDecoration & decoration() const final { return m_deco; }
-
-    SelectionEntryDecoration m_deco;
-
-    int padding = 0;
-    Grid<SelectionEntryFrame *> m_menu_grid;
-};
-#endif
 // ------------------------------ specialization ------------------------------
 
 // It's true I don't need an abstract class, but the attempt here is to limit
@@ -207,12 +194,7 @@ public:
 
     void set_click_matrix(ConstSubGrid<bool> mask)
         { m_click_mask = mask; }
-private:
-    Rectangle bounds(Vector offset_) const {
-        return Rectangle(offset_.x + m_offset.x, offset_.y + m_offset.y,
-                           width(), height());
-    }
-public:
+
     int width() const
         { return (m_click_mask.width() + 1)*scale(); }
 
@@ -228,7 +210,7 @@ public:
         Draggable::drag_release();
     }
 
-    bool mouse_click(int x, int y, sf::Vector2i matrix_location) {
+    bool mouse_click(int x, int y, Vector matrix_location) {
         auto pos = Vector(x, y) - matrix_location;
         pos /= scale();
         if (!m_click_mask.has_position(pos)) return false;
@@ -247,17 +229,22 @@ public:
 
     void set_frame(const Rectangle & rect)
         { m_tx_bounds = rect; }
-private:
-    void draw_(const Vector & offset, WidgetRenderer & renderer) const final {
-        renderer.render_rectangle_pair(bounds(offset), m_tx_bounds, m_foreground_image->item_key(), this);
-    }
-public:
+
     bool is_requesting_drop() const final
         { return !is_being_dragged(); }
 
 private:
+    void draw_(const Vector & offset, WidgetRenderer & renderer) const final {
+        renderer.render_rectangle_pair(bounds(offset), m_tx_bounds, m_foreground_image->item_key(), this);
+    }
+
     void update_drag_position(int x, int y) final {
         m_offset = Vector(x, y);
+    }
+
+    Rectangle bounds(Vector offset_) const {
+        return Rectangle(offset_.x + m_offset.x, offset_.y + m_offset.y,
+                           width(), height());
     }
 
     Vector m_offset;
@@ -343,7 +330,7 @@ public:
     void stylize(const StyleMap & map) final {
         TextArea::set_required_text_fields(
             m_full_text, map.find(styles::k_global_font),
-            map.find(Frame::to_key(Frame::k_widget_text_style)),
+            map.find(asgl::to_key(frame_styles::k_widget_text_style)),
             "TestFrame::stylize");
         BareFrame::stylize(map);
     }
@@ -353,7 +340,7 @@ public:
         if (!event.is_type<MouseMove>()) return;
         auto text_bounds = cul::compose(m_text.location(), m_text.size());
         //Rectangle text_bounds(m_text.location(), Vector(m_text.width(), m_text.height()));
-        if (text_bounds.contains(to_vector(event.as<MouseMove>()))) {
+        if (is_contained_in(event.as<MouseMove>(), text_bounds)) {
             m_show_full_text = true;
             m_full_text.set_location(m_text.location());
         } else {
@@ -379,6 +366,8 @@ public:
     Tuple<const DrawableWithWidgetRenderer *, const Widget *> get_hold_request() const
         { return std::make_tuple(m_image.get_hold_request(), &m_image); }
 
+    const UString & string() const { return m_text.string(); }
+
 private:
     void on_frame_geometry_update() final {
 
@@ -403,20 +392,9 @@ public:
 
     void process_event(const Event & event) final {
         Frame::process_event(event);
-
-        bool should_show = false;
-        for (auto & ptr : m_owned_widgets) {
-            if (!event.is_type<MouseMove>()) break;
-            auto mouserel = to_vector(event.as<MouseMove>());
-            if (ptr->mouse_is_over(event.as<MouseMove>())) {
-                set_top_left_of(m_here, mouserel - Vector(1, 1)*25);
-                set_size_of(m_here, 50, 50);
-                should_show = true;
-                break;
-            }
-        }
-        if (!should_show) {
-            set_size_of(m_here, 0, 0);
+        if (m_need_to_redo_setup_widgets) {
+            m_need_to_redo_setup_widgets = false;
+            return setup_widgets();
         }
 
         // really not sure what to do style wise
@@ -462,14 +440,13 @@ public:
             assert(m_held_items_parent);
             m_held_item->draw(*m_held_items_parent, target);
         }
-        target.render_rectangle(m_here, asgl::SfmlFlatEngine::to_item_key(asgl::sfml_items::k_secondary_light), nullptr);
     }
 
 private:
     void setup_widgets() {
         auto adder = begin_adding_widgets();
         int x = 0;
-        constexpr const int x_limit = 2;
+        constexpr const int x_limit = 4;
         for (auto & widget_ptr : m_owned_widgets) {
             adder.add(*widget_ptr);
             if (++x == x_limit) {
@@ -477,6 +454,7 @@ private:
                 x = 0;
             }
         }
+        adder.add(m_arrange_alpha).add_line_seperator();
         adder.add_horizontal_spacer().add(m_exit);
     }
 
@@ -490,9 +468,10 @@ private:
     // test frame will have to own the mask grid
     std::shared_ptr<const Grid<bool>> m_mask_ptr;
 
-    Rectangle m_here;
+    TextButton m_arrange_alpha;
     TextButton m_exit;
     bool m_request_exit = false;
+    bool m_need_to_redo_setup_widgets = false;
 };
 
 namespace icon_fields {
@@ -559,9 +538,10 @@ int main() {
         test_frame.check_for_geometry_updates();
         win.clear(sf::Color(40, 180, 40));
         test_frame.draw(engine);
-
+#       if 0
         std::default_random_engine rng { 0x827ABE21 };
         test_frame.iterate_children_const_f([&rng, &win](const Widget & widget) {
+            if (!dynamic_cast<const asgl::BareFrame *>(&widget)) return;
             auto rnd_u8 = [&rng]()
                 { return uint8_t(std::uniform_int_distribution<int>(0, 255)(rng)); };
             auto rnd_color = [&rnd_u8]()
@@ -572,7 +552,7 @@ int main() {
                                   ,float(bounds.width), float(bounds.height)
                                   ,rnd_color()));
         });
-
+#       endif
 
         win.display();
     }
@@ -588,12 +568,12 @@ namespace {
 void DraggableImageWidget::process_event(const Event & event) {
     switch (event.type_id()) {
     case k_event_id_of<MousePress>: {
-        auto pos = to_vector(event.as<MousePress>());
+        auto pos = event.as<MousePress>();
         m_foreground_image.mouse_click(pos.x, pos.y, m_location);
         }
         break;
     case k_event_id_of<MouseMove>: {
-        auto pos = to_vector(event.as<MouseMove>());
+        auto pos = event.as<MouseMove>();
         m_foreground_image.mouse_move(pos.x, pos.y);
         }
         break;
@@ -743,8 +723,8 @@ void TestFrame::setup(const LoadIconsRt & icon_info) {
         params.foreground_tx_bounds = icon_info.icon_frames.at(frame);
         params.background_tx_bounds = icon_info.icon_shadows_frames.at(frame);
         params.click_mask = make_sub_grid
-            (*icon_info.mask_ptr, top_left_of(params.foreground_tx_bounds)
-            ,params.foreground_tx_bounds.width, params.foreground_tx_bounds.height);
+            (*icon_info.mask_ptr, top_left_of(params.foreground_tx_bounds),
+            params.foreground_tx_bounds.width, params.foreground_tx_bounds.height);
         auto rv = std::make_unique<ImageTextSelectionEntry>();
         rv->setup(const_shared_params, params);
         return rv;
@@ -769,9 +749,21 @@ void TestFrame::setup(const LoadIconsRt & icon_info) {
     m_exit.set_string(U"Exit App");
     m_exit.set_press_event([this]() { m_request_exit = true; });
 
+    m_arrange_alpha.set_string(U"Arrange Alphabetically");
+    m_arrange_alpha.set_press_event([this]() {
+        std::sort(m_owned_widgets.begin(), m_owned_widgets.end(), []
+                  (const IconTilePtr & lptr, const IconTilePtr & rptr)
+        {
+            assert(lptr && rptr);
+            return lptr->string() < rptr->string();
+        });
+        m_need_to_redo_setup_widgets = true;
+    });
+
     // someone *needs* to own the entire click mask grid
     m_mask_ptr = icon_info.mask_ptr;
 
+    set_border_padding(0);
     setup_widgets();
 }
 
@@ -962,7 +954,7 @@ inline std::vector<Rectangle> make_frames_for_size(int width_in_frames, int heig
     rv.reserve(width_in_frames*height_in_frames);
     for (Vector icon_r; icon_r.y != height_in_frames; ++icon_r.y) {
     for (icon_r.x = 0  ; icon_r.x != width_in_frames ; ++icon_r.x) {
-        rv.emplace_back(icon_r*frame_size, Vector(1, 1)*frame_size);
+        rv.emplace_back(icon_r*frame_size, Size(1, 1)*frame_size);
     }}
     return rv;
 }

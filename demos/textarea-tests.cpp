@@ -118,7 +118,7 @@ public:
 
     void set_parameters(const Params & params) { m_params = params; }
 
-    static sf::IntRect as_viewport_rectangle(const Params & params);
+    static asgl::Rectangle as_viewport_rectangle(const Params & params);
 
 private:
     Params m_params;
@@ -269,8 +269,8 @@ const CharType * after_n_words(int n, const CharType *);
 
 // --- TesterBase ---
 
-/* static */ sf::IntRect TesterBase::as_viewport_rectangle(const Params & params) {
-    sf::IntRect viewport = asgl::Text().viewport();
+/* static */ asgl::Rectangle TesterBase::as_viewport_rectangle(const Params & params) {
+    auto viewport = asgl::Text().viewport();
     viewport.left = params.view_x;
     viewport.top  = params.view_y;
     if (params.view_width != IntLims::max()) {

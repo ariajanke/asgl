@@ -127,6 +127,7 @@ class SfmlText final :
     public TextBase, public detail::TextWithFontStyle, public sf::Drawable
 {
 public:
+    using RectangleF = DrawableCharacter::RectangleF;
     SfmlText() {}
     SfmlText(const SfmlText &);
     SfmlText(SfmlText &&) = default;
@@ -187,7 +188,7 @@ private:
     std::vector<detail::DrawableCharacter> m_renderables;
 
     std::unique_ptr<detail::RenderablesPlacer> m_placer_ptr;
-    sf::FloatRect m_full_bounds;
+    RectangleF m_full_bounds;
     float m_limiting_line = k_inf;
     Rectangle m_viewport = TextBase::k_default_viewport;
 

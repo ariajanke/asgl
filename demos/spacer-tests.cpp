@@ -34,7 +34,9 @@
 #include <SFML/Graphics/Font.hpp>
 #include <SFML/Graphics/RenderWindow.hpp>
 
-using UString     = asgl::Text::UString;
+#include <common/DrawRectangle.hpp>
+
+using UString     = asgl::UString;
 using Frame       = asgl::Frame;
 using TextArea    = asgl::TextArea;
 using ArrowButton = asgl::ArrowButton;
@@ -117,6 +119,7 @@ int main() {
             dialog.draw(engine);
 
             dialog.iterate_children_const_f([&window](const asgl::Widget & widget) {
+                using cul::DrawRectangle;
                 DrawRectangle rect(float(widget.location().x), float(widget.location().y),
                                    float(widget.width()), float(widget.height()), sf::Color(140, 0, 0, 50));
                 window.draw(rect);

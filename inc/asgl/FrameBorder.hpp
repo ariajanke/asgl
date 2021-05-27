@@ -257,6 +257,26 @@ private:
     Text m_title;
 };
 
+namespace frame_styles {
+
+enum StyleEnum {
+    k_title_bar_style, k_widget_body_style, k_border_size_style,
+    // ???
+    k_widget_text_style,
+    // not reachable
+    k_title_text_style,
+    k_style_count
+};
+
+} // end of frame_styles namespace -> into ::asgl
+
+using FrameStyle = frame_styles::StyleEnum;
+
+inline static StyleKey to_key(FrameStyle e) {
+    using namespace frame_styles;
+    return styles::StyleKeysEnum<FrameStyle, k_style_count>::to_key(e);
+}
+
 /** A helper class for Frame. The object manages the border graphics, events,
  *  and provides information for widget placement.
  *
@@ -300,6 +320,11 @@ public:
 
     void set_width_maximum(int);
 
+    /** Sets both inner and outer padding for the frame. */
+    void set_border_padding(int);
+
+    void set_style(FrameStyle, ItemKey);
+
 private:
     void on_inform_is_child() final {}
 
@@ -323,6 +348,9 @@ private:
     int m_width_maximum = FrameDecoration::k_no_width_limit_for_widgets;
     int m_width_minimum = 0;
 
+    StyleKey m_padding_style = styles::k_global_padding;
+    StyleKey m_border_style;
+    StyleKey m_widget_body_style = to_key(frame_styles::k_widget_body_style);
     ItemKey m_border_item, m_widget_body_item;
 
     ClickFunctor m_click_in_frame = do_default_click_event;

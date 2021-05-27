@@ -320,15 +320,6 @@ private:
  */
 class Frame : public BareFrame {
 public:
-    enum StyleEnum {
-        k_title_bar_style,
-        k_widget_body_style, k_border_size_style,
-        k_widget_text_style, k_title_text_style,
-        k_style_count
-    };
-
-    inline static StyleKey to_key(StyleEnum e)
-        { return styles::StyleKeysEnum<StyleEnum, k_style_count>::to_key(e); }
 
     /** Sets the title of the frame. */
     void set_title(const UString &);
@@ -345,6 +336,12 @@ public:
 
     void set_width_minimum(int i)
         { m_border.set_width_minimum(i); }
+
+    void set_style(FrameStyle e, ItemKey item)
+        { m_border.set_style(e, item); }
+
+    void set_border_padding(int pad)
+        { m_border.set_border_padding(pad); }
 
 protected:
     Frame()

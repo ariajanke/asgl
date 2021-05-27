@@ -32,9 +32,8 @@
 
 #include <array>
 
-#if 0
-#include <common/FixedLengthArray.hpp>
-#endif
+#include <common/Vector2.hpp>
+
 namespace asgl {
 
 namespace detail {
@@ -51,7 +50,8 @@ namespace detail {
  */
 class DrawableCharacter : public sf::Drawable {
 public:
-    using VectorF = sf::Vector2f;
+    using VectorF    = sf::Vector2f;
+    using RectangleF = cul::Rectangle<float>;
 
     DrawableCharacter() {}
 
@@ -83,7 +83,7 @@ public:
      */
     void cut_on_bottom(float cut_line);
 
-    void cut_outside_of(const sf::FloatRect &);
+    void cut_outside_of(const RectangleF &);
 
     void set_location(float x, float y);
 

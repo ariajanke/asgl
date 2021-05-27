@@ -43,7 +43,7 @@ Size TextArea::size() const
 void TextArea::stylize(const StyleMap & stylemap) {
     set_required_text_fields(
         m_draw_text, stylemap.find(styles::k_global_font),
-        stylemap.find(Frame::to_key(Frame::k_widget_text_style)),
+        stylemap.find(asgl::to_key(frame_styles::k_widget_text_style)),
         "TextArea::stylize");
     flag_needs_whole_family_geometry_update();
 }

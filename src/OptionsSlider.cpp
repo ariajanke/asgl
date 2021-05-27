@@ -73,7 +73,7 @@ void OptionsSlider::stylize(const StyleMap & stylemap) {
     m_right_arrow.stylize(stylemap);
     TextArea::set_required_text_fields(
         m_text, stylemap.find(styles::k_global_font),
-        stylemap.find(Frame::to_key(Frame::k_widget_text_style)),
+        stylemap.find(asgl::to_key(frame_styles::k_widget_text_style)),
         "OptionsSlider::stylize");
 
     using std::make_tuple;

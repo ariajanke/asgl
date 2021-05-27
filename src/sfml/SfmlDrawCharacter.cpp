@@ -41,14 +41,15 @@ namespace asgl {
 
 namespace {
 
-using VectorF = sf::Vector2f;
+using VectorF    = sf::Vector2f;
+using RectangleF = detail::DrawableCharacter::RectangleF;
 
 constexpr const int k_top_left_index     = 0;
 constexpr const int k_top_right_index    = 1;
 constexpr const int k_bottom_right_index = 2;
 constexpr const int k_bottom_left_index  = 3;
 
-inline bool inclusive_contains(VectorF r, const sf::FloatRect & rect) {
+inline bool inclusive_contains(VectorF r, const RectangleF & rect) {
     return    r.x >= rect.left && r.y >= rect.top
            && r.x <= rect.left + rect.width
            && r.y <= rect.top  + rect.height;
@@ -155,7 +156,7 @@ void DrawableCharacter::cut_on_bottom(float cut_line) {
     check_invarients();
 }
 
-void DrawableCharacter::cut_outside_of(const sf::FloatRect & rect) {
+void DrawableCharacter::cut_outside_of(const RectangleF & rect) {
     auto get_pos = [this](std::size_t idx) -> sf::Vector2f & {
         assert(idx < m_verticies.size());
         return m_verticies[idx].position;

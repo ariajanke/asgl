@@ -22,6 +22,8 @@
 
 *****************************************************************************/
 
+#pragma once
+
 #include <common/Vector2Util.hpp>
 
 namespace asgl {
@@ -35,5 +37,21 @@ using cul::top_left_of;
 using cul::set_top_left_of;
 using cul::size_of;
 using cul::set_size_of;
+using cul::is_contained_in;
 
+template <typename T>
+bool is_contained_in(T x_, T y_, const cul::Rectangle<T> & rect)
+    { return is_contained_in(cul::Vector2<T>(x_, y_), rect); }
+
+#if 0
+inline bool is_contained(const Rectangle & rect, const Vector & r) {
+    using namespace cul;
+    return    r.x >= rect.left      && r.y >= rect.top
+           && r.x <  right_of(rect) && r.y <  bottom_of(rect);
+}
+
+inline bool is_contained(const Rectangle & rect, int x, int y) {
+    return is_contained(rect, Vector(x, y));
+}
+#endif
 } // end of asgl namespace

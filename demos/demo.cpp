@@ -26,20 +26,16 @@
 // g++ -std=c++17 demo.cpp -lcommon-d -lksg -lsfml-graphics -lsfml-window -lsfml-system -lz -L/media/ramdisk/ksg/demos -I../inc -I../lib/cul/inc -o demo
 
 #include <asgl/Frame.hpp>
-#include <asgl/Text.hpp>
 #include <asgl/ImageWidget.hpp>
 #include <asgl/OptionsSlider.hpp>
 #include <asgl/TextArea.hpp>
 #include <asgl/TextButton.hpp>
 
-#include <asgl/Event.hpp>
 #include <asgl/sfml/SfmlEngine.hpp>
 
 #include <SFML/Window.hpp>
 #include <SFML/Graphics/RenderWindow.hpp>
 #include <SFML/Graphics/Font.hpp>
-
-#include <random>
 
 using asgl::UString;
 
@@ -77,7 +73,6 @@ int main() {
     engine.load_global_font("font.ttf");
     engine.setup_default_styles();
 
-#   if 1
     DemoText dialog;
     dialog.setup_frame(engine);
     engine.stylize(dialog);
@@ -105,28 +100,12 @@ int main() {
         if (has_events) {
             window.clear();
             dialog.draw(engine);
-#           if 0
-            using IntDistri = std::uniform_int_distribution<int>;
-            std::default_random_engine rng { 0x1201471 };
-            dialog.iterate_children_const_f([&window, &rng](const asgl::Widget & widget) {
-                auto rnd_u8 = [](std::default_random_engine & rng) {
-                    return IntDistri(0, 255)(rng);
-                };
-                sf::IntRect irect(widget.location().x, widget.location().y,
-                                  widget.width(), widget.height());
-                DrawRectangle rect(float(widget.location().x), float(widget.location().y),
-                                   float(widget.width()), float(widget.height()),
-                                   sf::Color(rnd_u8(rng), rnd_u8(rng), rnd_u8(rng), 150));
-                window.draw(rect);
-            });
-#           endif
             window.display();
             has_events = false;
         } else {
             sf::sleep(sf::microseconds(16667));
         }
     }
-#   endif
 }
 
 namespace {
@@ -172,16 +151,14 @@ void DemoText::setup_frame(asgl::ImageLoader & loader) {
         "(3.0) license.");
 
     m_text_button.set_string(U"Close Application");
-#   if 1
+
     m_embeded_frame.setup_frame(loader);
-#   endif
+
     begin_adding_widgets().
         add(m_text_area).
         add_horizontal_spacer().
-#       if 1
         add(m_embeded_frame).
         add_line_seperator().
-#       endif
         add_horizontal_spacer().
         add(m_text_button).
         add_horizontal_spacer();

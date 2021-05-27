@@ -78,7 +78,7 @@ void EditableText::set_check_string_event(StringCheckFunc && func)
 void EditableText::process_event(const Event & event) {
     switch (event.type_id()) {
     case k_event_id_of<MouseRelease>:
-        if (bounds().contains(to_vector(event.as<MouseRelease>()))) {
+        if (is_contained_in(event.as<MouseRelease>(), bounds())) {
             request_focus();
         }
         break;
@@ -93,12 +93,13 @@ Size EditableText::size() const {
 }
 
 void EditableText::stylize(const StyleMap & stylemap) {
-    auto set_fields_for_fill_text = [&stylemap]
+    const auto k_widget_text_style = asgl::to_key(frame_styles::k_widget_text_style);
+    auto set_fields_for_fill_text = [&stylemap, k_widget_text_style]
         (decltype(k_style_count) style, Text & text)
     {
         TextArea::set_required_text_fields(
             text, stylemap.find(styles::k_global_font),
-            stylemap.find(to_key(style), Frame::to_key(Frame::k_widget_text_style)),
+            stylemap.find(to_key(style), k_widget_text_style),
             "EditableText::stylize");
     };
     set_fields_for_fill_text(k_fill_text_style , m_display_left );
@@ -117,11 +118,9 @@ void EditableText::stylize(const StyleMap & stylemap) {
                    stylemap.find(to_key(k_widget_border_on_hover),
                                  OptionsSlider::to_key(OptionsSlider::k_front_style))),
         make_tuple(&m_area_appearance, "text area",
-                   stylemap.find(to_key(k_text_background_style),
-                                 Frame::to_key(Frame::k_widget_text_style))),
+                   stylemap.find(to_key(k_text_background_style), k_widget_text_style)),
         make_tuple(&m_cursor_appearance, "cursor",
-                   stylemap.find(to_key(k_cursor_style),
-                                 Frame::to_key(Frame::k_widget_text_style)))
+                   stylemap.find(to_key(k_cursor_style), k_widget_text_style))
     });
 
     flag_needs_whole_family_geometry_update();

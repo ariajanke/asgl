@@ -69,6 +69,7 @@ using asgl::UString;
 using asgl::UChar;
 using asgl::Rectangle;
 using VectorF           = sf::Vector2f;
+using RectangleF        = asgl::detail::DrawableCharacter::RectangleF;
 using LineBreakList     = std::vector<int>;
 using VertexContainer   = std::vector<sf::Vertex>;
 using DrawableCharacter = asgl::detail::DrawableCharacter;
@@ -85,7 +86,7 @@ public:
     void operator () (VectorF loc, const sf::Glyph & glyph) override {
         renderables->emplace_back(loc, glyph, *color);
         auto & new_dc = renderables->back();
-        new_dc.cut_outside_of(sf::FloatRect(*viewport));
+        new_dc.cut_outside_of(RectangleF(*viewport));
         if (new_dc.whiped_out()) {
             renderables->pop_back();
             return;
@@ -104,7 +105,7 @@ public:
 
     std::vector<DrawableCharacter> * renderables = nullptr;
     const sf::Color * color = nullptr;
-    sf::FloatRect * full_bounds = nullptr;
+    RectangleF * full_bounds = nullptr;
     const Rectangle * viewport = nullptr;
 
 private:

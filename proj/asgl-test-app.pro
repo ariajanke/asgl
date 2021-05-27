@@ -23,7 +23,7 @@ debug {
     LIBS   += -lcommon
 }
 
-SOURCES += ../demos/select-menu-demo.cpp
+SOURCES += ../demos/custom-frame-background-demo.cpp
 
 SOURCES += \
     \ # SFML Engine
