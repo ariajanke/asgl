@@ -28,6 +28,8 @@
 
 namespace asgl {
 
+class ArrowButtonOptionsSliderAtt;
+
 /** An Arrow Button is a clickable button with an arrow facing in one of four
  *  possible directions.
  *  @note While it is up to the renderer on what to do with triangle shape,
@@ -71,18 +73,26 @@ public:
     void draw(WidgetRenderer &) const override;
 
 private:
+    friend class ArrowButtonOptionsSliderAtt;
+
+    bool is_visible_for_focus_advance() const override;
+
     void update_points();
 
-    void set_location_(int x, int y) override {
-        Button::set_location_(x, y);
-        update_points();
-    }
+    void set_location_(int x, int y) override;
 
     void update_size() override {}
 
     ItemKey m_triangle_style;
     Triangle m_tri;
     Direction m_dir;
+};
+
+class OptionsSlider;
+class ArrowButtonOptionsSliderAtt {
+    friend class OptionsSlider;
+    static bool has_focus(const ArrowButton & btn) { return btn.has_focus(); }
+    static void request_focus(ArrowButton & btn) { btn.request_focus(); }
 };
 
 } // end of asgl namespace

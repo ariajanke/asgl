@@ -51,9 +51,9 @@ using namespace asgl;
 
 // ------------------------------ generalization ------------------------------
 
-class SelectionEntryDecoration final : public FrameDecoration {
+class SelectionEntryDecoration final : public BlankDecorationBase {
 public:
-
+#   if 0
     Vector widget_start() const final { return location(); }
 
     Vector location() const final { return top_left_of(m_bounds); }
@@ -63,10 +63,8 @@ public:
     EventResponseSignal process_event(const asgl::Event &) final
         { return EventResponseSignal(); }
 
-    void set_location(int frame_x, int frame_y) final {
-        std::cout << "Frame decoration location set: " << frame_x << ", " << frame_y << std::endl;
-        set_top_left_of(m_bounds, frame_x, frame_y);
-    }
+    void set_location(int frame_x, int frame_y) final
+        { set_top_left_of(m_bounds, frame_x, frame_y); }
 
     void stylize(const StyleMap &) final {}
 
@@ -79,7 +77,7 @@ public:
         throw InvArg("SelectionEntryDecoration::set_click_inside_event: "
                      "This decoration does not accept click events.");
     }
-
+#   endif
     void accept_any_size() {
         m_accepting_any_size = true;
         check_invarients();
@@ -99,14 +97,15 @@ public:
         assert(m_accepting_any_size || m_constraint);
         if (m_accepting_any_size) {
             m_has_accepted_a_size = true;
-            set_size_of(m_bounds, Size(w, h));
+            set_size(Size(w, h));
             return Size(w, h);
         } else if (m_constraint) {
             if (!m_constraint->m_has_accepted_a_size) {
                 throw RtError("");
             }
-            set_size_of(m_bounds, size_of(m_constraint->m_bounds));
-            return size_of(m_bounds);
+            auto rv = size_of(m_constraint->bounds());
+            set_size(rv);
+            return rv;
         }
         throw RtError("bad branch");
     }
@@ -121,12 +120,14 @@ private:
     bool m_has_accepted_a_size = false;
     bool m_accepting_any_size = false;
     const SelectionEntryDecoration * m_constraint = nullptr;
-
+#   if 0
     Rectangle m_bounds;
+#   endif
 };
 
 class SelectionEntryFrame : public BareFrame {
 public:
+#   if 0
     // It makes me sad, views are C++20 :c
     template <bool kt_is_const>
     class ShapeViewImpl {
@@ -143,7 +144,7 @@ public:
     };
 
     using ShapeView = ShapeViewImpl<true>;
-
+#   endif
     void accept_any_size()
         { m_deco.accept_any_size(); }
 

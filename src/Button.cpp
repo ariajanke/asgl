@@ -103,8 +103,12 @@ Vector Button::location() const { return top_left_of(m_back); }
 
 Size Button::size() const { return size_of(m_back); }
 
-void Button::draw(WidgetRenderer & target) const
+void Button::draw_frame(WidgetRenderer & target) const
     { draw_to(target, m_front, m_back, get_active_item()); }
+
+void Button::set_visible(bool b) { m_is_visible = b; }
+
+bool Button::is_visible() const noexcept { return m_is_visible; }
 
 /* protected */ Button::Button() {}
 
@@ -159,6 +163,9 @@ void Button::draw(WidgetRenderer & target) const
         m_front.height = m_back.height - padding()*2;
     }
 }
+
+/* protected */ bool Button::is_visible_for_focus_advance() const
+    { return is_visible(); }
 
 /* private */ ItemKey Button::get_active_item() const {
     if (m_is_focused) {

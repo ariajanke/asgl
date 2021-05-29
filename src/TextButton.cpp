@@ -56,7 +56,8 @@ void TextButton::stylize(const StyleMap & stylemap) {
 const UString & TextButton::string() const { return m_text.string(); }
 
 void TextButton::draw(WidgetRenderer & target) const {
-    Button::draw(target);
+    if (!is_visible()) return;
+    draw_frame(target);
     m_text.draw_to(target);
 }
 

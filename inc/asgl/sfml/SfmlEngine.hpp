@@ -34,7 +34,6 @@
 #include <common/DrawRectangle.hpp>
 #include <common/DrawTriangle.hpp>
 #include <common/SubGrid.hpp>
-#include <asgl/DrawTriangle.hpp>
 
 namespace asgl {
 
@@ -79,6 +78,8 @@ enum ItemEnum {
     k_bordered_focus_widget,
     k_bordered_hover_and_focus_widget,
 
+    k_special_draw_item,
+
     k_item_count
 };
 
@@ -87,10 +88,12 @@ enum ItemEnum {
 // ---------------------- BEGINNING OF PUBLIC INTERFACE -----------------------
 
 class SfmlFlatEngine final : public WidgetRenderer, public ImageLoader {
-public:    
+public:
+#   if 0
     class CustomRectangleItem : public sf::Drawable {
         virtual void update_bounds(const Rectangle &) = 0;
     };
+#   endif
 
     void assign_target_and_states(sf::RenderTarget &, sf::RenderStates);
 
@@ -99,9 +102,9 @@ public:
     void setup_default_styles();
 
     ItemKey add_rectangle_style(sf::Color, StyleKey);
-
+#   if 0
     ItemKey add_custom_rectangle_item(std::shared_ptr<CustomRectangleItem>);
-
+#   endif
     void load_global_font(const std::string & filename);
 
     SharedImagePtr make_image_from(ConstSubGrid<sf::Color>);
@@ -144,8 +147,7 @@ public:
     using SfmlImageResource = detail::SfmlImageResource;
     using SfmlImageResPtr   = std::shared_ptr<SfmlImageResource>;
     using SfmlRenderItem    = cul::MultiType<ColorItem, SfmlImageResPtr,
-                                             RoundedBorder, SquareBorder,
-                                             std::shared_ptr<CustomRectangleItem>>;
+                                             RoundedBorder, SquareBorder>;
     using SfmlRenderItemMap = std::map<ItemKey, SfmlRenderItem>;
     using ItemColorEnum     = sfml_items::ItemColorEnum;
     using ItemEnum          = sfml_items::ItemEnum;
@@ -167,6 +169,8 @@ private:
     void render_text(const TextBase &) final;
 
     void render_rectangle_pair(const Rectangle &, const Rectangle &, ItemKey, const void *) final;
+
+    void render_special(ItemKey, const Widget * instance_pointer) final;
 
     void render_rectangle(const Rectangle &, ColorItem &) const;
     void render_triangle (const Triangle  &, ColorItem &) const;

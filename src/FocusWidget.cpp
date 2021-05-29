@@ -31,6 +31,7 @@ namespace {
 
 using asgl::detail::FocusWidgetAtt;
 using FocusContIter = asgl::detail::FrameFocusHandler::FocusContIter;
+using namespace cul::exceptions_abbr;
 
 constexpr const bool k_log_change_focus = false;
 
@@ -40,6 +41,50 @@ inline void log_change_focus(const char * msg) {
 }
 
 FocusContIter find_requesting_focus(FocusContIter beg, FocusContIter end);
+
+// how many times do I have a wrapping algoritm?
+// if the answer is more than three... in two different projects...
+// time to put it in the cul
+template <typename Iter, typename Func>
+void wrap_forward(Iter itr, Iter beg, Iter end, Func && f) {
+    using namespace cul::fc_signal;
+    auto start = itr;
+    for (; itr != end; ++itr) {
+        auto fc = cul::adapt_to_flow_control_signal(f, itr);
+        if (fc == k_break) return;
+    }
+    for (itr = beg; itr != start; ++itr) {
+        auto fc = cul::adapt_to_flow_control_signal(f, itr);
+        if (fc == k_break) return;
+    }
+}
+
+template <typename Iter, typename Func>
+void wrap_backward(Iter itr, Iter beg, Iter end, Func && f) {
+    using namespace cul::fc_signal;
+    auto do_it = [&f, &itr] ()
+        { return cul::adapt_to_flow_control_signal(f, itr); };
+    auto start = itr;
+    for (; itr != beg; --itr) {
+        if (do_it() == k_break) return;
+    }
+    if (beg == end) return;
+    if (do_it() == k_break) return;
+    itr = end - 1;
+    for (; itr != start; --itr) {
+        if (do_it() == k_break) return;
+    }
+}
+
+template <typename Iter>
+std::ptrdiff_t wrap_difference(Iter a, Iter b, Iter beg, Iter end) {
+    if (a == end || b == end) {
+        throw InvArg("wrap_difference: a and b must be in a non empty sequence.");
+    }
+    auto high = std::max(a, b);
+    auto low  = std::min(a, b);
+    return std::min(high - low, (end - high) + (low - beg));
+}
 
 } // end of <anonymous> namespace
 
@@ -56,6 +101,10 @@ namespace detail {
     fwidget.m_has_focus = false;
     fwidget.notify_focus_lost();
 }
+
+/* static */ bool FocusWidgetAtt::is_visible_for_focus_advance
+    (const FocusReceiver & fwidget)
+{ return fwidget.is_visible_for_focus_advance(); }
 
 } // end of detail namespace -> into ::asgl
 
@@ -99,20 +148,26 @@ void FrameFocusHandler::process_event(const Event & event) {
     if (new_focus == m_focus_widgets.end()) {
         auto old_itr = m_current_position;
         if (m_advance_func(event)) {
+#           if 0
             if (m_current_position == m_focus_widgets.end()) {
                 m_current_position = m_focus_widgets.begin();
             } else if (++m_current_position == m_focus_widgets.end()) {
                 // wrap around
                 m_current_position = m_focus_widgets.begin();
             }
+#           endif
+            m_current_position = advance_focus_iterator(m_current_position);
             log_change_focus("[asgl] Focus widget advanced.");
         } else if (m_regress_func(event)) {
+#           if 0
             if (m_current_position == m_focus_widgets.begin()) {
                 // wrap around
                 m_current_position = m_focus_widgets.end() - 1;
             } else {
                 --m_current_position;
             }
+#           endif
+            m_current_position = regress_focus_iterator(m_current_position);
             log_change_focus("[asgl] Focus widget regressed.");
         }
         if (old_itr != m_current_position) {
@@ -121,12 +176,18 @@ void FrameFocusHandler::process_event(const Event & event) {
             FocusWidgetAtt::notify_focus_gained(**m_current_position);
         }
     } else {
+        if (!FocusWidgetAtt::is_visible_for_focus_advance(**new_focus)) {
+            throw RtError("FrameFocusHandler::process_event: A widget was "
+                          "requesting focus explicitly while not being "
+                          "visible for focus advances.");
+        }
         if (m_current_position != m_focus_widgets.end())
             { FocusWidgetAtt::notify_focus_lost(**m_current_position); }
         FocusWidgetAtt::notify_focus_gained(**new_focus);
         m_current_position = new_focus;
         log_change_focus("[asgl] Focus request answered.");
     }
+    check_for_visibility_loss();
 }
 
 void FrameFocusHandler::check_for_child_widget_updates(Widget & parent) {
@@ -134,12 +195,6 @@ void FrameFocusHandler::check_for_child_widget_updates(Widget & parent) {
     auto itr = m_focus_widgets.begin();
     // O(n) in virtual calls
     parent.iterate_children_f([&mismatch_detected, &itr, this](Widget & child) {
-#       if 0
-        if (auto * frame = dynamic_cast<BareFrame *>(&child)) {
-            frame->turn_off_focus_widgets();
-            // note: BareFrame may also be a FocusReceiver
-        }
-#       endif
         auto * focwid = dynamic_cast<FocusReceiver *>(&child);
         if (!focwid) return;
         if (mismatch_detected) {
@@ -170,19 +225,90 @@ void FrameFocusHandler::clear_focus_widgets() {
 }
 
 /* static */ bool FrameFocusHandler::default_focus_advance(const Event & event) {
-    if (event.is_type<KeyPress>()) {
-        auto keyev = event.as<KeyPress>();
-        return keyev.key == keys::k_tab && !keyev.shift;
+    if (const auto * keyev = event.as_pointer<KeyPress>()) {
+        return keyev->key == keys::k_tab && !keyev->shift;
+    } else if (const auto * gmot = event.as_pointer<GeneralMotion>()) {
+        return *gmot == general_motion::k_advance_focus;
     }
     return false;
 }
 
 /* static */ bool FrameFocusHandler::default_focus_regress(const Event & event) {
-    if (event.is_type<KeyRelease>()) {
-        auto keyev = event.as<KeyRelease>();
-        return keyev.key == keys::k_tab && keyev.shift;
+    if (const auto * keyev = event.as_pointer<KeyPress>()) {
+        return keyev->key == keys::k_tab && keyev->shift;
+    } else if (const auto * gmot = event.as_pointer<GeneralMotion>()) {
+        return *gmot == general_motion::k_regress_focus;
     }
     return false;
+}
+
+/* private to FrameFocusHandler */ cul::FlowControlSignal
+    FrameFocusHandler::FocusAdvancerFunc::operator ()
+    (FocusContIter itr)
+{
+    using namespace cul::fc_signal;
+    if (!m_advanced_at_least_once) {
+        m_advanced_at_least_once = true;
+        return k_continue;
+    }
+    if (FocusWidgetAtt::is_visible_for_focus_advance(**itr)) {
+        m_target_itr = itr;
+        return k_break;
+    }
+    return k_continue;
+}
+
+/* private */ FocusContIter FrameFocusHandler::advance_focus_iterator
+    (FocusContIter start)
+{
+    // the "first" advance
+    if (start == m_focus_widgets.end()) return m_focus_widgets.begin();
+    auto rv = m_focus_widgets.end();
+    FocusAdvancerFunc faf(rv);
+    wrap_forward(start, m_focus_widgets.begin(), m_focus_widgets.end(), faf);
+    return rv;
+}
+
+/* private */ FocusContIter FrameFocusHandler::regress_focus_iterator
+    (FocusContIter start)
+{
+    if (m_focus_widgets.empty()) return start;
+    // the "first" regress here
+    if (start == m_focus_widgets.end()) return m_focus_widgets.end() - 1;
+    auto rv = m_focus_widgets.end();
+    FocusAdvancerFunc faf(rv);
+    wrap_backward(start, m_focus_widgets.begin(), m_focus_widgets.end(), faf);
+    return rv;
+}
+
+/* private */ void FrameFocusHandler::check_for_visibility_loss() {
+    if (m_current_position == m_focus_widgets.end()) return;
+    if (FocusWidgetAtt::is_visible_for_focus_advance(**m_current_position)) {
+        return;
+    }
+
+    auto new_pos = [this] () {
+        auto foreopt = advance_focus_iterator(m_current_position);
+        auto backopt = regress_focus_iterator(m_current_position);
+        auto end = m_focus_widgets.end();
+        if (foreopt == end) {
+            // if it's the end iterator... that's alright
+            return backopt;
+        } else if (backopt == end) {
+            return foreopt;
+        }
+        auto wrap_diff_with_current = [this](FocusContIter itr)
+            { return wrap_difference(itr, m_current_position, m_focus_widgets.begin(), m_focus_widgets.end()); };
+        auto forediff = wrap_diff_with_current(foreopt);
+        auto backdiff = wrap_diff_with_current(backopt);
+        return (backdiff < forediff) ? backopt : foreopt;
+    } ();
+
+    if (new_pos == m_current_position) return;
+    if (new_pos != m_focus_widgets.end())
+        FocusWidgetAtt::notify_focus_lost(**m_current_position);
+    FocusWidgetAtt::notify_focus_gained(**new_pos);
+    m_current_position = new_pos;
 }
 
 } // end of detail namespace -> into ::asgl

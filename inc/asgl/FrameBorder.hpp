@@ -320,6 +320,8 @@ public:
 
     void set_width_maximum(int);
 
+    void set_height_minimum(int);
+
     /** Sets both inner and outer padding for the frame. */
     void set_border_padding(int);
 
@@ -348,12 +350,52 @@ private:
     int m_width_maximum = FrameDecoration::k_no_width_limit_for_widgets;
     int m_width_minimum = 0;
 
+    int m_height_minimum = 0;
+
     StyleKey m_padding_style = styles::k_global_padding;
     StyleKey m_border_style;
     StyleKey m_widget_body_style = to_key(frame_styles::k_widget_body_style);
     ItemKey m_border_item, m_widget_body_item;
 
     ClickFunctor m_click_in_frame = do_default_click_event;
+};
+
+// ------------------------- being pushed here early --------------------------
+
+class BlankDecorationBase : public FrameDecoration {
+public:
+    Vector widget_start() const final { return location(); }
+
+    Vector location() const final { return top_left_of(m_bounds); }
+
+    Size size() const final { return size_of(m_bounds); }
+
+    Rectangle bounds() const { return m_bounds; }
+
+    EventResponseSignal process_event(const asgl::Event &) override
+        { return EventResponseSignal(); }
+
+    void set_location(int frame_x, int frame_y) final
+        { set_top_left_of(m_bounds, frame_x, frame_y); }
+
+    void stylize(const StyleMap &) override {}
+
+    void draw(WidgetRenderer &) const override {}
+
+    int maximum_width_for_widgets() const final
+        { return FrameDecoration::k_no_width_limit_for_widgets; }
+
+    void set_click_inside_event(ClickFunctor &&) override {
+        using namespace cul::exceptions_abbr;
+        throw InvArg("BlankDecorationBase::set_click_inside_event: "
+                     "This decoration does not accept click events.");
+    }
+
+protected:
+    void set_size(Size sz) { set_size_of(m_bounds, sz); }
+
+private:
+    Rectangle m_bounds;
 };
 
 } // end of asgl namespace

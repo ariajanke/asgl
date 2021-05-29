@@ -92,6 +92,12 @@ void Widget::assign_flags_receiver(WidgetFlagsReceiver * ptr)
     (WidgetRenderer & target, const Triangle & tri, ItemKey key) const
 { target.render_triangle(tri, key, this); }
 
+/* protected */ void Widget::draw_special_to
+    (WidgetRenderer & target, ItemKey key) const
+{
+    target.render_special(key, this);
+}
+
 /* protected */ void Widget::flag_needs_whole_family_geometry_update()
     { m_flags_receiver->receive_whole_family_upate_needed(); }
 

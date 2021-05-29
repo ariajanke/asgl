@@ -387,6 +387,21 @@ void SfmlFlatEngine::ColorItem::update(const Triangle & trituple) {
     }
 }
 
+/* private */ void SfmlFlatEngine::render_special
+    (ItemKey key, const Widget * instance_pointer)
+{
+    if (key != to_item_key(sfml_items::k_special_draw_item)) {
+        throw InvArg("SfmlFlatEngine::render_special: this function should "
+                     "only be called with the special draw item key.");
+    }
+    const auto * as_drawable = dynamic_cast<const sf::Drawable *>(instance_pointer);
+    if (!as_drawable) {
+        throw InvArg("SfmlFlatEngine::render_special: special rendering "
+                     "expects that ");
+    }
+    m_target_ptr->draw(*as_drawable, m_states);
+}
+
 /* private */ void SfmlFlatEngine::render_rectangle
     (const Rectangle & rect, ColorItem & color_item) const
 {
@@ -494,10 +509,14 @@ namespace {
 using asgl::keys::KeyEventImpl;
 using asgl::mouse::MouseEventImpl;
 using asgl::MouseMove;
+using asgl::gamepad::Button;
+using asgl::gamepad::Axis;
 
 KeyEventImpl convert(const sf::Event::KeyEvent &);
 MouseEventImpl convert(const sf::Event::MouseButtonEvent &);
 MouseMove convert(const sf::Event::MouseMoveEvent &);
+Button convert(const sf::Event::JoystickButtonEvent &);
+Axis convert(const sf::Event::JoystickMoveEvent &);
 
 asgl::Event convert(const sf::Event & sfevent) {
     using namespace asgl;
@@ -514,6 +533,12 @@ asgl::Event convert(const sf::Event & sfevent) {
         return Event(MouseMove(::convert(sfevent.mouseMove)));
     case sf::Event::TextEntered:
         return Event(KeyTyped{sfevent.text.unicode});
+    case sf::Event::JoystickButtonPressed:
+        return Event(ButtonPress  (convert(sfevent.joystickButton)));
+    case sf::Event::JoystickButtonReleased:
+        return Event(ButtonRelease(convert(sfevent.joystickButton)));
+    case sf::Event::JoystickMoved:
+        return Event(AxisMove(convert(sfevent.joystickMove)));
     default: return Event();
     }
 }
@@ -641,6 +666,21 @@ MouseMove convert(const sf::Event::MouseMoveEvent & mme) {
     MouseMove rv;
     rv.x = mme.x;
     rv.y = mme.y;
+    return rv;
+}
+
+Button convert(const sf::Event::JoystickButtonEvent & jbe) {
+    Button rv;
+    rv.button = jbe.button;
+    rv.gamepad_id = jbe.joystickId;
+    return rv;
+}
+
+Axis convert(const sf::Event::JoystickMoveEvent & jme) {
+    Axis rv;
+    rv.gamepad_id = jme.joystickId;
+    rv.axis_id    = jme.axis;
+    rv.position   = double(jme.position / 100.f);
     return rv;
 }
 

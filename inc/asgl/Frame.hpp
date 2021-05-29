@@ -247,6 +247,13 @@ protected:
 
     virtual const FrameDecoration & decoration() const = 0;
 
+    /** Renders all widgets to the given widget renderer.
+     *  @note that this is usually called by draw and is provided for
+     *        inheritors. It maybe desired to render the widgets without the
+     *        decoration.
+     */
+    void draw_widgets(WidgetRenderer &) const;
+
 private:
     class WidgetBoundsFinder {
     public:
@@ -334,8 +341,30 @@ public:
      */
     bool has_drag_enabled() const;
 
-    void set_width_minimum(int i)
-        { m_border.set_width_minimum(i); }
+    /** Sets the minimum width of the frame.
+     *  @note If this value is much larger than the (computed) needed minimum
+     *        this could result in a much larger frame than is needed by the
+     *        widgets.
+     * @param minw the new minimum width in pixels
+     */
+    void set_width_minimum(int minw)
+        { m_border.set_width_minimum(minw); }
+
+    /** Sets the maximum width of the frame.
+     *  @note that by setting this you could be exposing yourself to the risk
+     *        of horizontal overflow which maybe undesired in most scenarios
+     *  @param maxw the new maximum width in pixels
+     */
+    void set_width_maximum(int maxw)
+        { m_border.set_width_maximum(maxw); }
+
+    /** Sets the minimum height of the frame border.
+     *  @param minh the new height minimum in pixels
+     *  @note Height maximum cannot be controlled, that will have to be up to
+     *        whatever or who ever is adding widgets to the frame.
+     */
+    void set_height_minimum(int minh)
+        { m_border.set_height_minimum(minh); }
 
     void set_style(FrameStyle e, ItemKey item)
         { m_border.set_style(e, item); }

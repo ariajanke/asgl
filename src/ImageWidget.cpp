@@ -63,6 +63,8 @@ Vector ImageWidget::location() const
 
 Size ImageWidget::size() const { return size_of(m_bounds); }
 
+void ImageWidget::set_size(Size sz) { set_size(sz.width, sz.height); }
+
 void ImageWidget::set_size(int w, int h) {
     Helpers::verify_non_negative(w, "ImageWidget::set_size", "width" );
     Helpers::verify_non_negative(h, "ImageWidget::set_size", "height");

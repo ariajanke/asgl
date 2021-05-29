@@ -40,6 +40,7 @@ class FocusWidgetAtt {
     friend class asgl::detail::FrameFocusHandler;
     static void notify_focus_gained(FocusReceiver &);
     static void notify_focus_lost  (FocusReceiver &);
+    static bool is_visible_for_focus_advance(const FocusReceiver &);
 };
 
 } // end of detail namespace -> into ::asgl
@@ -80,6 +81,13 @@ protected:
     virtual void notify_focus_gained() = 0;
 
     virtual void notify_focus_lost() = 0;
+
+    /** When this function returns false, this widget will become "invisible"
+     *  to focus advances. That is it will be skipped if a user tries to tab
+     *  over to it or move their gamepad over to it.
+     *  @returns always true for this base class
+     */
+    virtual bool is_visible_for_focus_advance() const { return true; }
 
     bool has_focus() const { return m_has_focus; }
 
@@ -149,6 +157,22 @@ public:
     static bool default_focus_regress(const Event &);
 
 private:
+    class FocusAdvancerFunc {
+    public:
+        FocusAdvancerFunc(FocusContIter & itr): m_target_itr(itr) {}
+
+        cul::FlowControlSignal operator () (FocusContIter itr);
+
+    private:
+        bool m_advanced_at_least_once = false;
+        FocusContIter & m_target_itr;
+    };
+
+    FocusContIter advance_focus_iterator(FocusContIter);
+    FocusContIter regress_focus_iterator(FocusContIter);
+
+    void check_for_visibility_loss();
+
     FocusChangeFunc m_advance_func = default_focus_advance;
     FocusChangeFunc m_regress_func = default_focus_regress;
 

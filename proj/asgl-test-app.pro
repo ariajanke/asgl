@@ -23,7 +23,10 @@ debug {
     LIBS   += -lcommon
 }
 
-SOURCES += ../demos/custom-frame-background-demo.cpp
+# SOURCES += ../demos/custom-frame-background-demo.cpp
+# SOURCES += ../demos/demo.cpp
+#SOURCES += ../demos/select-menu-demo.cpp
+SOURCES += ../demos/book-demo.cpp
 
 SOURCES += \
     \ # SFML Engine
@@ -34,7 +37,6 @@ SOURCES += \
     ../src/ArrowButton.cpp      \
     ../src/Button.cpp           \
     ../src/Draggable.cpp        \
-    ../src/DrawTriangle.cpp     \
     ../src/Frame.cpp            \
     ../src/FrameBorder.cpp      \
     ../src/ImageWidget.cpp      \
@@ -48,7 +50,8 @@ SOURCES += \
     ../src/EditableText.cpp     \
     ../src/FocusWidget.cpp      \
     ../src/Event.cpp            \
-    ../src/SelectionMenu.cpp
+    ../src/SelectionMenu.cpp    \
+    ../src/BookFrame.cpp
 
 HEADERS += \
     \ # private (SFML Engine) headers
@@ -60,7 +63,6 @@ HEADERS += \
     ../inc/asgl/ArrowButton.hpp    \
     ../inc/asgl/Button.hpp         \
     ../inc/asgl/Draggable.hpp      \
-    ../inc/asgl/DrawTriangle.hpp   \
     ../inc/asgl/Frame.hpp          \
     ../inc/asgl/FrameBorder.hpp    \
     ../inc/asgl/ImageWidget.hpp    \
@@ -74,6 +76,7 @@ HEADERS += \
     ../inc/asgl/Widget.hpp         \
     ../inc/asgl/Visitor.hpp        \
     ../inc/asgl/SelectionMenu.hpp  \
+    ../inc/asgl/BookFrame.hpp      \
     \#../inc/asgl/ForwardWidgets.hpp \
     ../inc/asgl/EditableText.hpp   \
     ../inc/asgl/FocusWidget.hpp    \

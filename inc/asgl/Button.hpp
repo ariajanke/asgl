@@ -103,7 +103,14 @@ public:
 
     void process_focus_event(const Event &) final;
 
-    void draw(WidgetRenderer &) const override;
+    void draw_frame(WidgetRenderer &) const;
+
+    /** Sets whether or not this widget is visible to focus advances and for
+     *  many buttons (the builtin widgets at least) will not appear on screen.
+     */
+    void set_visible(bool);
+
+    bool is_visible() const noexcept;
 
 protected:
     /** Creates a zero-sized, white colored button. Pending setting of styles.
@@ -133,6 +140,8 @@ protected:
     /** When called, changes button's location. */
     void set_location_(int x, int y) override;
 
+    bool is_visible_for_focus_advance() const override;
+
 private:
     template <typename T>
     using KeyTuple = std::tuple<T, T, T, T>;
@@ -154,6 +163,7 @@ private:
     int m_padding = styles::k_uninit_size;
     bool m_is_focused = false;
     bool m_is_hovered = false;
+    bool m_is_visible = true ;
 
     BlankFunctor m_press_functor = [](){};
 };

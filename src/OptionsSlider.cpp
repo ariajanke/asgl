@@ -234,6 +234,13 @@ void OptionsSlider::draw(WidgetRenderer & target) const {
         const auto last_idx = m_options.size() - 1;
         m_left_arrow .set_direction(idx == 0        ? Dir::k_none : Dir::k_left );
         m_right_arrow.set_direction(idx == last_idx ? Dir::k_none : Dir::k_right);
+        auto check_and_shift_focus = [](ArrowButton & checked, ArrowButton & other) {
+            if (   ArrowButtonOptionsSliderAtt::has_focus(checked)
+                && checked.direction() == ArrowButton::Direction::k_none)
+            { ArrowButtonOptionsSliderAtt::request_focus(other); }
+        };
+        check_and_shift_focus(m_left_arrow , m_right_arrow);
+        check_and_shift_focus(m_right_arrow, m_left_arrow );
     }
 }
 

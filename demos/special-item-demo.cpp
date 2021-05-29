@@ -2,11 +2,13 @@
 
 #include <asgl/Frame.hpp>
 #include <asgl/TextButton.hpp>
+#include <asgl/TextArea.hpp>
 
 #include <common/SfmlVectorTraits.hpp>
 
 #include <SFML/Graphics/RenderWindow.hpp>
 #include <SFML/System/Sleep.hpp>
+#include <SFML/Graphics/RenderTexture.hpp>
 
 #include <iostream>
 
@@ -15,12 +17,15 @@
 
 namespace {
 
-using CustomRectangleItem = asgl::SfmlFlatEngine::CustomRectangleItem;
+//using CustomRectangleItem = asgl::SfmlFlatEngine::CustomRectangleItem;
 using VectorD = cul::Vector2<double>;
+using UiVector = asgl::Vector;
+using UiSize   = asgl::Size;
 using sf::Vertex;
 using sf::Color;
 using asgl::Frame;
 using asgl::TextButton;
+using asgl::TextArea;
 
 constexpr const double k_pi = cul::k_pi_for_type<double>;
 
@@ -243,7 +248,7 @@ private:
         auto & bubble = m_bubbles.back();
         bubble.velocity = VectorD(0, -1)*double(IntDistri(params.min_speed, params.max_speed)(m_rng));
         bubble.radius   = IntDistri(params.min_radius, params.max_radius)(m_rng);
-        bubble.center   = VectorD(IntDistri(m_bounds.left, right_of(m_bounds))(m_rng),
+        bubble.center   = VectorD(IntDistri(m_bounds.left - bubble.radius, right_of(m_bounds) + bubble.radius)(m_rng),
                                   bottom_of(m_bounds) + bubble.radius);
         BubbleRingMaker brm;
         uint8_t mid_alpha = 0;
@@ -311,23 +316,106 @@ private:
     std::vector<Bubble> m_bubbles;
 };
 
+class SpecialBubbleWidget final : public asgl::Widget, public sf::Drawable {
+public:
+    static constexpr const int k_width  = 400;
+    static constexpr const int k_height = 300;
+    void setup() {
+        m_bubble_background.set_bounds(0, 0, k_width, k_height);
+        if (!m_os_buffer.create(k_width, k_height)) {
+            throw std::runtime_error("Cannot create off screen buffer.");
+        }
+    }
+
+    void update(double et) {
+        m_bubble_background.update(et);
+        m_os_buffer.clear();
+        m_os_buffer.draw(m_bubble_background);
+        m_os_buffer.display();
+    }
+
+    void process_event(const asgl::Event &) override {}
+
+    UiVector location() const override { return m_location; }
+
+    UiSize size() const override {
+        return cul::convert_to<UiSize>(m_os_buffer.getSize());
+    }
+
+    void stylize(const asgl::StyleMap &) override {}
+
+    void update_size() override {}
+
+    void draw(asgl::WidgetRenderer & target) const override {
+        const static auto k_special_item = asgl::SfmlFlatEngine::to_item_key(asgl::sfml_items::k_special_draw_item);
+        draw_special_to(target, k_special_item);
+    }
+
+private:
+    void set_location_(int x, int y) override { m_location = UiVector(x, y); }
+
+    void draw(sf::RenderTarget & target, sf::RenderStates states) const final {
+        sf::Sprite sprite;
+        sprite.setPosition(cul::convert_to<sf::Vector2f>(m_location));
+        sprite.setTexture(m_os_buffer.getTexture());
+        target.draw(sprite, states);
+    }
+
+    BubbleBackground m_bubble_background;
+    sf::RenderTexture m_os_buffer;
+    UiVector m_location;
+};
+
 class TopFrame final : public Frame {
 public:
     void assign_exit_bool(bool & exit_bool) { m_exit_ptr = &exit_bool; }
 
-    void setup();
+    void update(double et) { m_special_widget.update(et); }
+
+    void setup() {
+        m_exit.set_string(U"Exit App");
+        m_info.set_limiting_line(300);
+        m_info.set_string(U"The widget below using a special \"item key\" to "
+                          "do its own API specific rendering.");
+        m_exit.set_press_event([this]() {
+            assert(m_exit_ptr);
+            *m_exit_ptr = true;
+        });
+        m_special_widget.setup();
+        begin_adding_widgets()
+            .add(m_info).add_horizontal_spacer().add_line_seperator()
+            .add_horizontal_spacer().add(m_special_widget).add_horizontal_spacer().add_line_seperator()
+            .add(m_exit);
+    }
 
 private:
     bool * m_exit_ptr = nullptr;
+    SpecialBubbleWidget m_special_widget;
+    TextArea m_info;
     TextButton m_exit;
 };
 
 } // end of <anonymous> namespace
 
 int main() {
+    asgl::SfmlFlatEngine engine;
     sf::RenderWindow win;
-    win.create(sf::VideoMode(640, 480), " ");
+
+    engine.load_global_font("font.ttf");
+    engine.assign_target_and_states(win, sf::RenderStates::Default);
+    engine.setup_default_styles();
+
+    TopFrame top_frame;
+    top_frame.setup();
+    bool should_exit = false;
+    top_frame.assign_exit_bool(should_exit);
+
+    engine.stylize(top_frame);
+    top_frame.check_for_geometry_updates();
+
+    win.create(sf::VideoMode(top_frame.width(), top_frame.height()), " ");
     win.setFramerateLimit(20);
+
 #   if 0
     auto view = win.getView();
     view.setCenter(0.f, 0.f);
@@ -346,22 +434,29 @@ int main() {
     make_ring(brm, bubble_radius, 0.3, 19);
     auto product = brm.give_product();
 #   endif
+#   if 0
     BubbleRingMaker brm;
     brm.set_radius(30.);
     make_ring(brm, 30., 0.1, 6);
 
     BubbleBackground bubble_background;
     bubble_background.set_bounds(0, 0, win.getSize().x, win.getSize().y);
-
-    while (win.isOpen()) {
+#   endif
+    while (win.isOpen() && !should_exit) {
         sf::Event event;
         while (win.pollEvent(event)) {
+            top_frame.process_event(asgl::SfmlFlatEngine::convert(event));
             if (event.type == sf::Event::Closed)
                 win.close();
         }
         win.clear();
+        top_frame.check_for_geometry_updates();
+        top_frame.update(1. / 60.);
+        top_frame.draw(engine);
+#       if 0
         bubble_background.update(1. / 60.);
         win.draw(bubble_background);
+#       endif
         win.display();
         sf::sleep(sf::microseconds(16667));
     }

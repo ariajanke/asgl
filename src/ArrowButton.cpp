@@ -50,10 +50,15 @@ void ArrowButton::stylize(const StyleMap & smap) {
 }
 
 void ArrowButton::draw(WidgetRenderer & target) const {
-    Button::draw(target);
+    if (!is_visible()) return;
+    draw_frame(target);
     if (m_dir != Direction::k_none) {
         draw_to(target, m_tri, m_triangle_style);
     }
+}
+
+/* private */ bool ArrowButton::is_visible_for_focus_advance() const {
+    return is_visible() && m_dir != Direction::k_none;
 }
 
 /* private */ void ArrowButton::update_points() {
@@ -91,6 +96,11 @@ void ArrowButton::draw(WidgetRenderer & target) const {
         deselect();
         break;
     }
+}
+
+/* private */ void ArrowButton::set_location_(int x, int y) {
+    Button::set_location_(x, y);
+    update_points();
 }
 
 } // end of asgl namespace

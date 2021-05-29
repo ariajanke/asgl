@@ -132,30 +132,30 @@ namespace mouse {
 
 } // end of mouse namespace -> into ::asgl
 
-struct KeyTyped {
+struct KeyTyped final {
     char32_t code;
 };
 
 using MouseButton = mouse::Button;
 
-struct MousePress : public mouse::MouseEventImpl {
+struct MousePress final : public mouse::MouseEventImpl {
     MousePress() = default;
     explicit MousePress(const mouse::MouseEventImpl & o): mouse::MouseEventImpl(o) {}
 };
 
-struct MouseRelease : public mouse::MouseEventImpl {
+struct MouseRelease final : public mouse::MouseEventImpl {
     MouseRelease() = default;
     explicit MouseRelease(const mouse::MouseEventImpl & o): mouse::MouseEventImpl(o) {}
 };
 
-struct MouseMove : public MouseLocation {};
+struct MouseMove final : public MouseLocation {};
 
-struct KeyPress : public keys::KeyEventImpl {
+struct KeyPress final : public keys::KeyEventImpl {
     KeyPress() = default;
     explicit KeyPress(const keys::KeyEventImpl & o): keys ::KeyEventImpl(o) {}
 };
 
-struct KeyRelease : public keys::KeyEventImpl {
+struct KeyRelease final : public keys::KeyEventImpl {
     KeyRelease() = default;
     explicit KeyRelease(const keys::KeyEventImpl & o): keys ::KeyEventImpl(o) {}
 };
@@ -178,8 +178,39 @@ enum GeneralMotionEnum {
 
 using GeneralMotion = general_motion::GeneralMotionEnum;
 
+namespace gamepad {
+
+constexpr const int k_no_id     = -1;
+constexpr const int k_no_button = -1;
+
+struct Button {
+    int gamepad_id = k_no_id;
+    int button     = k_no_button;
+};
+
+struct Axis {
+    int gamepad_id = k_no_id;
+    int axis_id = k_no_id;
+    // [-1 1]
+    double position = 0.;
+};
+
+} // end of gamepad namespace -> into ::asgl
+
+using AxisMove = gamepad::Axis;
+struct ButtonPress final : public gamepad::Button {
+    ButtonPress() = default;
+    ButtonPress(const gamepad::Button & o): gamepad::Button(o) {}
+};
+
+struct ButtonRelease final : public gamepad::Button {
+    ButtonRelease() = default;
+    ButtonRelease(const gamepad::Button & o): gamepad::Button(o) {}
+};
+
 using Event = cul::MultiType<
     MousePress, MouseRelease, MouseMove, KeyPress, KeyRelease, KeyTyped,
+    AxisMove, ButtonPress, ButtonRelease,
     GeneralMotion
 >;
 
@@ -193,10 +224,7 @@ Key collapse_modifiers(Key);
 inline Key collapse_all(Key k) { return collapse_numerics(collapse_modifiers(k)); }
 
 char to_char(const keys::KeyEventImpl &);
-#if 0
-inline sf::Vector2i to_vector(const asgl::MouseLocation & loc)
-    { return sf::Vector2i(loc.x, loc.y); }
-#endif
+
 std::string to_string(const Event &);
 
 } // end of asgl namespace

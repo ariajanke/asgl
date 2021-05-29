@@ -43,15 +43,10 @@ template <typename T>
 bool is_contained_in(T x_, T y_, const cul::Rectangle<T> & rect)
     { return is_contained_in(cul::Vector2<T>(x_, y_), rect); }
 
-#if 0
-inline bool is_contained(const Rectangle & rect, const Vector & r) {
-    using namespace cul;
-    return    r.x >= rect.left      && r.y >= rect.top
-           && r.x <  right_of(rect) && r.y <  bottom_of(rect);
+template <typename T>
+cul::Size2<T> max_size(const cul::Size2<T> & lhs, const cul::Size2<T> & rhs) {
+    return cul::Size2<T>(std::max(lhs.width , rhs.width ),
+                         std::max(lhs.height, rhs.height));
 }
 
-inline bool is_contained(const Rectangle & rect, int x, int y) {
-    return is_contained(rect, Vector(x, y));
-}
-#endif
 } // end of asgl namespace

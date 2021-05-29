@@ -87,8 +87,11 @@ public:
     // - rendering images with any texture rectangle
     virtual void render_rectangle_pair
         (const Rectangle &, const Rectangle &, ItemKey, const void * widget_spec_ptr) = 0;
-    virtual void render_triangle (const Triangle &, ItemKey, const void * widget_spec_ptr) = 0;
+    virtual void render_triangle(const Triangle &, ItemKey, const void * widget_spec_ptr) = 0;
     virtual void render_text(const TextBase &) = 0;
+
+    // there is no way to double dispatch this or to *not* pass a this pointer
+    virtual void render_special(ItemKey, const Widget * instance_pointer) = 0;
 };
 
 /** A frame needs four things from a widget, in order to position the widget
@@ -108,13 +111,11 @@ public:
 
     VectorI location() const override;
 
-    int width() const override;
-
-    int height() const override;
+    SizeI size() const override;
 
     void stylize(const StyleMap &) override;
 
-    void update_geometry() override;
+    void update_size() override;
 
     void draw(WidgetRenderer &) const override;
 
@@ -220,6 +221,8 @@ protected:
     void draw_to(WidgetRenderer &, const Rectangle &, const Rectangle &, ItemKey) const;
 
     void draw_to(WidgetRenderer &, const Triangle &, ItemKey) const;
+
+    void draw_special_to(WidgetRenderer &, ItemKey) const;
 
     /** Set this flag if you need to resize the whole frame/family of widgets,
      *  in addition to local geometric computations.

@@ -34,6 +34,7 @@ struct ImageResource {
     virtual ~ImageResource();
     virtual int image_width() const = 0;
     virtual int image_height() const = 0;
+    Size image_size() const { return Size(image_width(), image_height()); }
     virtual ItemKey item_key() const = 0;
 };
 
@@ -63,6 +64,8 @@ public:
     Vector location() const final;
 
     Size size() const final;
+
+    void set_size(Size);
 
     void set_size(int w, int h);
 

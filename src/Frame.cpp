@@ -230,6 +230,12 @@ void WidgetAdder::swap(WidgetAdder & rhs) {
     check_invarients();
 }
 
+/* protected */ void BareFrame::draw_widgets(WidgetRenderer & target) const {
+    for (const auto * widget_ptr : m_widgets) {
+        widget_ptr->draw(target);
+    }
+}
+
 void BareFrame::process_event(const Event & event) {
     auto gv = decoration().process_event(event);
     if (!gv.skip_other_events) {
@@ -329,9 +335,7 @@ void BareFrame::check_for_geometry_updates() {
 
 void BareFrame::draw(WidgetRenderer & target) const {
     decoration().draw(target);
-    for (const auto * widget_ptr : m_widgets) {
-        widget_ptr->draw(target);
-    }    
+    draw_widgets(target);
 }
 
 void BareFrame::get_widget_placements(WidgetPlacementVector & vec, const int k_horz_space) const {
@@ -400,6 +404,8 @@ void BareFrame::swap(BareFrame & lhs) {
     // place without spacers
     {
     int available_width = deco.maximum_width_for_widgets();
+    // some widgets may change size...
+    for (auto & spacer : m_horz_spacers) spacer.set_width(0);
     get_widget_placements(m_widget_placements, available_width);
     }
 

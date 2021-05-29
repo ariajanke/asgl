@@ -235,7 +235,9 @@ void FrameBorder::stylize(const StyleMap & smap) {
 
 Size FrameBorder::request_size(int w, int h) {
     Size accepted_size;
-    accepted_size.height = h;
+    accepted_size.height = std::max(m_height_minimum, h);
+
+    // on width
     accepted_size.width  = std::max(                  w, m_width_minimum);
     accepted_size.width  = std::min(accepted_size.width, m_width_maximum);
     auto total_pad = (m_outer_padding + m_inner_padding)*2;
@@ -288,6 +290,11 @@ void FrameBorder::set_width_minimum(int i) {
 void FrameBorder::set_width_maximum(int i) {
     Widget::Helpers::verify_non_negative(i, "set_width_maximum", "maximum width");
     m_width_maximum = i;
+}
+
+void FrameBorder::set_height_minimum(int i) {
+    Widget::Helpers::verify_non_negative(i, "set_height_minimum", "minimum height");
+    m_height_minimum = i;
 }
 
 void FrameBorder::set_border_padding(int pad) {
