@@ -93,6 +93,8 @@ private:
 
     void update_selections();
 
+    void update_interal_positions();
+
     int padding() const;
 
     ArrowButton m_left_arrow;

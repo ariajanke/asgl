@@ -25,8 +25,9 @@ debug {
 
 # SOURCES += ../demos/custom-frame-background-demo.cpp
 # SOURCES += ../demos/demo.cpp
-#SOURCES += ../demos/select-menu-demo.cpp
-SOURCES += ../demos/book-demo.cpp
+SOURCES += ../demos/select-menu-demo.cpp
+# SOURCES += ../demos/book-demo.cpp
+# SOURCES += ../demos/textarea-tests.cpp
 
 SOURCES += \
     \ # SFML Engine

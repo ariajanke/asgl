@@ -64,8 +64,8 @@ Vector OptionsSlider::location() const
     { return m_left_arrow.location(); }
 
 Size OptionsSlider::size() const {
-    return Size(m_inner_bounds.width + m_inner_bounds.height*2
-               ,m_inner_bounds.height);
+    return Size(m_inner_bounds.width + m_inner_bounds.height*2,
+                m_inner_bounds.height);
 }
 
 void OptionsSlider::stylize(const StyleMap & stylemap) {
@@ -89,19 +89,20 @@ void OptionsSlider::stylize(const StyleMap & stylemap) {
 
 void OptionsSlider::set_options(const std::vector<UString> & options) {
     m_options = options;
+    update_selections();
     flag_needs_whole_family_geometry_update();
 }
 
 void OptionsSlider::set_options(std::vector<UString> && options) {
     m_options = std::move(options);
+    update_selections();
     flag_needs_whole_family_geometry_update();
 }
 
 void OptionsSlider::select_option(std::size_t index) {
-    if (index == m_selected_index) return;    
+    if (index == m_selected_index) return;
     m_selected_index = index;
     update_selections();
-    flag_needs_individual_geometry_update();
 }
 
 std::size_t OptionsSlider::selected_option_index() const
@@ -113,9 +114,8 @@ const UString & OptionsSlider::selected_option() const
 std::size_t OptionsSlider::options_count() const
     { return m_options.size(); }
 
-void OptionsSlider::set_option_change_event(BlankFunctor && func) {
-    m_press_func = std::move(func);
-}
+void OptionsSlider::set_option_change_event(BlankFunctor && func)
+    { m_press_func = std::move(func); }
 
 void OptionsSlider::swap(OptionsSlider & rhs) {
     using std::swap;
@@ -187,26 +187,7 @@ void OptionsSlider::draw(WidgetRenderer & target) const {
 
 /* private */ void OptionsSlider::set_location_(int x, int y) {
     m_left_arrow.set_location(x, y);
-
-    // update other internals
-    m_left_arrow .set_size(m_inner_bounds.height, m_inner_bounds.height);
-    m_right_arrow.set_size(m_inner_bounds.height, m_inner_bounds.height);
-
-    // inner part
-    int left_arrow_right = m_left_arrow.location().x + m_left_arrow.width();
-    set_top_left_of(m_inner_bounds, left_arrow_right, m_left_arrow.location().y);
-
-    // center text
-    int center_offset = std::max(0, m_inner_bounds.width - m_text.width()) / 2;
-    m_text.set_location(left_arrow_right + center_offset,
-                        m_left_arrow.location().y + padding());
-
-    // reposition right arrow
-    m_right_arrow.set_location(
-        left_arrow_right + m_inner_bounds.width,
-        m_left_arrow.location().y);
-
-    update_selections();
+    update_interal_positions();
 }
 
 /* private */ void OptionsSlider::set_arrow_events() {
@@ -242,6 +223,28 @@ void OptionsSlider::draw(WidgetRenderer & target) const {
         check_and_shift_focus(m_left_arrow , m_right_arrow);
         check_and_shift_focus(m_right_arrow, m_left_arrow );
     }
+    flag_needs_individual_geometry_update();
+}
+
+/* private */ void OptionsSlider::update_interal_positions() {
+    // update other internals
+    auto arrow_size = m_inner_bounds.height;
+    m_left_arrow .set_size(arrow_size, arrow_size);
+    m_right_arrow.set_size(arrow_size, arrow_size);
+
+    // inner part
+    int left_arrow_right = m_left_arrow.location().x + m_left_arrow.width();
+    set_top_left_of(m_inner_bounds, left_arrow_right, m_left_arrow.location().y);
+
+    // center text
+    int center_offset = std::max(0, m_inner_bounds.width - m_text.width()) / 2;
+    m_text.set_location(left_arrow_right + center_offset,
+                        m_left_arrow.location().y + padding());
+
+    // reposition right arrow
+    m_right_arrow.set_location(
+        left_arrow_right + m_inner_bounds.width,
+        m_left_arrow.location().y);
 }
 
 /* private */ int OptionsSlider::padding() const
