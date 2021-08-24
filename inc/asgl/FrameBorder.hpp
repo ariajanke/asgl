@@ -252,7 +252,7 @@ private:
     void update_title_location_and_height();
 
     StyleKey m_bar_style; // default value setup by Frame :/
-    ItemKey m_bar_item;
+    StyleValue m_bar_item;
     Rectangle m_bounds;
     Text m_title;
 };
@@ -325,7 +325,7 @@ public:
     /** Sets both inner and outer padding for the frame. */
     void set_border_padding(int);
 
-    void set_style(FrameStyle, ItemKey);
+    void set_style(FrameStyle, StyleValue);
 
 private:
     void on_inform_is_child() final {}
@@ -355,7 +355,7 @@ private:
     StyleKey m_padding_style = styles::k_global_padding;
     StyleKey m_border_style;
     StyleKey m_widget_body_style = to_key(frame_styles::k_widget_body_style);
-    ItemKey m_border_item, m_widget_body_item;
+    StyleValue m_border_item, m_widget_body_item;
 
     ClickFunctor m_click_in_frame = do_default_click_event;
 };

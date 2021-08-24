@@ -31,10 +31,11 @@
 
 namespace asgl {
 
+class WidgetAdderAttn;
+
 class WidgetAdder {
 public:
     WidgetAdder() {}
-    WidgetAdder(BareFrame *, detail::LineSeperator *);
     WidgetAdder(const WidgetAdder &) = delete;
     WidgetAdder(WidgetAdder &&);
 
@@ -51,6 +52,15 @@ public:
     void swap(WidgetAdder &);
 
 private:
+#   if 0
+    WidgetAdder(BareFrame *, detail::LineSeperator *);
+#   endif
+    WidgetAdder(BareFrame *, detail::LineSeperator *, std::vector<Widget *> &&,
+                std::vector<detail::HorizontalSpacer> &&);
+
+    friend class WidgetAdderAttn;
+    void check_parent_ok() const;
+
     std::vector<Widget *> m_widgets;
     std::vector<detail::HorizontalSpacer> m_horz_spacers;
     detail::LineSeperator * m_the_line_sep = nullptr;
@@ -257,6 +267,9 @@ protected:
 private:
     class WidgetBoundsFinder {
     public:
+        void set_to_zero() {
+            x_low = y_low = x_high = y_high = 0;
+        }
 
         void record_widget_bounds(Vector location, const Widget & widget) {
             x_low  = std::min(x_low , location.x);
@@ -273,6 +286,7 @@ private:
         int recorded_height() const { return y_high - y_low; }
 
         bool operator == (const WidgetBoundsFinder & rhs) const { return  are_same(rhs); }
+
         bool operator != (const WidgetBoundsFinder & rhs) const { return !are_same(rhs); }
 
     private:
@@ -313,7 +327,7 @@ private:
     LineSeperator m_the_line_seperator;
     std::vector<HorizontalSpacer> m_horz_spacers;
 
-    detail::FrameFocusHandler m_focus_handler;
+    LinearFocusHandler m_focus_handler;
 
     WidgetBoundsFinder m_widget_extremes;
 };
@@ -366,7 +380,7 @@ public:
     void set_height_minimum(int minh)
         { m_border.set_height_minimum(minh); }
 
-    void set_style(FrameStyle e, ItemKey item)
+    void set_style(FrameStyle e, StyleValue item)
         { m_border.set_style(e, item); }
 
     void set_border_padding(int pad)
@@ -411,15 +425,13 @@ public:
     ~SimpleFrame() override;
 };
 
-inline void Frame::set_title(const UString & str)
-    { m_border.set_title(str); }
+// ----------------------------------------------------------------------------
 
-inline void Frame::set_drag_enabled(bool b) {
-    if (b) m_border.watch_for_drag_events();
-    else   m_border.ignore_drag_events   ();
-}
-
-inline bool Frame::has_drag_enabled() const
-    { return m_border.is_watching_for_drag_events(); }
+class WidgetAdderAttn {
+    friend class BareFrame;
+    static WidgetAdder make_adder
+        (BareFrame *, detail::LineSeperator *, std::vector<Widget *> &&,
+         std::vector<detail::HorizontalSpacer> &&);
+};
 
 } // end of asgl namespace

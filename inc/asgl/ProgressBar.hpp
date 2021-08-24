@@ -92,9 +92,9 @@ private:
     StyleKey m_void_key  = DefaultStyles::to_key(k_void_style   );
     StyleKey m_pad_key   = DefaultStyles::to_key(k_padding_style);
 
-    ItemKey m_fill_style;
-    ItemKey m_void_style;
-    ItemKey m_outer_style;
+    StyleValue m_fill_style;
+    StyleValue m_void_style;
+    StyleValue m_outer_style;
 };
 
 } // end of asgl namespace

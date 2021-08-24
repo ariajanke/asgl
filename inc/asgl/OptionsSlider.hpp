@@ -101,8 +101,8 @@ private:
     ArrowButton m_right_arrow;
 
     int m_padding = styles::k_uninit_size;
-    ItemKey m_back;
-    ItemKey m_front;
+    StyleValue m_back;
+    StyleValue m_front;
 
     StyleKey m_back_style    = to_key(k_back_style);
     StyleKey m_front_style   = to_key(k_front_style);

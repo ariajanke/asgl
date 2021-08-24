@@ -83,7 +83,7 @@ private:
 
     void update_size() override {}
 
-    ItemKey m_triangle_style;
+    StyleValue m_triangle_style;
     Triangle m_tri;
     Direction m_dir;
 };

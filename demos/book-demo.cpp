@@ -322,16 +322,15 @@ int main() {
     TopLevelFrame test_frame;
     sf::RenderWindow win;
 
-    engine.assign_target_and_states(win, sf::RenderStates::Default);
     engine.load_global_font("font.ttf");
     test_frame.setup(engine);
     engine.stylize(test_frame);
     test_frame.check_for_geometry_updates();
 
     win.create(sf::VideoMode
-        (std::max(200, test_frame.width ())
-        ,std::max(200, test_frame.height()))
-        /* title */ ,"");
+        (std::max(200, test_frame.width ()),
+         std::max(200, test_frame.height())),
+        "Book Frame Demo");
     win.setFramerateLimit(20);
     while (win.isOpen()) {
         if (test_frame.is_requesting_exit()) return 0;
@@ -351,7 +350,7 @@ int main() {
         sf::sleep(sf::microseconds(16667));
         test_frame.check_for_geometry_updates();
         win.clear(sf::Color(40, 180, 40));
-        test_frame.draw(engine);
+        engine.draw(test_frame, win);
 
         win.display();
     }

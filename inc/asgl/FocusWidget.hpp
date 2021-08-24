@@ -32,19 +32,19 @@ namespace asgl {
 
 class FocusReceiver;
 
+class LinearFocusHandler;
+#if 0
 namespace detail {
 
-class FrameFocusHandler;
-
 class FocusWidgetAtt {
-    friend class asgl::detail::FrameFocusHandler;
+    friend class asgl::LinearFocusHandler;
     static void notify_focus_gained(FocusReceiver &);
     static void notify_focus_lost  (FocusReceiver &);
     static bool is_visible_for_focus_advance(const FocusReceiver &);
 };
 
 } // end of detail namespace -> into ::asgl
-
+#endif
 /** A focus widget is a widget which receives special attention (usually from
  *  the keyboard). An example of a focus widget is a textbox.
  *
@@ -58,7 +58,9 @@ class FocusWidgetAtt {
  */
 class FocusReceiver {
 public:
+#   if 0
     friend class detail::FocusWidgetAtt;
+#   endif
     virtual ~FocusReceiver();
 
     /** This function is called for any special event processing specific for
@@ -72,14 +74,10 @@ public:
      */
     bool reset_focus_request();
 
-protected:
-    /** A widget may request focus. Frames will respond to requests and reset
-     *  them on process_event.
-     */
-    void request_focus() { m_request_focus = true; }
-
+    /** Called by the focus handler when this receiver receives focus. */
     virtual void notify_focus_gained() = 0;
 
+    /** Called by the focus handler when this receiver loses focus. */
     virtual void notify_focus_lost() = 0;
 
     /** When this function returns false, this widget will become "invisible"
@@ -89,6 +87,16 @@ protected:
      */
     virtual bool is_visible_for_focus_advance() const { return true; }
 
+protected:
+    /** A widget may request focus. Frames will respond to requests and reset
+     *  them on process_event.
+     */
+    void request_focus() { m_request_focus = true; }
+
+    /** @returns true when this receiver has the focus, false otherwise
+     *  @note returning true while not being the actual focus suggests a bug
+     *        in this library
+     */
     bool has_focus() const { return m_has_focus; }
 
 private:
@@ -98,9 +106,15 @@ private:
 
 class FocusWidget : public FocusReceiver, public Widget {};
 
+class FocusHandler {
+public:
+    virtual void process_event(const Event &) = 0;
+    virtual ~FocusHandler() {}
+};
+#if 0
 namespace detail {
-
-class FrameFocusHandler {
+#endif
+class LinearFocusHandler final {
 public:
     using FocusChangeFunc = std::function<bool(const Event &)>;
     using FocusContainer  = std::vector<FocusReceiver *>;
@@ -131,12 +145,10 @@ public:
      *         focus events to the current focus widget.
      */
     void process_event(const Event &);
-#   if 0
+
     /** This function provides a point for Frames to deposit all focus widgets
      *  to.
      */
-    [[deprecated]] void take_widgets_from(std::vector<FocusReceiver *> &);
-#   endif
     void check_for_child_widget_updates(Widget &);
 
     /** @brief Clears all focus widgets, essentially disabling focus events.
@@ -173,13 +185,15 @@ private:
 
     void check_for_visibility_loss();
 
+    void update_focus(FocusContIter & field, FocusContIter new_value) const;
+
     FocusChangeFunc m_advance_func = default_focus_advance;
     FocusChangeFunc m_regress_func = default_focus_regress;
 
     FocusContainer m_focus_widgets;
     FocusContIter m_current_position;
 };
-
+#if 0
 } // end of detail namespace -> into ::asgl
-
+#endif
 } // end of asgl namespace

@@ -58,12 +58,14 @@ Widget::~Widget() {}
 void Widget::set_location(int x, int y) {
     // setting location should not affect the size of the widget, and this is
     // strictly enforced
-    auto w = width(), h = height();
+    auto old_size = size();
     set_location_(x, y);
-    if (w == width() && h == height()) return;
+    if (old_size == size()) return;
     throw RtError("Widget::set_location: re-positioning the widget should not "
                   "change its size.");
 }
+
+void Widget::set_location(Vector r) { set_location(r.x, r.y); }
 
 void Widget::iterate_children(const ChildWidgetIterator & itr)
     { iterate_children_(itr); }
@@ -80,20 +82,20 @@ void Widget::assign_flags_receiver(WidgetFlagsReceiver * ptr)
     (const ChildConstWidgetIterator &) const {}
 
 /* protected */ void Widget::draw_to
-    (WidgetRenderer & target, const Rectangle & rect, ItemKey key) const
+    (WidgetRenderer & target, const Rectangle & rect, StyleValue key) const
 { target.render_rectangle(rect, key, this); }
 
 /* protected */ void Widget::draw_to
     (WidgetRenderer & target, const Rectangle & lrect,
-     const Rectangle & rrect, ItemKey key) const
+     const Rectangle & rrect, StyleValue key) const
 { target.render_rectangle_pair(lrect, rrect, key, this); }
 
 /* protected */ void Widget::draw_to
-    (WidgetRenderer & target, const Triangle & tri, ItemKey key) const
+    (WidgetRenderer & target, const Triangle & tri, StyleValue key) const
 { target.render_triangle(tri, key, this); }
 
 /* protected */ void Widget::draw_special_to
-    (WidgetRenderer & target, ItemKey key) const
+    (WidgetRenderer & target, StyleValue key) const
 {
     target.render_special(key, this);
 }
@@ -112,22 +114,22 @@ void Widget::assign_flags_receiver(WidgetFlagsReceiver * ptr)
             throw InvArg("Widget::Helpers::handle_required_fields: all "
                          "item pointers must point to something.");
         }
-        if (!field && *style_ptr == ItemKey()) {
+        if (!field && *style_ptr == StyleValue()) {
             throw RtError(std::string(caller)
                   + ": map missing required field named \""
                   + std::string(name) + "\".");
         }
     }
     for (auto & [style_ptr, name, field] : fields) {
-        if (*style_ptr != ItemKey()) continue;
+        if (*style_ptr != StyleValue()) continue;
         *style_ptr = verify_item_key_field(*field, caller, name);
     }
 }
 
-/* static */ ItemKey Widget::Helpers::verify_item_key_field
+/* static */ StyleValue Widget::Helpers::verify_item_key_field
     (const StyleField & field, const char * full_caller, const char * key_name)
 {
-    if (auto * rv = field.as_pointer<ItemKey>()) {
+    if (auto * rv = field.as_pointer<StyleValue>()) {
         return *rv;
     }
     throw InvArg(std::string(full_caller) + ": field \""
@@ -196,10 +198,7 @@ void WidgetFlagsReceiverWidget::receive_individual_update_needed(Widget * wid) {
         if (widget == before) continue;
         // a different way to redo geometry
         auto loc = widget->location();
-        auto old_size = widget->size();
         widget->set_location(loc.x, loc.y);
-        if (old_size != widget->size())
-            { throw make_size_changed_error("unset_flags"); }
         before = widget;
     }
     m_individuals.clear();
@@ -208,11 +207,5 @@ void WidgetFlagsReceiverWidget::receive_individual_update_needed(Widget * wid) {
 /* protected */ bool WidgetFlagsReceiverWidget::
     needs_whole_family_geometry_update() const
     { return m_geo_update_flag; }
-
-/* private static */ RtError WidgetFlagsReceiverWidget::make_size_changed_error(const char * caller) noexcept {
-    return RtError("FlagsReceivingWidget::" + std::string(caller)
-                   + ": Widgets must not change size on individual updates "
-                     "(call \"receive_whole_family_upate_needed\" instead.)");
-}
 
 } // end of asgl namespace

@@ -102,17 +102,25 @@ void run_placer_algo
 } // end of <anonymous> namespace
 
 namespace asgl {
-
+#if 0
 WidgetAdder::WidgetAdder
     (BareFrame * frame_, detail::LineSeperator * sep_):
     m_the_line_sep(sep_),
     m_parent(frame_)
 {
-    static constexpr const char * k_null_parent =
-        "WidgetAdder::WidgetAdder: [library error] Parent must not be null, "
-        "and line seperator must refer to something.";
-    if (!m_parent || !m_the_line_sep) { throw InvArg(k_null_parent); }
+    check_parent_ok();
 }
+#endif
+WidgetAdder::WidgetAdder
+    (BareFrame * parent, detail::LineSeperator * sep_,
+     std::vector<Widget *> && widget_cont,
+     std::vector<detail::HorizontalSpacer> && horz_cont)
+:
+    m_widgets(std::move(widget_cont)),
+    m_horz_spacers(std::move(horz_cont)),
+    m_the_line_sep(sep_),
+    m_parent(parent)
+{ check_parent_ok(); }
 
 WidgetAdder::WidgetAdder(WidgetAdder && rhs)
     { swap(rhs); }
@@ -189,6 +197,13 @@ void WidgetAdder::swap(WidgetAdder & rhs) {
     m_horz_spacers.swap(rhs.m_horz_spacers);
     std::swap(m_the_line_sep, rhs.m_the_line_sep);
     std::swap(m_parent, rhs.m_parent);
+}
+
+/* private */ void WidgetAdder::check_parent_ok() const {
+    static constexpr const char * k_null_parent =
+        "WidgetAdder::WidgetAdder: [library error] Parent must not be null, "
+        "and line seperator must refer to something.";
+    if (!m_parent || !m_the_line_sep) { throw InvArg(k_null_parent); }
 }
 
 // ----------------------------------------------------------------------------
@@ -269,12 +284,19 @@ Vector BareFrame::location() const {
 Size BareFrame::size() const {
     using std::max;
     auto deco_size = decoration().size();
-    return Size(max(deco_size.width , m_widget_extremes.recorded_width ())
-               ,max(deco_size.height, m_widget_extremes.recorded_height()));
+    return Size(max(deco_size.width , m_widget_extremes.recorded_width ()),
+                max(deco_size.height, m_widget_extremes.recorded_height()));
 }
 
-WidgetAdder BareFrame::begin_adding_widgets()
-    { return WidgetAdder(this, &m_the_line_seperator); }
+WidgetAdder BareFrame::begin_adding_widgets() {
+#   if 0
+    return WidgetAdder(this, &m_the_line_seperator);
+#   endif
+    m_widgets.clear();
+    m_horz_spacers.clear();
+    return WidgetAdderAttn::make_adder
+        (this, &m_the_line_seperator, std::move(m_widgets), std::move(m_horz_spacers));
+}
 
 void BareFrame::finalize_widgets(std::vector<Widget *> && widgets,
     std::vector<HorizontalSpacer> && spacers, LineSeperator * the_line_sep)
@@ -456,6 +478,10 @@ void BareFrame::swap(BareFrame & lhs) {
     (const WidgetPlacementVector & widget_placements)
 {
     WidgetBoundsFinder widget_extremes;
+    if (widget_placements.empty()) {
+        widget_extremes.set_to_zero();
+        return widget_extremes;
+    }
     for (auto [widget_ptr, loc] : widget_placements) {
         // the line seperator reports itself as being at the origin
         // regardless of placement, this can result in inaccurate bounds
@@ -468,8 +494,32 @@ void BareFrame::swap(BareFrame & lhs) {
 
 // ----------------------------------------------------------------------------
 
+void Frame::set_title(const UString & str)
+    { m_border.set_title(str); }
+
+void Frame::set_drag_enabled(bool b) {
+    if (b) m_border.watch_for_drag_events();
+    else   m_border.ignore_drag_events   ();
+}
+
+bool Frame::has_drag_enabled() const
+    { return m_border.is_watching_for_drag_events(); }
+
+// ----------------------------------------------------------------------------
+
 // anchor vtable for clang
 SimpleFrame::~SimpleFrame() {}
+
+// ----------------------------------------------------------------------------
+
+/* static */ WidgetAdder WidgetAdderAttn::make_adder
+    (BareFrame * parent, detail::LineSeperator * line_sep,
+     std::vector<Widget *> && old_widget_cont,
+     std::vector<detail::HorizontalSpacer> && old_horz_cont)
+{
+    return WidgetAdder(parent, line_sep, std::move(old_widget_cont),
+                       std::move(old_horz_cont));
+}
 
 } // end of asgl namespace
 
@@ -510,7 +560,7 @@ void HorizontalSpacerUpdater::on_line_end
     }
     if (m_horz_itr == horz_line_end) return;
 
-    int space_for_spacers = m_horz_space - ns_width;
+    int space_for_spacers = std::max(0, m_horz_space - ns_width);
     int left_over_pixels  = space_for_spacers % (horz_line_end - m_horz_itr);
     space_for_spacers /= (horz_line_end - m_horz_itr);
     assert(space_for_spacers >= 0);

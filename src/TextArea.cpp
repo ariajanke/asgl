@@ -100,14 +100,14 @@ void TextArea::draw(WidgetRenderer & target) const
     }
     if (!style_key) {
         throw make_error("no text style key found.");
-    } else if (!style_key->is_type<ItemKey>()) {
+    } else if (!style_key->is_type<StyleValue>()) {
         throw make_error("text style is not an item key.");
-    } else if (style_key->as<ItemKey>() == ItemKey()) {
+    } else if (style_key->as<StyleValue>() == StyleValue()) {
         throw make_error("text style item key is the default (null) key.");
     }
     const auto & font_ = *font->as<FontPtr>().lock();
     text.set_font(font_);
-    text.stylize(style_key->as<ItemKey>());
+    text.stylize(style_key->as<StyleValue>());
 }
 
 /* private */ void TextArea::set_location_(int x, int y) {

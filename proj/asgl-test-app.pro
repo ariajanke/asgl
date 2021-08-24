@@ -23,11 +23,19 @@ debug {
     LIBS   += -lcommon
 }
 
+# source fine not found?
 # SOURCES += ../demos/custom-frame-background-demo.cpp
 # SOURCES += ../demos/demo.cpp
-SOURCES += ../demos/select-menu-demo.cpp
 # SOURCES += ../demos/book-demo.cpp
 # SOURCES += ../demos/textarea-tests.cpp
+SOURCES += ../demos/special-item-demo.cpp
+
+#SOURCES += ../demos/select-menu-demo.cpp
+#HEADERS += ../demos/select-menu/select-menu-gen.hpp
+#SOURCES += ../demos/select-menu/select-menu-gen.cpp
+#HEADERS += ../demos/select-menu/load-icons.hpp
+#SOURCES += ../demos/select-menu/load-icons.cpp
+
 
 SOURCES += \
     \ # SFML Engine
@@ -60,28 +68,31 @@ HEADERS += \
     ../src/sfml/SfmlFontAndText.hpp   \
     \ # SFML Engine
     ../inc/asgl/sfml/SfmlEngine.hpp \
+    \ # WASM Engine
+    ../inc/asgl/wasm/WasmEngine.hpp \
     \ # public headers
-    ../inc/asgl/ArrowButton.hpp    \
-    ../inc/asgl/Button.hpp         \
-    ../inc/asgl/Draggable.hpp      \
-    ../inc/asgl/Frame.hpp          \
-    ../inc/asgl/FrameBorder.hpp    \
-    ../inc/asgl/ImageWidget.hpp    \
-    ../inc/asgl/OptionsSlider.hpp  \
-    ../inc/asgl/SelectionList.hpp  \
-    ../inc/asgl/ProgressBar.hpp    \
-    ../inc/asgl/StyleMap.hpp       \
-    ../inc/asgl/TextArea.hpp       \
-    ../inc/asgl/TextButton.hpp     \
-    ../inc/asgl/Text.hpp           \
-    ../inc/asgl/Widget.hpp         \
-    ../inc/asgl/Visitor.hpp        \
-    ../inc/asgl/SelectionMenu.hpp  \
-    ../inc/asgl/BookFrame.hpp      \
+    ../inc/asgl/ArrowButton.hpp       \
+    ../inc/asgl/Button.hpp            \
+    ../inc/asgl/Draggable.hpp         \
+    ../inc/asgl/Frame.hpp             \
+    ../inc/asgl/FrameBorder.hpp       \
+    ../inc/asgl/ImageWidget.hpp       \
+    ../inc/asgl/OptionsSlider.hpp     \
+    ../inc/asgl/SelectionList.hpp     \
+    ../inc/asgl/ProgressBar.hpp       \
+    ../inc/asgl/StyleMap.hpp          \
+    ../inc/asgl/TextArea.hpp          \
+    ../inc/asgl/TextButton.hpp        \
+    ../inc/asgl/Text.hpp              \
+    ../inc/asgl/Widget.hpp            \
+    ../inc/asgl/Visitor.hpp           \
+    ../inc/asgl/SelectionMenu.hpp     \
+    ../inc/asgl/BookFrame.hpp         \
+    ../inc/asgl/SampleStyleValues.hpp \
     \#../inc/asgl/ForwardWidgets.hpp \
-    ../inc/asgl/EditableText.hpp   \
-    ../inc/asgl/FocusWidget.hpp    \
-    ../inc/asgl/Event.hpp          \
+    ../inc/asgl/EditableText.hpp      \
+    ../inc/asgl/FocusWidget.hpp       \
+    ../inc/asgl/Event.hpp             \
     ../inc/asgl/Defs.hpp
 
 INCLUDEPATH += \

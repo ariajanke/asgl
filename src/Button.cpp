@@ -167,7 +167,7 @@ bool Button::is_visible() const noexcept { return m_is_visible; }
 /* protected */ bool Button::is_visible_for_focus_advance() const
     { return is_visible(); }
 
-/* private */ ItemKey Button::get_active_item() const {
+/* private */ StyleValue Button::get_active_item() const {
     if (m_is_focused) {
         return m_is_hovered ? get<k_hover_and_focus_idx>(m_items) : get<k_focus_idx>(m_items);
     } else {

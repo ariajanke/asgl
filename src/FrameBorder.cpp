@@ -303,7 +303,7 @@ void FrameBorder::set_border_padding(int pad) {
     m_padding_style  = StyleKey();
 }
 
-void FrameBorder::set_style(FrameStyle e, ItemKey item) {
+void FrameBorder::set_style(FrameStyle e, StyleValue item) {
     using namespace frame_styles;
     switch (e) {
     case k_widget_body_style:

@@ -151,11 +151,11 @@ private:
     static constexpr const int k_focus_idx           = 2;
     static constexpr const int k_hover_and_focus_idx = 3;
 
-    ItemKey get_active_item() const;
+    StyleValue get_active_item() const;
 
     static KeyTuple<StyleKey> default_styles();
 
-    KeyTuple<ItemKey> m_items;
+    KeyTuple<StyleValue> m_items;
     KeyTuple<StyleKey> m_styles = default_styles();
 
     Rectangle m_back, m_front;

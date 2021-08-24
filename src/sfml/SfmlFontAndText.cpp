@@ -122,7 +122,7 @@ namespace asgl {
 
 namespace detail {
 
-void TextWithFontStyle::stylize(ItemKey itemkey) {
+void TextWithFontStyle::stylize(StyleValue itemkey) {
     auto make_error = [](const char * what)
         { return RtError("TextWithFontStyle::stylize: " + std::string(what)); };
     if (m_font_styles.expired()) {
@@ -279,7 +279,7 @@ SfmlFont::TextPointer SfmlFont::fit_pointer_to_adaptor(TextPointer && ptr) const
 }
 
 Size SfmlFont::measure_text
-    (ItemKey fontstyle, UStringConstIter beg, UStringConstIter end) const
+    (StyleValue fontstyle, UStringConstIter beg, UStringConstIter end) const
 {
     auto make_not_found_error = []()
         { return RtError("SfmlFont::measure_text: cannot find font style for given item key."); };
@@ -299,7 +299,7 @@ void SfmlFont::load_font(const std::string & filename) {
     }
 }
 
-void SfmlFont::add_font_style(ItemKey key, int char_size, sf::Color color) {
+void SfmlFont::add_font_style(StyleValue key, int char_size, sf::Color color) {
     m_font_styles = (m_font_styles ? m_font_styles : std::make_shared<FontStyleMap>());
     auto gv = m_font_styles->insert(std::make_pair(key, FontStyle(char_size, color) ));
     if (gv.second) return;

@@ -207,12 +207,14 @@ cul::Rectangle<T> expand(cul::Rectangle<T> rect, T amount) {
 class BubbleBackground final : public sf::Drawable {
 public:
 
+    static constexpr const int k_fall_off_spawn = 40;
+
     void update(double et) {
         double boost = 1.;
-        if (m_bubbles.size() < 8) {
-            boost *= double(8 - m_bubbles.size());
-        } else if (m_bubbles.size() > 8){
-            boost /= double(m_bubbles.size() - 8);
+        if (m_bubbles.size() < k_fall_off_spawn) {
+            boost *= double(k_fall_off_spawn - m_bubbles.size());
+        } else if (m_bubbles.size() > k_fall_off_spawn){
+            boost /= double(m_bubbles.size() - k_fall_off_spawn);
         }
         auto probability_per_frame = et*k_probability_per_second*boost;
         if (RealDistri(0., 1.)(m_rng) < probability_per_frame) {
@@ -252,11 +254,11 @@ private:
                                   bottom_of(m_bounds) + bubble.radius);
         BubbleRingMaker brm;
         uint8_t mid_alpha = 0;
-        if (RealDistri(params.min_radius, params.max_speed)(m_rng) > bubble.radius) {
+        if (UInt8Distri(0, 2)(m_rng) == 0) {// RealDistri(params.min_radius, params.max_speed)(m_rng) > bubble.radius) {
             mid_alpha = UInt8Distri(10, 50)(m_rng);
         }
 
-        brm.set_alphas(UInt8Distri(180, 255)(m_rng), UInt8Distri(100, 180)(m_rng),
+        brm.set_alphas(UInt8Distri(220, 255)(m_rng), UInt8Distri(100, 180)(m_rng),
                        mid_alpha);
         brm.set_color(random_color(m_rng));
         brm.set_radius(bubble.radius);
@@ -375,8 +377,8 @@ public:
     void setup() {
         m_exit.set_string(U"Exit App");
         m_info.set_limiting_line(300);
-        m_info.set_string(U"The widget below using a special \"item key\" to "
-                          "do its own API specific rendering.");
+        m_info.set_string(U"The widget below using a special \"style value\" "
+                          "to do its own API specific rendering.");
         m_exit.set_press_event([this]() {
             assert(m_exit_ptr);
             *m_exit_ptr = true;
@@ -395,14 +397,43 @@ private:
     TextButton m_exit;
 };
 
+void do_whole_screen_bubble_renderer() {
+    BubbleBackground bb;
+    sf::RenderWindow win;
+
+    auto desktop_mode = sf::VideoMode::getDesktopMode();
+    bb.set_bounds(0, 0, desktop_mode.width, desktop_mode.height);
+
+    static const constexpr int k_us_per_frame = 1'000'000 / 60;
+
+    win.create(desktop_mode, "Bubbles", sf::Style::None);
+    while (win.isOpen()) {
+        sf::Event event;
+        while (win.pollEvent(event)) {
+            if (event.type == sf::Event::KeyReleased) {
+                if (event.key.code == sf::Keyboard::Escape)
+                    win.close();
+            }
+            if (event.type == sf::Event::Closed)
+                win.close();
+        }
+        bb.update(double(k_us_per_frame) / 1e6);
+        win.clear();
+        win.draw(bb);
+        win.display();
+        sf::sleep(sf::microseconds(k_us_per_frame));
+    }
+}
+
 } // end of <anonymous> namespace
 
 int main() {
+    //do_whole_screen_bubble_renderer();
+    //return 0;
     asgl::SfmlFlatEngine engine;
     sf::RenderWindow win;
 
     engine.load_global_font("font.ttf");
-    engine.assign_target_and_states(win, sf::RenderStates::Default);
     engine.setup_default_styles();
 
     TopFrame top_frame;
@@ -452,7 +483,7 @@ int main() {
         win.clear();
         top_frame.check_for_geometry_updates();
         top_frame.update(1. / 60.);
-        top_frame.draw(engine);
+        engine.draw(top_frame, win);
 #       if 0
         bubble_background.update(1. / 60.);
         win.draw(bubble_background);
@@ -507,8 +538,8 @@ void make_ring(RingMaker & ring_maker, double radius, double ring_delta, int res
         inner_wedge_outer_pt    = ring_mid*(1. + ring_delta);
         VecD step_into_ring     = ring_mid*(1. - ring_delta);
         auto inner_wedge_i_mag  = std::tan(step / 2.)*radius*(1. - ring_delta);
-        wedge_a = step_into_ring + rotate_vector(ray,  float(k_pi / 2.f))*inner_wedge_i_mag;
-        wedge_b = step_into_ring + rotate_vector(ray, -float(k_pi / 2.f))*inner_wedge_i_mag;
+        wedge_a = step_into_ring + rotate_vector(ray,  (k_pi / 2.))*inner_wedge_i_mag;
+        wedge_b = step_into_ring + rotate_vector(ray, -(k_pi / 2.))*inner_wedge_i_mag;
         }
         if (step_val == 0) {
             // wedge point chosen must "point" in the opposite direction of

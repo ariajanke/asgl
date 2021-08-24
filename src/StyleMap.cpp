@@ -79,7 +79,7 @@ ItemKeyCreator::ItemKeyCreator() {
 
 }
 
-ItemKey ItemKeyCreator::make_key() {
+StyleValue ItemKeyCreator::make_key() {
     using std::get;
     auto push_new_array = [this] () {
         m_unique_addresses.emplace_back(std::make_unique<ArrayForUniqueAddresses>());
@@ -91,7 +91,7 @@ ItemKey ItemKeyCreator::make_key() {
     } else if (m_pos == m_unique_addresses.back()->end()) {
         push_new_array();
     }
-    return ItemKey(std::hash<const uint8_t *>()(&(*m_pos++)));
+    return StyleValue(std::hash<const uint8_t *>()(&(*m_pos++)));
 }
 
 } // end of styles namespace

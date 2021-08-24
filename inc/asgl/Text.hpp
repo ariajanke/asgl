@@ -33,7 +33,7 @@ namespace asgl {
 
 class Text;
 class WidgetRenderer;
-class ItemKey;
+class StyleValue;
 using UString          = std::u32string;
 using UChar            = UString::value_type;
 using UStringConstIter = UString::const_iterator;
@@ -108,7 +108,7 @@ public:
     /** Sets the style of the text, this is meant to include the size, color,
      *  and anything else.
      */
-    virtual void stylize(ItemKey) = 0;
+    virtual void stylize(StyleValue) = 0;
 
     virtual Size measure_text(UStringConstIter beg, UStringConstIter end) const = 0;
 
@@ -146,7 +146,7 @@ public:
     using TextPointer = TextBase::ProxyPointer;
 
     virtual TextPointer fit_pointer_to_adaptor(TextPointer &&) const = 0;
-    virtual Size measure_text(ItemKey, UStringConstIter beg, UStringConstIter end) const = 0;
+    virtual Size measure_text(StyleValue, UStringConstIter beg, UStringConstIter end) const = 0;
 
 protected:
     template <typename T>
@@ -215,7 +215,7 @@ public:
     /** Sets the style of the text, this is meant to include the size, color,
      *  and anything else.
      */
-    void stylize(ItemKey);
+    void stylize(StyleValue);
 
     Size measure_text(UStringConstIter beg, UStringConstIter end) const;
 

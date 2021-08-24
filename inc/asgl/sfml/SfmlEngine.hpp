@@ -31,8 +31,8 @@
 #include <SFML/Graphics/Texture.hpp>
 #include <SFML/Window/Event.hpp>
 
-#include <common/DrawRectangle.hpp>
-#include <common/DrawTriangle.hpp>
+#include <common/sf/DrawRectangle.hpp>
+#include <common/sf/DrawTriangle.hpp>
 #include <common/SubGrid.hpp>
 
 namespace asgl {
@@ -49,6 +49,8 @@ class SfmlImageResource;
 
 } // end of detail namespace -> into ::asgl
 
+// raise this to general interface:
+// have it used by both wasm and sfml
 namespace sfml_items {
 
 enum ItemColorEnum {
@@ -87,27 +89,20 @@ enum ItemEnum {
 
 // ---------------------- BEGINNING OF PUBLIC INTERFACE -----------------------
 
-class SfmlFlatEngine final : public WidgetRenderer, public ImageLoader {
+class SfmlFlatEngine final : public ImageLoader {
 public:
-#   if 0
-    class CustomRectangleItem : public sf::Drawable {
-        virtual void update_bounds(const Rectangle &) = 0;
-    };
-#   endif
-
-    void assign_target_and_states(sf::RenderTarget &, sf::RenderStates);
 
     void stylize(Widget &) const;
 
     void setup_default_styles();
 
-    ItemKey add_rectangle_style(sf::Color, StyleKey);
-#   if 0
-    ItemKey add_custom_rectangle_item(std::shared_ptr<CustomRectangleItem>);
-#   endif
+    StyleValue add_rectangle_style(sf::Color, StyleKey);
+
     void load_global_font(const std::string & filename);
 
     SharedImagePtr make_image_from(ConstSubGrid<sf::Color>);
+
+    void draw(const Widget &, sf::RenderTarget &, sf::RenderStates = sf::RenderStates::Default);
 
     static const sf::Texture * dynamic_cast_to_texture(SharedImagePtr);
 
@@ -148,7 +143,7 @@ public:
     using SfmlImageResPtr   = std::shared_ptr<SfmlImageResource>;
     using SfmlRenderItem    = cul::MultiType<ColorItem, SfmlImageResPtr,
                                              RoundedBorder, SquareBorder>;
-    using SfmlRenderItemMap = std::map<ItemKey, SfmlRenderItem>;
+    using SfmlRenderItemMap = std::map<StyleValue, SfmlRenderItem>;
     using ItemColorEnum     = sfml_items::ItemColorEnum;
     using ItemEnum          = sfml_items::ItemEnum;
     using ColorItemStyles   = styles::ItemKeysEnum<ItemColorEnum, sfml_items::k_color_count>;
@@ -157,36 +152,17 @@ public:
 
     static void update_draw_rectangle(DrawRectangle &, const Rectangle &);
 
-    inline static ItemKey to_item_key(sfml_items::ItemColorEnum e)
+    inline static StyleValue to_item_key(sfml_items::ItemColorEnum e)
         { return ColorItemStyles::to_key(e); }
 
-    inline static ItemKey to_item_key(sfml_items::ItemEnum e)
+    inline static StyleValue to_item_key(sfml_items::ItemEnum e)
         { return DescItemStyles::to_key(e); }
 
 private:
-    void render_rectangle(const Rectangle &, ItemKey, const void *) final;
-    void render_triangle (const Triangle  &, ItemKey, const void *) final;
-    void render_text(const TextBase &) final;
-
-    void render_rectangle_pair(const Rectangle &, const Rectangle &, ItemKey, const void *) final;
-
-    void render_special(ItemKey, const Widget * instance_pointer) final;
-
-    void render_rectangle(const Rectangle &, ColorItem &) const;
-    void render_triangle (const Triangle  &, ColorItem &) const;
-
-    void render_rectangle_pair(const Rectangle &, const Rectangle &, RoundedBorder &) const;
-    void render_rectangle_pair(const Rectangle &, const Rectangle &, SquareBorder &) const;
-    void render_rectangle_pair(const Rectangle &, const Rectangle &, SfmlImageResource &) const;
-
     SharedImagePtr make_image_resource(const std::string & filename) final;
     SharedImagePtr make_image_resource(SharedImagePtr) final;
 
-    SfmlRenderItem & add_and_verify_unique(ItemKey);
-
-    sf::RenderTarget * m_target_ptr = nullptr;
-    sf::RenderStates m_states;
-
+    SfmlRenderItem & add_and_verify_unique(StyleValue);
     SfmlRenderItemMap m_items;
 
     StyleMap m_style_map;
@@ -206,11 +182,11 @@ public:
     int image_height() const override
         { return int(texture.getSize().y); }
 
-    ItemKey item_key() const override { return item; }
+    StyleValue item_key() const override { return item; }
 
     sf::Sprite  sprite;
     sf::Texture texture;
-    ItemKey     item;
+    StyleValue     item;
 };
 
 } // end of detail namespace -> into ::asgl

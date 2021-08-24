@@ -35,7 +35,7 @@ struct ImageResource {
     virtual int image_width() const = 0;
     virtual int image_height() const = 0;
     Size image_size() const { return Size(image_width(), image_height()); }
-    virtual ItemKey item_key() const = 0;
+    virtual StyleValue item_key() const = 0;
 };
 
 using SharedImagePtr = std::shared_ptr<ImageResource>;
@@ -82,7 +82,7 @@ private:
 
     void update_size() final {}
 
-    ItemKey item_key() const final;
+    StyleValue item_key() const final;
 
     ImageResource & verify_image_present();
 

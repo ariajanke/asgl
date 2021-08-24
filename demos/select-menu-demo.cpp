@@ -42,6 +42,9 @@
 
 #include <cassert>
 
+#include "select-menu/select-menu-gen.hpp"
+#include "select-menu/load-icons.hpp"
+
 namespace {
 
 using namespace cul::exceptions_abbr;
@@ -50,142 +53,107 @@ using cul::Grid;
 using namespace asgl;
 
 // ------------------------------ generalization ------------------------------
+// some collapseing is in order these hierarchies are too tall imo
 
-class SelectionEntryDecoration final : public BlankDecorationBase {
+class DraggableIconWidget : public FocusWidget {
 public:
-#   if 0
-    Vector widget_start() const final { return location(); }
-
-    Vector location() const final { return top_left_of(m_bounds); }
-
-    Size size() const final { return size_of(m_bounds); }
-
-    EventResponseSignal process_event(const asgl::Event &) final
-        { return EventResponseSignal(); }
-
-    void set_location(int frame_x, int frame_y) final
-        { set_top_left_of(m_bounds, frame_x, frame_y); }
-
-    void stylize(const StyleMap &) final {}
-
-    void draw(WidgetRenderer &) const final {}
-
-    int maximum_width_for_widgets() const final
-        { return FrameDecoration::k_no_width_limit_for_widgets; }
-
-    void set_click_inside_event(ClickFunctor &&) final {
-        throw InvArg("SelectionEntryDecoration::set_click_inside_event: "
-                     "This decoration does not accept click events.");
-    }
-#   endif
-    void accept_any_size() {
-        m_accepting_any_size = true;
-        check_invarients();
-    }
-
-    void constrain_to(const SelectionEntryDecoration * ptr) {
-        if (!ptr) {
-            throw InvArg("");
-        } else if (this == ptr) {
-            throw InvArg("");
-        }
-        m_constraint = ptr;
-        check_invarients();
-    }
-
-    Size request_size(int w, int h) final {
-        assert(m_accepting_any_size || m_constraint);
-        if (m_accepting_any_size) {
-            m_has_accepted_a_size = true;
-            set_size(Size(w, h));
-            return Size(w, h);
-        } else if (m_constraint) {
-            if (!m_constraint->m_has_accepted_a_size) {
-                throw RtError("");
-            }
-            auto rv = size_of(m_constraint->bounds());
-            set_size(rv);
-            return rv;
-        }
-        throw RtError("bad branch");
-    }
-
-private:
-    void check_invarients() const {
-        assert(!(m_accepting_any_size && m_constraint));
-    }
-
-    void on_inform_is_child() final {}
-
-    bool m_has_accepted_a_size = false;
-    bool m_accepting_any_size = false;
-    const SelectionEntryDecoration * m_constraint = nullptr;
-#   if 0
-    Rectangle m_bounds;
-#   endif
+    virtual const DrawableWithWidgetRenderer * get_hold_request() const = 0;
 };
 
-class SelectionEntryFrame : public BareFrame {
+class IconTextSelectionEntry : public SelectionEntryFrame {
 public:
-#   if 0
-    // It makes me sad, views are C++20 :c
-    template <bool kt_is_const>
-    class ShapeViewImpl {
-    public:
-        using PointerType = std::conditional_t<kt_is_const, const Vector *, Vector *>;
-        ShapeViewImpl(PointerType beg, PointerType end);
-
-        PointerType begin() const { return m_beg; }
-        PointerType end  () const { return m_end; }
-
-    private:
-        PointerType m_beg;
-        PointerType m_end;
+    enum Orientation {
+        k_image_top, k_image_bottom, k_image_left, k_image_right,
+        k_orientation_count
     };
 
-    using ShapeView = ShapeViewImpl<true>;
-#   endif
-    void accept_any_size()
-        { m_deco.accept_any_size(); }
+    void stylize(const StyleMap & map) final {
+        TextArea::set_required_text_fields(
+            m_full_text, map.find(styles::k_global_font),
+            map.find(asgl::to_key(frame_styles::k_widget_text_style)),
+            "TestFrame::stylize");
+        BareFrame::stylize(map);
+    }
 
-    void constrain_to(const SelectionEntryFrame * ptr) {
-        if (!ptr) {
-            throw InvArg("");
+    void process_event(const Event & event) final {
+        BareFrame::process_event(event);
+        if (!event.is_type<MouseMove>()) return;
+        auto text_bounds = cul::compose(m_text.location(), m_text.size());
+        if (is_contained_in(event.as<MouseMove>(), text_bounds)) {
+            m_show_full_text = true;
+            m_full_text.set_location(m_text.location());
+        } else {
+            m_show_full_text = false;
         }
-        m_deco.constrain_to(&ptr->m_deco);
+    }
+
+    void draw(WidgetRenderer & target) const final {
+        if (m_show_full_text) {
+            m_full_text.draw_to(target);
+        } else {
+            m_text.draw(target);
+        }
+
+        icon_widget().draw(target);
+    }
+
+    Tuple<const DrawableWithWidgetRenderer *, const Widget *> get_hold_request() const final
+        { return std::make_tuple(icon_widget().get_hold_request(), &icon_widget()); }
+
+    const UString & string() const { return m_text.string(); }
+
+    void set_string(const UString & str) {
+        auto temp = str;
+        m_text.set_string(std::move(str));
+    }
+
+    void set_string(UString && str) {
+        m_text.set_string(std::move(str));
+        // setting string may change the text area's size
+        flag_needs_whole_family_geometry_update();
     }
 
 protected:
-    SelectionEntryFrame() {}
+    void add_widgets(Orientation orientation);
+
+    void add_widgets();
+
+    virtual DraggableIconWidget & icon_widget() = 0;
+
+    virtual const DraggableIconWidget & icon_widget() const = 0;
+
+    void setup_text(const UString & ustr, int width, int height) {
+        m_full_text.set_string(ustr);
+        m_full_text.set_limiting_line(width);
+
+        m_text.set_string(ustr);
+        m_text.set_limiting_line(width);
+        m_text.set_fixed_height(height);
+    }
 
 private:
-    FrameDecoration & decoration() final { return m_deco; }
+#   if 0
+    void process_focus_event(const Event &) final {}
 
-    const FrameDecoration & decoration() const final { return m_deco; }
+    void notify_focus_gained() final {}
 
-    SelectionEntryDecoration m_deco;
+    void notify_focus_lost() final {}
+#   endif
+    TextArea m_text;
+    bool m_show_full_text = false;
+    Text m_full_text;
+
+    Orientation m_selected_orientation = k_orientation_count;
 };
 
 // ------------------------------ specialization ------------------------------
 
+
+
 // It's true I don't need an abstract class, but the attempt here is to limit
 // the interface
-class DrawableWithWidgetRenderer {
-public:
-    virtual ~DrawableWithWidgetRenderer() {}
 
-    virtual bool is_requesting_drop() const = 0;
-
-    void draw(const Widget & parent, WidgetRenderer & target) const
-        { draw_(parent.location(), target); }
-
-    void draw(const Vector & offset, WidgetRenderer & target) const
-        { draw_(offset, target); }
-
-protected:
-    virtual void draw_(const Vector &, WidgetRenderer &) const = 0;
-};
-
+// this class is *really* specific
 class ForegroundDraggableImage final :
     public Draggable, public DrawableWithWidgetRenderer
 {
@@ -257,23 +225,51 @@ private:
 
 // I want to test this first!
 // Let's get the simplest parts finished first!
-class DraggableImageWidget final : public Widget {
+class DraggableImageWidget final : public DraggableIconWidget {
 public:
-    void process_event(const Event &) override;
+    struct Parameters {
+        SharedImagePtr foreground;
+        SharedImagePtr background;
 
-    Vector location() const override;
+        Rectangle foreground_tx_bounds;
+        Rectangle background_tx_bounds;
 
-    Size size() const override;
+        ConstSubGrid<bool> click_mask;
 
-    void stylize(const StyleMap &) override;
+        //Size resolution;
+    };
 
-    void update_size() override;
+    void process_event(const Event & event) override {
+        switch (event.type_id()) {
+        case k_event_id_of<MousePress>: {
+            auto pos = event.as<MousePress>();
+            m_foreground_image.mouse_click(pos.x, pos.y, location());
+            }
+            break;
+        case k_event_id_of<MouseMove>: {
+            auto pos = event.as<MouseMove>();
+            m_foreground_image.mouse_move(pos.x, pos.y);
+            }
+            break;
+        case k_event_id_of<MouseRelease>:
+            m_foreground_image.drag_release();
+            break;
+        default: break;
+        }
+    }
+
+    Size size() const override { return m_foreground_image.size(); }
 
     void draw(WidgetRenderer &) const override;
 
-    void load_images(ImageLoader &, const std::string & foreground_filename);
-    void load_images(ImageLoader &, const std::string & foreground_filename,
-                    const std::string & background_filename);
+    // these non-virtual methods called by factory
+
+    void set_parameters(const Parameters & params) {
+        set_images(params.foreground, params.background);
+        set_frames(params.foreground_tx_bounds, params.background_tx_bounds);
+        set_mask(params.click_mask);
+    }
+
     void set_images(SharedImagePtr foreground_image,
                     SharedImagePtr background_image);
 
@@ -285,26 +281,39 @@ public:
     void set_scale(int scale)
         { m_foreground_image.set_scale(scale); }
 
-    const DrawableWithWidgetRenderer * get_hold_request() const {
+    // move up (later), and de-virtualize
+    // we hardly need to know anything about what's being dragged
+    const DrawableWithWidgetRenderer * get_hold_request() const final {
         if (m_foreground_image.is_requesting_drop()) return nullptr;
         return &m_foreground_image;
     }
 
+    void process_focus_event(const Event &) override {}
+
+    Vector location() const override { return m_location; }
+
 private:
-    static const std::string k_no_file_filename;
+    void stylize(const StyleMap &) override {}
+
+    void update_size() override {}
+
+    void notify_focus_gained() override {}
+
+    void notify_focus_lost() override {}
 
     void set_location_(int x, int y) override;
 
-    Vector m_location;
-
     ForegroundDraggableImage m_foreground_image;
+
     SharedImagePtr m_background_image;
     Rectangle m_background_frame;
+
+    Vector m_location;
 };
 
-class ImageTextSelectionEntry final : public SelectionEntryFrame {
+// often I want some extra data to tag along with this class
+class ImageTextSelectionEntry : public IconTextSelectionEntry {
 public:
-    enum Orientation { k_image_top, k_image_bottom, k_image_left, k_image_right };
     struct SharedParams {
         Orientation orientation = k_image_top;
         int scale = 1;
@@ -313,158 +322,181 @@ public:
         bool show_full_text_on_hover = true;
     };
 
-    struct IndividualParams {
+    struct IndividualParams : public DraggableImageWidget::Parameters {
         // how do I do multiple frames for a single image without going
         // overboard here?
-        SharedImagePtr foreground;
-        SharedImagePtr background;
-
-        Rectangle foreground_tx_bounds;
-        Rectangle background_tx_bounds;
-
-        ConstSubGrid<bool> click_mask;
         UString string;
     };
 
+protected:
     void setup(const SharedParams &, const IndividualParams &);
 
-    void stylize(const StyleMap & map) final {
-        TextArea::set_required_text_fields(
-            m_full_text, map.find(styles::k_global_font),
-            map.find(asgl::to_key(frame_styles::k_widget_text_style)),
-            "TestFrame::stylize");
-        BareFrame::stylize(map);
-    }
-
-    void process_event(const Event & event) final {
-        BareFrame::process_event(event);
-        if (!event.is_type<MouseMove>()) return;
-        auto text_bounds = cul::compose(m_text.location(), m_text.size());
-        //Rectangle text_bounds(m_text.location(), Vector(m_text.width(), m_text.height()));
-        if (is_contained_in(event.as<MouseMove>(), text_bounds)) {
-            m_show_full_text = true;
-            m_full_text.set_location(m_text.location());
-        } else {
-            m_show_full_text = false;
-        }
-    }
-
-    bool mouse_is_over(const MouseLocation & loc) {
-        return    loc.x >  location().x && loc.y > location().y
-               && loc.x <= location().x + width ()
-               && loc.y <= location().y + height();
-    }
-
-    void draw(WidgetRenderer & target) const final {
-        if (m_show_full_text) {
-            m_full_text.draw_to(target);
-        } else {
-            m_text.draw(target);
-        }
-        m_image.draw(target);
-    }
-
-    Tuple<const DrawableWithWidgetRenderer *, const Widget *> get_hold_request() const
-        { return std::make_tuple(m_image.get_hold_request(), &m_image); }
-
-    const UString & string() const { return m_text.string(); }
+    ImageTextSelectionEntry() {}
 
 private:
-    void on_frame_geometry_update() final {
-
-    }
-
-    TextArea m_text;
     DraggableImageWidget m_image;
 
-    bool m_show_full_text = false;
-    Text m_full_text;
+    DraggableIconWidget & icon_widget() final { return m_image; }
+
+    const DraggableIconWidget & icon_widget() const final { return m_image; }
 };
 
 // --------------------------------- testing ----------------------------------
 
-struct LoadIconsRt;
+struct ItemInfo;
+struct GameItem {
+    const ItemInfo * id = nullptr;
+    int quantity = 0;
+};
 
-class TestFrame final : public Frame {
+struct ItemInfo {
+    int max_stack =  1;
+    int icon_id   = -1;
+    UString name;
+};
+
+enum {
+    k_utumno_helment,
+    k_blue_armor,
+    k_earth_book,
+    k_fancy_book,
+    k_cyan_crystal_sphere,
+    k_poison_flask,
+    k_topaz_ring,
+    k_wand_of_squadilla
+};
+
+const std::vector<ItemInfo> & item_db() {
+    static std::vector<ItemInfo> item_db_;
+    if (!item_db_.empty()) return item_db_;
+    int icon_num = 0;
+    item_db_ = {
+        {  1, icon_num++, U"Utumno Helment"      },
+        {  1, icon_num++, U"Blue Armor"          },
+        {  3, icon_num++, U"Earth Book"          },
+        {  3, icon_num++, U"Fancy Book"          },
+        {  1, icon_num++, U"Cyan Crystal Sphere" },
+        {  5, icon_num++, U"Poison Flask"        },
+        { 10, icon_num++, U"Topaz Ring"          },
+        {  1, icon_num++, U"Wand of Squadilla"   }
+    };
+    return item_db_;
+}
+
+int item_to_index(const ItemInfo * pointer) {
+    if (!pointer) return -1;
+    auto rv = pointer - &item_db().front();
+    assert(rv > -1 && std::size_t(rv) < item_db().size());
+    return rv;
+}
+
+class ItemIconEntry final : public ImageTextSelectionEntry {
 public:
-    void setup(const LoadIconsRt & icon_info);
+    using SharedParams = ImageTextSelectionEntry::SharedParams;
+    void load_item
+        (const LoadIconsRt & icon_info, const GameItem & item, const SharedParams &);
 
-    bool is_requesting_exit() const { return m_request_exit; }
+    ItemIconEntry() {}
 
-    void process_event(const Event & event) final {
-        Frame::process_event(event);
-        if (m_need_to_redo_setup_widgets) {
-            m_need_to_redo_setup_widgets = false;
-            return setup_widgets();
-        }
+    ItemIconEntry(const ItemIconEntry & rhs):
+        ImageTextSelectionEntry(rhs),
+        m_item(rhs.m_item)
+    { add_widgets(); }
 
-        // really not sure what to do style wise
-        // if (ptr && ptr->method()) is considered problematic since
-        // short-circuiting is not immediately appearent
-        // if (ptr) if (ptr->method) {
-        //     ...
-        // }
-        if (m_held_item) /* and then */ if (m_held_item->is_requesting_drop()
-            && event.is_type<MouseRelease>())
-        {
-            IconTilePtr * hovering_over = nullptr;
-            for (auto & ptr : m_owned_widgets) {
-                if (ptr->mouse_is_over(event.as<MouseRelease>())) {
-                    std::cout << "Hello" << std::endl;
-                    hovering_over = &ptr;
-                    break;
-                }
-            }
-            assert(m_frame_being_dragged);
-            if (hovering_over && m_frame_being_dragged != hovering_over) {
-                std::swap(*hovering_over, *m_frame_being_dragged);
-                // I need to re-add widgets :c
-                setup_widgets();
-            }
-            m_held_item           = nullptr;
-            m_held_items_parent   = nullptr;
-            m_frame_being_dragged = nullptr;
+    ItemIconEntry(ItemIconEntry && rhs):
+        ImageTextSelectionEntry(std::move(static_cast<ImageTextSelectionEntry &&>(rhs))),
+        m_item(rhs.m_item)
+    { add_widgets(); }
+
+    ItemIconEntry & operator = (const ItemIconEntry & rhs) = default;
+
+    ItemIconEntry & operator = (ItemIconEntry && rhs) = default;
+
+    bool can_be_stacked_onto(const ItemIconEntry & other) const {
+        if (m_item.id != other.m_item.id) return false;
+        if (!m_item.id || !other.m_item.id) {
+            throw std::runtime_error("Item ids not set.");
         }
-        for (auto & drag_icon : m_owned_widgets) {
-            auto [wants_to_be_held, parent] = drag_icon->get_hold_request();
-            if (!wants_to_be_held) continue;
-            m_frame_being_dragged = &drag_icon;
-            m_held_items_parent = parent;
-            m_held_item = wants_to_be_held;
-            break;
-        }
+        // if there's room for even one item in the stack, then we say it can
+        // be stacked
+        return other.m_item.quantity + 1 <= other.m_item.id->max_stack;
     }
 
-    void draw(WidgetRenderer & target) const {
-        Frame::draw(target);
-        if (m_held_item) {
-            assert(m_held_items_parent);
-            m_held_item->draw(*m_held_items_parent, target);
-        }
+    // returns any left over items
+    int stack_onto(ItemIconEntry & other) {
+        if (!can_be_stacked_onto(other)) return m_item.quantity;
+        int max_stack = other.m_item.id->max_stack;
+        int in_total = other.m_item.quantity + m_item.quantity;
+        other.m_item.quantity = std::min(max_stack, in_total);
+        m_item.quantity = in_total - other.m_item.quantity;
+        assert(m_item.quantity > -1);
+
+        auto old_size = size(), other_old_size = other.size();
+        set_string(game_item_string(m_item));
+        other.set_string(game_item_string(other.m_item));
+        assert(old_size == size());
+        assert(other_old_size == other.size());
+        return m_item.quantity;
     }
 
 private:
-    void setup_widgets() {
-        auto adder = begin_adding_widgets();
-        int x = 0;
-        constexpr const int x_limit = 4;
-        for (auto & widget_ptr : m_owned_widgets) {
-            adder.add(*widget_ptr);
-            if (++x == x_limit) {
-                adder.add_line_seperator();
-                x = 0;
+    static UString game_item_string(const GameItem & item) {
+        UString rv;
+        rv.reserve(30);
+        set_game_item_string(rv, item);
+        return rv;
+    }
+    static void set_game_item_string(UString & string, const GameItem & item) {
+        if (item.quantity == 0) {
+            string = U"<depleted>";
+            return;
+        }
+        string = item.id->name;
+        if (item.quantity > 1) {
+            string += U" x";
+            auto s = std::to_string(item.quantity);
+            for (auto c : s) {
+                string += UChar(c);
             }
         }
-        adder.add(m_arrange_alpha).add_line_seperator();
-        adder.add_horizontal_spacer().add(m_exit);
     }
+
+    GameItem m_item;
+};
+
+class ItemMenu final : public SelectionMenu<ItemIconEntry> {
+public:
+    Tuple<ItemIconEntry *, ItemIconEntry *>
+        on_place_item_on(ItemIconEntry & a, ItemIconEntry * b) final;
+
+    // we'd want a "use" item, "drop" item, some "uses" which further populate
+    // the grid
+
+    void setup(const LoadIconsRt & icon_info, const std::vector<GameItem> & items);
+
+    void update_inventory(const std::vector<GameItem> &);
+
+    const std::vector<GameItem> & inventory() const { return m_inventory; }
+
+private:
+    std::vector<GameItem> m_inventory;
+    std::vector<ItemIconEntry> m_owned_icons;
+
+    std::shared_ptr<const Grid<bool>> m_mask_ptr;
+};
+
+class TestFrameN final : public Frame {
+public:
+    bool is_requesting_exit() const { return m_request_exit; }
+
+    // this setup function should be relatively stripped down
+    void setup(const LoadIconsRt & icon_info);
+
+private:
+    void setup_widgets();
 
     using IconTilePtr = std::unique_ptr<ImageTextSelectionEntry>;
     std::vector<IconTilePtr> m_owned_widgets;
-
-    IconTilePtr * m_frame_being_dragged = nullptr;
-    const Widget * m_held_items_parent = nullptr;
-    const DrawableWithWidgetRenderer * m_held_item = nullptr;
 
     // test frame will have to own the mask grid
     std::shared_ptr<const Grid<bool>> m_mask_ptr;
@@ -472,9 +504,232 @@ private:
     TextButton m_arrange_alpha;
     TextButton m_exit;
     bool m_request_exit = false;
-    bool m_need_to_redo_setup_widgets = false;
+
+    ItemMenu m_menu;
 };
 
+struct TestWidgetDummy {};
+
+class TestFocusReceiver : public FocusReceiver {
+    void process_focus_event(const Event &) final {}
+
+    void notify_focus_gained() final {}
+
+    void notify_focus_lost() final {}
+};
+
+template <bool kt_is_focus_widget>
+class TestWidgetImpl final :
+    public Widget, public std::conditional_t<kt_is_focus_widget, TestFocusReceiver, TestWidgetDummy>
+{
+public:
+    void process_event(const Event &) final {}
+
+    void stylize(const StyleMap &) final {}
+
+    void set_size(int w_, int h_) { set_size_of(m_bounds, w_, h_); }
+
+    void set_size(Size sz_) { set_size_of(m_bounds, sz_); }
+
+    Vector location() const final { return top_left_of(m_bounds); }
+
+    Size size() const final { return size_of(m_bounds); }
+
+    void draw(WidgetRenderer &) const final {}
+
+private:
+    void update_size() final {}
+
+    void set_location_(int x, int y) final { set_top_left_of(m_bounds, x, y); }
+    Rectangle m_bounds;
+};
+
+using TestWidget      = TestWidgetImpl<false>;
+using TestFocusWidget = TestWidgetImpl<true >;
+
+class QuadraDirectionalFocusHandler final {
+public:
+    void process_event(const Event & event) {
+        auto * gm = event.as_pointer<GeneralMotion>();
+        if (!gm) return;
+        auto dir_chosen = to_focus_handler_direction(*gm);
+        if (dir_chosen == k_dir_count) return;
+    }
+
+    void check_for_child_widget_updates(Widget & root) {
+        m_widgets.clear();
+        root.iterate_children_f([this](Widget & widget) {
+            auto frec = dynamic_cast<FocusReceiver *>(&widget);
+            if (!frec) return;
+            m_widgets.push_back(JumpEntry(&widget, frec));
+        });
+        for (auto & entry : m_widgets) {
+            for (auto & iter : entry.jump_table)
+                iter = m_widgets.end();
+        }
+    }
+
+private:
+    struct JumpEntry;
+    using FocusContainer = std::vector<JumpEntry>;
+    using FocusIterator  = FocusContainer::iterator;
+    enum Direction { k_up, k_down, k_right, k_left, k_dir_count };
+    struct JumpEntry {
+        JumpEntry() {}
+        JumpEntry(Widget * wid_, FocusReceiver * frec_):
+            as_widget(wid_), as_receiver(frec_)
+        {}
+        std::array<FocusIterator, k_dir_count> jump_table;
+        Widget * as_widget = nullptr;
+        FocusReceiver * as_receiver = nullptr;
+    };
+
+    static Direction to_focus_handler_direction(GeneralMotion gm) {
+        switch (gm) {
+        case general_motion::k_motion_focus_down : return k_down ;
+        case general_motion::k_motion_focus_up   : return k_up   ;
+        case general_motion::k_motion_focus_right: return k_right;
+        case general_motion::k_motion_focus_left : return k_left ;
+        default: break;
+        }
+        return k_dir_count;
+    }
+
+    static void do_links(FocusIterator beg, FocusIterator end) {
+        for (int half_lengths : { 2, 3, 5, k_extend_to_inf }) {
+            for (auto itr = beg; itr != end; ++itr) {
+            for (auto jtr = beg; jtr != itr; ++jtr) {
+                do_pair(itr, jtr, half_lengths, end);
+            }}
+        }
+    }
+
+    static void do_pair(FocusIterator lhs, FocusIterator rhs, int lhs_half_lengths, FocusIterator end) {
+        auto rhs_bounds = rhs->as_widget->bounds();
+        auto lhs_bounds = lhs->as_widget->bounds();
+        for (auto side : { k_up, k_down, k_left, k_right }) {
+            auto directional_rect = get_directional_rectangle(lhs_bounds, lhs_half_lengths, side);
+            if (!intersects(directional_rect, rhs_bounds)) continue;
+            // test if rhs is closer than the currently selected rectangle
+            auto & itr = lhs->jump_table[side];
+            if (itr == end) {
+                itr = rhs;
+                continue;
+            }
+        }
+    }
+
+    static int distance_to(Vector source, Rectangle rect, Direction side) {
+
+    }
+
+    static constexpr const int k_extend_to_inf = -1;
+    static Rectangle extend_by_half_lengths(Rectangle rect, int half_lengths) {
+        if (half_lengths == k_extend_to_inf) {
+            static const constexpr int k_max_int = std::numeric_limits<int>::max();
+            // it's not actually possible for an integer rectangle to cover the
+            // entire 2d integer plane, so make it as big as possible...
+            static const Rectangle k_extreme_bounds
+                { k_max_int / 2, k_max_int / 2, k_max_int, k_max_int };
+            return k_extreme_bounds;
+        }
+        auto hextension = (rect.width*half_lengths) / 2;
+        auto vextension = (rect.width*half_lengths) / 2;
+        rect.left   -= hextension / 2;
+        rect.top    -= vextension / 2;
+        rect.width  += hextension;
+        rect.height += vextension;
+        return rect;
+    }
+
+    static Rectangle get_directional_rectangle(const Rectangle & rect, int half_lengths, Direction dir) {
+        using IntLims = std::numeric_limits<int>;
+        auto center = cul::center_of(rect);
+        auto extended_rect = extend_by_half_lengths(rect, half_lengths);
+        // reuse
+        auto & rv = extended_rect;
+        switch (dir) {
+        case k_down : return Rectangle(extended_rect.left, center.y, extended_rect.width, IntLims::max());
+        case k_right: return Rectangle(center.x, extended_rect.top, IntLims::max(), extended_rect.height);
+        case k_left :
+            // need to be careful not to underflow!
+            // min value + max value == -1
+            rv.left  = center.x >= 0 ? center.x - IntLims::max() : IntLims::min();
+            rv.width = center.x >= 0 ? IntLims::max() : center.x - IntLims::min();
+            assert(cul::right_of (rv) == center.x);
+            assert(rv.left  < 0);
+            assert(rv.width > 0);
+            break;
+        case k_up   :
+            rv.top    = center.y >= 0 ? center.y - IntLims::max() : IntLims::min();
+            rv.height = center.y >= 0 ? IntLims::max() : center.y - IntLims::min();
+            assert(cul::bottom_of(rv) == center.y);
+            assert(rv.top    < 0);
+            assert(rv.height > 0);
+            break;
+        default: throw InvArg("get_directional_rectangle: provided direction "
+                              "must be up, down, left, or right.");
+        }
+        return rv;
+    }
+
+    static std::array<Vector, 4> get_extremes(const Rectangle & rect) {
+        return { Vector(rect.left             , rect.top              ),
+                 Vector(rect.left             , rect.top + rect.height),
+                 Vector(rect.left + rect.width, rect.top              ),
+                 Vector(rect.left + rect.width, rect.top + rect.height)
+        };
+    }
+
+    static bool intersects(const Rectangle & lhs, const Rectangle & rhs) {
+        using cul::is_contained_in;
+        for (auto r : get_extremes(lhs)) {
+            if (is_contained_in(r, rhs)) return true;
+        }
+
+        for (auto r : get_extremes(rhs)) {
+            if (is_contained_in(r, lhs)) return true;
+        }
+        return false;
+    }
+
+    FocusContainer m_widgets;
+};
+#if 0
+struct PruneAndSweepWorkspace;
+class PruneAndSweepAdapter {
+public:
+    // should be experimentally determined?
+    static constexpr const int k_do_quadratic_thershold = 10;
+
+    using WorkspacePointer = std::unique_ptr<PruneAndSweepWorkspace>;
+    virtual ~PruneAndSweepAdapter() {}
+    // check if overlappers intersect/contain any subjects
+    // a seperate implementation may be wanted for real numbers rather than
+    // just the integers
+
+    virtual Rectangle get_overlapper(int) const = 0;
+    virtual Rectangle get_subject(int) const = 0;
+    virtual int overlapper_count() const = 0;
+    virtual int subject_count() const = 0;
+    virtual void operator () (int overlapper_num, int subject_number) const = 0;
+
+
+    virtual WorkspacePointer give_workspace();
+    virtual void take_workspace(WorkspacePointer &&) {}
+};
+
+struct PruneAndSweepWorkspace {
+
+};
+
+std::unique_ptr<PruneAndSweepWorkspace> PruneAndSweepAdapter::give_workspace()
+    { return std::make_unique<PruneAndSweepWorkspace>(); }
+
+void do_prune_and_sweep(PruneAndSweepAdapter & adapter) {
+
+}
+#endif
 namespace icon_fields {
 
 // anything less opaque (alpha of smaller value) is not part of the mask
@@ -485,33 +740,34 @@ constexpr const int k_icon_size = 32;
 
 } // end of icon_fields namespace -> into <anonymous>
 
-struct LoadIconsRt {
-    SharedImagePtr icons;
-    SharedImagePtr icon_shadows;
-    std::shared_ptr<const Grid<bool>> mask_ptr;
-    std::vector<Rectangle> icon_frames;
-    std::vector<Rectangle> icon_shadows_frames;
-};
-
-LoadIconsRt load_icons(const std::string & filename, SfmlFlatEngine &,
-                       int icon_size, int expansion_size,
-                       int opacity_limit = icon_fields::k_opacity_limit);
-
 } // end of <anonymous> namespace
 
 int main() {
 
+    QuadraDirectionalFocusHandler qdfh;
     SfmlFlatEngine engine;
-    TestFrame test_frame;
+    TestFrameN test_frame;
     sf::RenderWindow win;
 
-    engine.assign_target_and_states(win, sf::RenderStates::Default);
     engine.load_global_font("font.ttf");
     test_frame.setup(load_icons
         ("images/project-utumno-excerpt.png", engine,
          icon_fields::k_icon_size, icon_fields::k_expansion_size,
          icon_fields::k_opacity_limit));
+    int focus_widget_count = 0;
+    test_frame.iterate_children_const_f([&focus_widget_count](const Widget & widget) {
+        std::cout << static_cast<const void *>(&widget);
+        if (dynamic_cast<const IconTextSelectionEntry *>(&widget)) {
+            std::cout << " is an icon text selection entry";
+        }
+        if (dynamic_cast<const FocusReceiver *>(&widget)) {
+            std::cout << " is a focus receiver";
+            ++focus_widget_count;
+        }
+        std::cout << std::endl;
+    });
     engine.stylize(test_frame);
+
     test_frame.check_for_geometry_updates();
 
     win.create(sf::VideoMode
@@ -538,7 +794,7 @@ int main() {
 
         test_frame.check_for_geometry_updates();
         win.clear(sf::Color(40, 180, 40));
-        test_frame.draw(engine);
+        engine.draw(test_frame, win);
 #       if 0
         std::default_random_engine rng { 0x827ABE21 };
         test_frame.iterate_children_const_f([&rng, &win](const Widget & widget) {
@@ -566,69 +822,17 @@ namespace {
 
 // ------------------------------ specialization ------------------------------
 
-void DraggableImageWidget::process_event(const Event & event) {
-    switch (event.type_id()) {
-    case k_event_id_of<MousePress>: {
-        auto pos = event.as<MousePress>();
-        m_foreground_image.mouse_click(pos.x, pos.y, m_location);
-        }
-        break;
-    case k_event_id_of<MouseMove>: {
-        auto pos = event.as<MouseMove>();
-        m_foreground_image.mouse_move(pos.x, pos.y);
-        }
-        break;
-    case k_event_id_of<MouseRelease>:
-        m_foreground_image.drag_release();
-        break;
-    default: break;
-    }
-}
-
-Vector DraggableImageWidget::location() const { return m_location; }
-
-Size DraggableImageWidget::size() const { return m_foreground_image.size(); }
-
-void DraggableImageWidget::stylize(const StyleMap &) {}
-
-void DraggableImageWidget::update_size() {
-    // not any real visible changes
-    // probably not having the stale state problem
-#   if 0
-    int x = location().x, y = location().y;
-    int w = width(), h = height();
-    std::cout << "diw geo update " << x << ", " << y << " size "
-              << w << ", " << h << std::endl;
-#   endif
-}
-
 void DraggableImageWidget::draw(WidgetRenderer & target) const {
-    if (m_foreground_image.is_requesting_drop()) {
-        m_foreground_image.draw(location(), target);
-    } else if (!m_foreground_image.is_requesting_drop())  {
+    if (!m_foreground_image.is_requesting_drop() || has_focus())  {
         Rectangle bounds;
-        set_top_left_of(bounds, m_location);
+        set_top_left_of(bounds, location());
         bounds.width = m_foreground_image.width();
         bounds.height = m_foreground_image.height();
         draw_to(target, bounds, m_background_frame, m_background_image->item_key());
     }
-}
-
-void DraggableImageWidget::load_images
-    (ImageLoader & loader, const std::string & foreground_filename)
-{
-    load_images(loader, foreground_filename, k_no_file_filename);
-}
-
-void DraggableImageWidget::load_images
-    (ImageLoader & loader, const std::string & foreground_filename,
-     const std::string & background_filename)
-{
-    SharedImagePtr image_ptr = nullptr;
-    if (background_filename != k_no_file_filename) {
-        image_ptr = loader.make_image_resource(background_filename);
+    if (m_foreground_image.is_requesting_drop()) {
+        m_foreground_image.draw(location(), target);
     }
-    set_images(loader.make_image_resource(foreground_filename), image_ptr);
 }
 
 void DraggableImageWidget::set_images
@@ -654,8 +858,6 @@ void DraggableImageWidget::set_mask(ConstSubGrid<bool> mask) {
     m_location = Vector(x, y);
 }
 
-/* private static */ const std::string DraggableImageWidget::k_no_file_filename = "";
-
 // ----------------------------------------------------------------------------
 
 void ImageTextSelectionEntry::setup(const SharedParams & shrparams, const IndividualParams & params) {
@@ -663,32 +865,37 @@ void ImageTextSelectionEntry::setup(const SharedParams & shrparams, const Indivi
     // shared:
     // - show_full_text_on_hover
 
-    m_full_text.set_string(params.string);
-    m_full_text.set_limiting_line(shrparams.text_width);
+    setup_text(params.string, shrparams.text_width, shrparams.text_height);
 
-    m_image.set_images(params.foreground, params.background);
-    m_image.set_frames(params.foreground_tx_bounds, params.background_tx_bounds);
-    m_image.set_mask(params.click_mask);
+    m_image.set_parameters(params);
     m_image.set_scale(shrparams.scale);
 
-    m_text.set_string(params.string);
-    m_text.set_limiting_line(shrparams.text_width);
-    m_text.set_fixed_height(shrparams.text_height);
+    add_widgets(shrparams.orientation);
+}
 
+// ----------------------------------------------------------------------------
+
+/* protected */ void IconTextSelectionEntry::add_widgets(Orientation orientation) {
+    m_selected_orientation = orientation;
+
+    add_widgets();
+}
+
+/* protected */ void IconTextSelectionEntry::add_widgets() {
     bool should_add_text = !m_text.string().empty();
-    switch (shrparams.orientation) {
+    switch (m_selected_orientation) {
     case k_image_bottom: {
         auto adder = begin_adding_widgets();
         if (should_add_text) {
             adder.add_horizontal_spacer().add(m_text).add_horizontal_spacer()
                  .add_line_seperator();
         }
-        adder.add(m_image);
+        adder.add(icon_widget());
         }
         break;
     case k_image_top: {
         auto adder = begin_adding_widgets();
-        adder.add(m_image);
+        adder.add(icon_widget());
         if (should_add_text) {
             adder.add_line_seperator()
                  .add_horizontal_spacer().add(m_text).add_horizontal_spacer();
@@ -702,305 +909,114 @@ void ImageTextSelectionEntry::setup(const SharedParams & shrparams, const Indivi
         break;
     case k_image_right:
         break;
+    case k_orientation_count: break;
     }
 }
 
 // --------------------------------- testing ----------------------------------
 
-void TestFrame::setup(const LoadIconsRt & icon_info) {
-    using SharedParams     = ImageTextSelectionEntry::SharedParams;
-    using IndividualParams = ImageTextSelectionEntry::IndividualParams;
+void ItemIconEntry::load_item
+    (const LoadIconsRt & icon_info, const GameItem & item,
+     const SharedParams & params)
+{
+    IndividualParams individ_params;
+    individ_params.background = icon_info.icon_shadows;
+    individ_params.foreground = icon_info.icons;
+    set_game_item_string(individ_params.string, item);
+    individ_params.foreground_tx_bounds = icon_info.icon_frames.at(item.id->icon_id);
+    individ_params.background_tx_bounds = icon_info.icon_shadows_frames.at(item.id->icon_id);
+    individ_params.click_mask = make_sub_grid
+        (*icon_info.mask_ptr, individ_params.foreground_tx_bounds);
+    setup(params, individ_params);
+    m_item = item;
+}
 
-    SharedParams shared_params;
-    shared_params.scale = 5;
-    const auto & const_shared_params = shared_params;
-    auto mk_icon = [&const_shared_params, &icon_info]
-        (int frame, const UString & string)
-    {
-        IndividualParams params;
-        params.background = icon_info.icon_shadows;
-        params.foreground = icon_info.icons;
-        params.string = string;
-        params.foreground_tx_bounds = icon_info.icon_frames.at(frame);
-        params.background_tx_bounds = icon_info.icon_shadows_frames.at(frame);
-        params.click_mask = make_sub_grid
-            (*icon_info.mask_ptr, top_left_of(params.foreground_tx_bounds),
-            params.foreground_tx_bounds.width, params.foreground_tx_bounds.height);
-        auto rv = std::make_unique<ImageTextSelectionEntry>();
-        rv->setup(const_shared_params, params);
-        return rv;
-    };
+// ----------------------------------------------------------------------------
 
-    m_owned_widgets.emplace_back(mk_icon
-        (7, U"Wand of Squadilla - Here's some more text to test the limits behavior of text."));
-    m_owned_widgets.emplace_back(mk_icon
-        (6, U"Topaz Ring Thing - Here's some more text to test the limits behavior of text."));
-    m_owned_widgets.emplace_back(mk_icon
-        (5, U"Gross Potion - Here's some more text to test the limits behavior of text."));
-    m_owned_widgets.emplace_back(mk_icon
-        (4, U"Sphere Friend - Here's some more text to test the limits behavior of text."));
-
-    m_owned_widgets.front()->accept_any_size();
-    for (auto & uptr : m_owned_widgets) {
-        if (uptr == m_owned_widgets.front()) continue;
-        uptr->constrain_to(m_owned_widgets.front().get());
+Tuple<ItemIconEntry *, ItemIconEntry *>
+    ItemMenu::on_place_item_on(ItemIconEntry & a, ItemIconEntry * b)
+{
+    auto swapped_icons = std::make_tuple(b, &a);
+    if (!b) return swapped_icons;
+    if (!a.can_be_stacked_onto(*b)) return swapped_icons;
+    if (a.stack_onto(*b) == 0) {
+        return std::make_tuple(nullptr, b);
     }
+    return std::make_tuple(&a, b);
+}
 
+void ItemMenu::setup
+    (const LoadIconsRt & icon_info, const std::vector<GameItem> & items)
+{
+    set_menu_size(4, 4);
+
+    using SharedParams = ImageTextSelectionEntry::SharedParams;
+    SharedParams params;
+    params.scale = 5;
+#   if 0
+    m_owned_icons.reserve(items.size());
+#   endif
+    for (auto & item : items) {
+        if (!item.id || item.quantity == 0) continue;
+        m_owned_icons.emplace_back();
+        m_owned_icons.back().load_item(icon_info, item, params);
+    }
+    Vector place_pos;
+    auto itr = m_owned_icons.begin();
+    for (; itr != m_owned_icons.end(); place_pos = next(place_pos), ++itr) {
+        assert(place_pos != end_position());
+        place(place_pos, &*itr);
+    }
+    // mask needs to live somewhere
+    m_mask_ptr = icon_info.mask_ptr;
+}
+
+void ItemMenu::update_inventory(const std::vector<GameItem> & items) {
+
+}
+
+// ----------------------------------------------------------------------------
+
+void TestFrameN::setup(const LoadIconsRt & icon_info) {
+    m_menu.setup(icon_info, {
+        { &item_db()[k_blue_armor         ], 1 },
+        { &item_db()[k_topaz_ring         ], 2 },
+        { &item_db()[k_topaz_ring         ], 1 },
+        { &item_db()[k_poison_flask       ], 1 },
+        { &item_db()[k_cyan_crystal_sphere], 1 },
+        { &item_db()[k_poison_flask       ], 1 },
+        { &item_db()[k_wand_of_squadilla  ], 1 },
+    });
     // not related to icons
     m_exit.set_string(U"Exit App");
     m_exit.set_press_event([this]() { m_request_exit = true; });
 
     m_arrange_alpha.set_string(U"Arrange Alphabetically");
+
     m_arrange_alpha.set_press_event([this]() {
-        std::sort(m_owned_widgets.begin(), m_owned_widgets.end(), []
-                  (const IconTilePtr & lptr, const IconTilePtr & rptr)
+        std::sort(m_menu.begin(), m_menu.end(),
+            [](const ImageTextSelectionEntry * lhs, const ImageTextSelectionEntry * rhs)
         {
-            assert(lptr && rptr);
-            return lptr->string() < rptr->string();
+            // nullptr treated as "\0xFFFFFFFF\0xFFFF..."
+            if (!lhs) return false;
+            if (!rhs) return true ;
+            return lhs->string() < rhs->string();
         });
-        m_need_to_redo_setup_widgets = true;
+        m_menu.fix_internal_iterators();
     });
 
     // someone *needs* to own the entire click mask grid
     m_mask_ptr = icon_info.mask_ptr;
 
-    set_border_padding(0);
+    set_border_padding(5);
+    m_menu.set_padding(5);
     setup_widgets();
 }
 
-template <typename Func>
-inline void do_n_times(int n, Func && f) {
-    for (int i = 0; i != n; ++i) f();
-}
-
-// NOT STATED IN DOCUMENTATION
-// by "RGBA" most significant is the rightmost letter
-static const sf::Color k_transparency(0x0);
-static const auto k_shadow_pallete = {
-    sf::Color(0xD0D0D0FF),
-    sf::Color(0xFFFFFFFF),
-    sf::Color(0xD0D0D0FF),
-
-    k_transparency,
-    k_transparency,
-
-    sf::Color(0x202020FF),
-    sf::Color(0x000000FF),
-    sf::Color(0x202020FF)
-};
-
-static const auto k_neighbors =
-    { Vector(1, 0), Vector(-1, 0), Vector(0, 1), Vector(0, -1) };
-
-template <typename T, typename Predicate>
-inline std::enable_if_t<std::is_invocable_v<Predicate, const T &>, bool>
-    any_are_edge
-    (const Grid<T> & grid, Vector r, Predicate && is_inside)
-{
-    assert(grid.has_position(r));
-    assert(is_inside(grid(r)));
-    for (auto n : k_neighbors) {
-        if (!grid.has_position(n + r)) {
-            // image edge pixels are considered on the edge
-            return true;
-        } else if (!is_inside(grid(n + r))) {
-            return true;
-        }
-    }
-    return false;
-}
-
-template <typename T>
-inline bool any_are_edge
-    (const Grid<T> & grid, Vector r, const T & inside_value)
-{
-    return any_are_edge(grid, r, [&inside_value](const T & obj) { return obj == inside_value; });
-}
-
-auto make_strict_weak_vector_orderer(const std::vector<Vector> & col) {
-    int max_x = std::max_element(col.begin(), col.end(),
-        [](const Vector & a, const Vector & b) { return a.x < b.x; })->x + 1;
-    if (max_x*max_x <= max_x) {
-        throw std::overflow_error("make_strict_weak_vector_orderer: maximum value x squared overflows the data type.");
-    }
-    return [max_x](const Vector & a, const Vector & b) {
-        int a_v = a.x + a.y*max_x;
-        int b_v = b.x + b.y*max_x;
-        return a_v < b_v;
-    };
-}
-
-inline Grid<sf::Color> load_image(const std::string & fn) {
-    sf::Image img;
-    if (!img.loadFromFile(fn)) {
-        throw InvArg("Cannot load file \"" + fn + "\".");
-    }
-    Grid<sf::Color> imgout;
-    imgout.set_size(int(img.getSize().x), int(img.getSize().y));
-    for (unsigned y = 0; y != img.getSize().y; ++y) {
-    for (unsigned x = 0; x != img.getSize().x; ++x) {
-        imgout(int(x), int(y)) = img.getPixel(x, y);
-    }}
-    return imgout;
-}
-
-inline void clean_up_edge_pixels(std::vector<Vector> & edge_pixels) {
-    std::sort(edge_pixels.begin(), edge_pixels.end(), make_strict_weak_vector_orderer(edge_pixels));
-    static const Vector k_remove_cand(-1, -1);
-    static auto is_remove_cand = [](Vector r) { return r == k_remove_cand; };
-    if (std::any_of(edge_pixels.begin(), edge_pixels.end(), is_remove_cand)) {
-        throw InvArg("No edge pixel maybe the remove candidate (should not be possible, the remove candidate is not a valid location on *any* grid).");
-    }
-    if (edge_pixels.size() > 1) {
-        auto itr = edge_pixels.begin();
-        for (auto jtr = itr + 1; jtr != edge_pixels.end(); ++jtr, ++itr) {
-            if (*itr != *jtr) continue;
-            *itr = k_remove_cand;
-        }
-    }
-    auto rem_itr = std::remove_if(edge_pixels.begin(), edge_pixels.end(), is_remove_cand);
-    edge_pixels.erase(rem_itr, edge_pixels.end());
-}
-
-inline Grid<bool> expand_mask
-    (const Grid<bool> & mask, std::vector<Vector> edge_pixels_copy,
-     std::size_t expansion_size = icon_fields::k_expansion_size,
-     std::size_t reserve_offset = 0)
-{
-    auto temp_mask = mask;
-    do_n_times(expansion_size, [&]() {
-        std::vector<Vector> new_edge_pixels;
-        new_edge_pixels.reserve(edge_pixels_copy.size() + reserve_offset);
-        for (auto r : edge_pixels_copy) {
-            assert(temp_mask(r));
-            for (auto n : k_neighbors) {
-                if (!temp_mask.has_position(n + r)) continue;
-                if (!temp_mask(n + r)) {
-                    temp_mask(n + r) = true;
-                    new_edge_pixels.push_back(n + r);
-                }
-            }
-        }
-        clean_up_edge_pixels(new_edge_pixels);
-        new_edge_pixels.swap(edge_pixels_copy);
-    });
-    return temp_mask;
-}
-
-inline void mark_pixel(sf::Color & pixel, Vector r) {
-    int idx = (r.x + r.y % int(k_shadow_pallete.size())) % int(k_shadow_pallete.size());
-    pixel = *(k_shadow_pallete.begin() + idx);
-}
-
-inline Grid<bool> make_icon_shadows(const Grid<bool> & shadow_mask, int icon_size, int expansion_size) {
-    Grid<bool> icon_shadows;
-    const int shadow_size = icon_size + expansion_size*2;
-    icon_shadows.set_size((shadow_mask.width () / icon_size)*shadow_size,
-                          (shadow_mask.height() / icon_size)*shadow_size,
-                          false);
-    for (Vector icon_r; icon_r.y != shadow_mask.height() / icon_size; ++icon_r.y) {
-    for (icon_r.x = 0  ; icon_r.x != shadow_mask.width () / icon_size; ++icon_r.x) {
-        auto icon_tile   = make_sub_grid(shadow_mask , icon_r*icon_size, icon_size, icon_size);
-        auto shadow_tile = make_sub_grid(icon_shadows, icon_r*shadow_size, shadow_size, shadow_size);
-        // note the following:
-        assert(icon_tile.width() + expansion_size*2 == shadow_tile.width());
-        Vector shadow_offset = Vector(1, 1)*expansion_size;
-        for (Vector r; r != icon_tile.end_position(); r = icon_tile.next(r)) {
-            if (!icon_tile(r)) continue;
-            shadow_tile(r + shadow_offset) = true;
-        }
-    }}
-    return icon_shadows;
-}
-
-inline Grid<bool> grow_shadow_mask(const Grid<bool> & shadow_mask, int expansion_size) {
-    std::vector<Vector> edge_pixels;
-    // guess reserve
-    edge_pixels.reserve( shadow_mask.size() / 4 );
-    for (Vector r; r != shadow_mask.end_position(); r = shadow_mask.next(r)) {
-        if (!shadow_mask(r)) continue;
-        if (any_are_edge(shadow_mask, r, true)) {
-            edge_pixels.push_back(r);
-        }
-    }
-
-    clean_up_edge_pixels(edge_pixels);
-    return expand_mask(shadow_mask, edge_pixels, expansion_size,
-                       std::max(shadow_mask.width(), shadow_mask.height())*4);
-}
-
-inline Grid<sf::Color> make_shadow_image(const Grid<bool> & shadow_mask, int icon_size, int expansion_size) {
-    auto icon_shadows = make_icon_shadows(shadow_mask, icon_size, expansion_size);
-    icon_shadows = grow_shadow_mask(icon_shadows, expansion_size);
-
-    {
-    sf::Image img;
-    img.create(unsigned(icon_shadows.width()), unsigned(icon_shadows.height()));
-    for (Vector r; r != icon_shadows.end_position(); r = icon_shadows.next(r)) {
-        img.setPixel(unsigned(r.x), unsigned(r.y), icon_shadows(r) ? sf::Color::Black : sf::Color::White);
-    }
-    img.saveToFile("/media/ramdisk/firstmask.png");
-    }
-    Grid<sf::Color> image;
-    image.set_size(icon_shadows.width(), icon_shadows.height(), k_transparency);
-    for (Vector r; r != image.end_position(); r = image.next(r)) {
-        if (!icon_shadows(r)) continue;
-        mark_pixel(image(r), r);
-    }
-    return image;
-}
-
-inline std::vector<Rectangle> make_frames_for_size(int width_in_frames, int height_in_frames, int frame_size) {
-    std::vector<Rectangle> rv;
-    rv.reserve(width_in_frames*height_in_frames);
-    for (Vector icon_r; icon_r.y != height_in_frames; ++icon_r.y) {
-    for (icon_r.x = 0  ; icon_r.x != width_in_frames ; ++icon_r.x) {
-        rv.emplace_back(icon_r*frame_size, Size(1, 1)*frame_size);
-    }}
-    return rv;
-}
-
-LoadIconsRt load_icons
-    (const std::string & filename, SfmlFlatEngine & engine, int icon_size, int expansion_size,
-     int opacity_limit)
-{
-    auto image_grid = load_image(filename);
-
-    Grid<bool> mask;
-    // guess reserve
-    mask.set_size(image_grid.width(), image_grid.height(), false);
-    for (Vector r; r != image_grid.end_position(); r = image_grid.next(r)) {
-        if (image_grid(r).a < opacity_limit) continue;
-        mask(r) = true;
-    }
-
-    // only do full icons
-    // I want to do the smallest step at a time
-
-    Grid<sf::Color> icon_shadows = make_shadow_image(mask, icon_size, expansion_size);
-    int width_in_frames  = image_grid.width () / icon_size;
-    int height_in_frames = image_grid.height() / icon_size;
-    std::vector<Rectangle> icon_frames
-        = make_frames_for_size(width_in_frames, height_in_frames, icon_size);
-    std::vector<Rectangle> icon_shadow_frames = make_frames_for_size
-        (width_in_frames, height_in_frames, icon_size + expansion_size*2);
-
-    LoadIconsRt rv;
-    rv.icon_frames = std::move(icon_frames);
-    rv.icon_shadows_frames = std::move(icon_shadow_frames);
-    rv.mask_ptr = std::make_shared<const Grid<bool>>( std::move(mask) );
-    rv.icons = engine.make_image_from(image_grid);
-    rv.icon_shadows = engine.make_image_from(icon_shadows);
-
-    // temp
-    sf::Image img;
-    img.create(unsigned(icon_shadows.width()), unsigned(icon_shadows.height()));
-    for (Vector r; r != icon_shadows.end_position(); r = icon_shadows.next(r)) {
-        img.setPixel(unsigned(r.x), unsigned(r.y), icon_shadows(r));
-    }
-    img.saveToFile("/media/ramdisk/shadows.png");
-
-    return rv;
+void TestFrameN::setup_widgets() {
+    begin_adding_widgets()
+        .add(m_menu).add_line_seperator()
+        .add(m_arrange_alpha).add_horizontal_spacer().add(m_exit);
 }
 
 } // end of <anonymous> namespace

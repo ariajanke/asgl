@@ -55,6 +55,10 @@ using SfmlRenderItem    = asgl::SfmlFlatEngine::SfmlRenderItem;
 using RoundedBorder     = asgl::SfmlFlatEngine::RoundedBorder;
 using SquareBorder      = asgl::SfmlFlatEngine::SquareBorder;
 using SfmlRenderItemMap = asgl::SfmlFlatEngine::SfmlRenderItemMap;
+using ColorItem         = asgl::SfmlFlatEngine::ColorItem;
+using SfmlImageResPtr   = asgl::SfmlFlatEngine::SfmlImageResPtr;
+using asgl::WidgetRenderer, asgl::Rectangle, asgl::StyleValue, asgl::Triangle,
+      asgl::TextBase, asgl::Widget, asgl::detail::SfmlImageResource;
 
 const std::array k_palette = []() {
     using namespace asgl::sfml_items;
@@ -80,11 +84,6 @@ const std::array k_palette = []() {
 template <typename T>
 constexpr const int k_item_type_id = asgl::SfmlFlatEngine::SfmlRenderItem::GetTypeId<T>::k_value;
 
-asgl::Event convert(const sf::Event &);
-
-sf::IntRect convert_to_sfml_rectangle(const asgl::Rectangle & rect)
-    { return sf::IntRect(rect.left, rect.top, rect.width, rect.height); }
-
 using ItemColorEnum = asgl::sfml_items::ItemColorEnum;
 using ItemEnum      = asgl::sfml_items::ItemEnum;
 
@@ -92,6 +91,37 @@ template <typename T>
 constexpr const bool is_field_type_t = StyleField::HasType<T>::k_value
     || std::is_same_v<ItemColorEnum, T>
     || std::is_same_v<ItemEnum, T>;
+
+class SfmlWidgetRenderer final : public WidgetRenderer {
+public:
+    SfmlWidgetRenderer(sf::RenderTarget &, sf::RenderStates,
+                       SfmlRenderItemMap &);
+
+    void render_rectangle(const Rectangle &, StyleValue, const void *) final;
+    void render_triangle (const Triangle  &, StyleValue, const void *) final;
+    void render_text(const TextBase &) final;
+
+    void render_rectangle_pair(const Rectangle &, const Rectangle &, StyleValue, const void *) final;
+
+    void render_special(StyleValue, const Widget * instance_pointer) final;
+
+private:
+    void render_rectangle(const Rectangle &, ColorItem &) const;
+    void render_triangle (const Triangle  &, ColorItem &) const;
+
+    void render_rectangle_pair(const Rectangle &, const Rectangle &, RoundedBorder &) const;
+    void render_rectangle_pair(const Rectangle &, const Rectangle &, SquareBorder &) const;
+    void render_rectangle_pair(const Rectangle &, const Rectangle &, SfmlImageResource &) const;
+
+    sf::RenderTarget & m_target;
+    SfmlRenderItemMap & m_items;
+    sf::RenderStates m_states;
+};
+
+asgl::Event convert(const sf::Event &);
+
+inline sf::IntRect convert_to_sfml_rectangle(const asgl::Rectangle & rect)
+    { return sf::IntRect(rect.left, rect.top, rect.width, rect.height); }
 
 template <typename T>
 inline std::enable_if_t<is_field_type_t<T>, StyleField>
@@ -105,59 +135,16 @@ inline StyleField to_field(const ItemColorEnum & obj)
 template <>
 inline StyleField to_field(const ItemEnum & obj)
     { return StyleField(asgl::SfmlFlatEngine::to_item_key(obj)); }
-#if 0
-inline SfmlRenderItem to_item(sf::Color color) {
-    return asgl::SfmlFlatEngine::SfmlRenderItem(asgl::SfmlFlatEngine::ColorItem(color));
-}
-#endif
-inline RoundedBorder make_rounded_border(sf::Color back, sf::Color front, int padding) {
-    assert(padding >= 0);
-    RoundedBorder border;
-    border.back_rectangle.set_color(back);
-    border.front_rectangle.set_color(front);
 
-    auto to_v = [padding](float f)
-        { return sf::Vector2f(std::cos(f), std::sin(f))*float(std::max(0, padding - 1)); };
-    border.circle.reserve(padding*3*3);
-    static constexpr const float k_full_rot = 3.14159265f * 2.f;
-    float t    = 0.f;
-    float step = k_full_rot / float(padding*3);
-    sf::Vertex vtx;
-    vtx.color = back;
-    for (int i = 0; i != padding*3; ++i) {
-        auto next_t = std::min(k_full_rot, t + step);
-        vtx.position = sf::Vector2f();
-        border.circle.push_back(vtx);
-        vtx.position = to_v(t);
-        border.circle.push_back(vtx);
-        vtx.position = to_v(next_t);
-        border.circle.push_back(vtx);
-        t = next_t;
-    }
-    return border;
-}
+RoundedBorder make_rounded_border(sf::Color back, sf::Color front, int padding);
 
-inline SquareBorder make_square_border(sf::Color back, sf::Color front) {
-    SquareBorder border;
-    border.back_rectangle.set_color(back);
-    border.front_rectangle.set_color(front);
-    return border;
-}
+SquareBorder make_square_border(sf::Color back, sf::Color front);
 
-inline SfmlRenderItem to_color_item(sf::Color color) {
-     return SfmlRenderItem( asgl::SfmlFlatEngine::ColorItem(color) );
-}
+SfmlRenderItem to_color_item(sf::Color color);
 
 } // end of <anonymous> namespace
 
 namespace asgl {
-
-void SfmlFlatEngine::assign_target_and_states
-    (sf::RenderTarget & target, sf::RenderStates states)
-{
-    m_target_ptr = &target;
-    m_states = states;
-}
 
 void SfmlFlatEngine::stylize(Widget & widget) const {
     if (!m_first_setup_done) {
@@ -254,7 +241,7 @@ void SfmlFlatEngine::setup_default_styles() {
     m_first_setup_done = true;
 }
 
-ItemKey SfmlFlatEngine::add_rectangle_style(sf::Color color, StyleKey stylekey) {
+StyleValue SfmlFlatEngine::add_rectangle_style(sf::Color color, StyleKey stylekey) {
     auto item_key = m_item_key_creator.make_key();
     m_items[item_key] = to_color_item(color);
     m_style_map.add(stylekey, StyleField(item_key));
@@ -280,6 +267,15 @@ SharedImagePtr SfmlFlatEngine::make_image_from(ConstSubGrid<sf::Color> data) {
 
     m_items[image_res->item] = SfmlRenderItem(image_res);
     return image_res;
+}
+
+void SfmlFlatEngine::draw
+    (const Widget & widget, sf::RenderTarget & target, sf::RenderStates states)
+{
+    // a renderer would be better described as an aggregate of some kind...
+    // be it an additional member or exist for this stack frame only...
+    SfmlWidgetRenderer widren(target, states, m_items);
+    widget.draw(widren);
 }
 
 /* static */ const sf::Texture * SfmlFlatEngine::dynamic_cast_to_texture
@@ -318,150 +314,6 @@ void SfmlFlatEngine::ColorItem::update(const Triangle & trituple) {
         rectangle.color());
 }
 
-/* private */ void SfmlFlatEngine::render_rectangle
-    (const Rectangle & rect, ItemKey itemkey, const void *)
-{
-    auto itr = m_items.find(itemkey);
-    if (itr == m_items.end())
-        return;
-    switch (itr->second.type_id()) {
-#   if 0
-    case k_item_type_id<SfmlImageResPtr>:
-#   endif
-    case k_item_type_id<ColorItem>:
-        return render_rectangle(rect, itr->second.as<ColorItem>());
-#   if 0
-    case k_item_type_id<DrawTriangle>:
-        throw RtError("SfmlFlatEngine::render_rectangle: Assigned ItemKey "
-                      "belonging to a triangle and attempted to draw it as a "
-                      "rectangle.");
-#   endif
-    default:
-        throw RtError("SfmlFlatEngine::render_rectangle: (not) Bad branch.");
-    }
-}
-
-/* private */ void SfmlFlatEngine::render_triangle
-    (const Triangle & tuple, ItemKey itemkey, const void *)
-{
-    auto itr = m_items.find(itemkey);
-    if (itr == m_items.end())
-        return;
-    switch (itr->second.type_id()) {
-    case k_item_type_id<SfmlImageResPtr>:
-        throw RtError("SfmlFlatEngine::render_rectangle: Assigned ItemKey "
-                      "belonging to a rectangle and attempted to draw it as a "
-                      "triangle.");
-    case k_item_type_id<ColorItem>:
-        return render_triangle(tuple, itr->second.as<ColorItem>());
-    default:
-        throw RtError("SfmlFlatEngine::render_rectangle: (not) Bad branch.");
-    }
-}
-
-/* private */ void SfmlFlatEngine::render_text(const TextBase & text_base) {
-    const auto * dc_text = dynamic_cast<const detail::SfmlText *>(&text_base);
-    if (!dc_text) return;
-    m_target_ptr->draw(*dc_text, m_states);
-}
-
-/* private */ void SfmlFlatEngine::render_rectangle_pair
-    (const Rectangle & first, const Rectangle & second, ItemKey key, const void *)
-{
-    auto itr = m_items.find(key);
-    if (itr == m_items.end()) return;
-    switch (itr->second.type_id()) {
-    case k_item_type_id<SfmlImageResPtr>: {
-        auto ptr = itr->second.as<SfmlImageResPtr>();
-        if (!ptr) { throw RtError("somehow null"); }
-        return render_rectangle_pair(first, second, *ptr);
-    }
-    case k_item_type_id<ColorItem>:
-        render_rectangle(first, itr->second.as<ColorItem>());
-        return render_rectangle(second, itr->second.as<ColorItem>());
-    case k_item_type_id<RoundedBorder>:
-        return render_rectangle_pair(first, second, itr->second.as<RoundedBorder>());
-    case k_item_type_id<SquareBorder>:
-        return render_rectangle_pair(first, second, itr->second.as<SquareBorder>());
-    default: throw RtError("bad branch");
-    }
-}
-
-/* private */ void SfmlFlatEngine::render_special
-    (ItemKey key, const Widget * instance_pointer)
-{
-    if (key != to_item_key(sfml_items::k_special_draw_item)) {
-        throw InvArg("SfmlFlatEngine::render_special: this function should "
-                     "only be called with the special draw item key.");
-    }
-    const auto * as_drawable = dynamic_cast<const sf::Drawable *>(instance_pointer);
-    if (!as_drawable) {
-        throw InvArg("SfmlFlatEngine::render_special: special rendering "
-                     "expects that ");
-    }
-    m_target_ptr->draw(*as_drawable, m_states);
-}
-
-/* private */ void SfmlFlatEngine::render_rectangle
-    (const Rectangle & rect, ColorItem & color_item) const
-{
-    color_item.update(rect);
-    m_target_ptr->draw(color_item.rectangle(), m_states);
-}
-
-/* private */ void SfmlFlatEngine::render_triangle
-    (const Triangle & trituple, ColorItem & color_item) const
-{
-    color_item.update(trituple);
-    m_target_ptr->draw(color_item.triangle(), m_states);
-}
-
-/* private */ void SfmlFlatEngine::render_rectangle_pair
-    (const Rectangle & front, const Rectangle & back, RoundedBorder & obj) const
-{
-    SfmlFlatEngine::update_draw_rectangle
-        (obj.back_rectangle, Rectangle(front.left, back.top, front.width, back.height));
-    m_target_ptr->draw(obj.back_rectangle, m_states);
-
-    SfmlFlatEngine::update_draw_rectangle
-        (obj.back_rectangle, Rectangle(back.left, front.top, back.width, front.height));
-    m_target_ptr->draw(obj.back_rectangle, m_states);
-
-    auto draw_circle_at = [&obj, this](float x, float y) {
-        auto nstates = m_states;
-        nstates.transform.translate(x, y);
-        m_target_ptr->draw(obj.circle.data(), obj.circle.size(), sf::PrimitiveType::Triangles, nstates);
-    };
-    // tl, tr, bl, br
-    draw_circle_at( float(front.left              ), float(front.top               ) );
-    draw_circle_at( float(front.left + front.width), float(front.top               ) );
-    draw_circle_at( float(front.left              ), float(front.top + front.height) );
-    draw_circle_at( float(front.left + front.width), float(front.top + front.height) );
-
-    SfmlFlatEngine::update_draw_rectangle(obj.front_rectangle, front);
-    m_target_ptr->draw(obj.front_rectangle, m_states);
-}
-
-/* private */ void SfmlFlatEngine::render_rectangle_pair
-    (const Rectangle & front, const Rectangle & back, SquareBorder & obj) const
-{
-    SfmlFlatEngine::update_draw_rectangle(obj.back_rectangle, front);
-    m_target_ptr->draw(obj.back_rectangle, m_states);
-
-    SfmlFlatEngine::update_draw_rectangle(obj.front_rectangle, back);
-    m_target_ptr->draw(obj.front_rectangle, m_states);
-}
-
-/* private */ void SfmlFlatEngine::render_rectangle_pair
-    (const Rectangle & bounds, const Rectangle & txrect, SfmlImageResource & obj) const
-{
-    obj.sprite.setTextureRect(convert_to_sfml_rectangle(txrect));
-    obj.sprite.setPosition(float(bounds.left), float(bounds.top));
-    obj.sprite.setScale(float( bounds.width ) / float(txrect.width ),
-                        float( bounds.height) / float(txrect.height));
-    m_target_ptr->draw(obj.sprite, m_states);
-}
-
 /* private */ SharedImagePtr SfmlFlatEngine::make_image_resource
     (const std::string & filename)
 {
@@ -493,7 +345,7 @@ void SfmlFlatEngine::ColorItem::update(const Triangle & trituple) {
     return rv;
 }
 
-/* private */ SfmlRenderItem & SfmlFlatEngine::add_and_verify_unique(ItemKey key) {
+/* private */ SfmlRenderItem & SfmlFlatEngine::add_and_verify_unique(StyleValue key) {
     auto p = std::make_pair(key, SfmlRenderItem());
     auto gv = m_items.insert(p);
     if (gv.second) {
@@ -518,6 +370,159 @@ MouseMove convert(const sf::Event::MouseMoveEvent &);
 Button convert(const sf::Event::JoystickButtonEvent &);
 Axis convert(const sf::Event::JoystickMoveEvent &);
 
+SfmlWidgetRenderer::SfmlWidgetRenderer
+    (sf::RenderTarget & target, sf::RenderStates states, SfmlRenderItemMap & items):
+    m_target(target),
+    m_items(items),
+    m_states(states)
+{}
+
+void SfmlWidgetRenderer::render_rectangle
+    (const Rectangle & rect, StyleValue itemkey, const void *)
+{
+    auto itr = m_items.find(itemkey);
+    if (itr == m_items.end())
+        return;
+    switch (itr->second.type_id()) {
+#   if 0
+    case k_item_type_id<SfmlImageResPtr>:
+#   endif
+    case k_item_type_id<ColorItem>:
+        return render_rectangle(rect, itr->second.as<ColorItem>());
+#   if 0
+    case k_item_type_id<DrawTriangle>:
+        throw RtError("SfmlFlatEngine::render_rectangle: Assigned ItemKey "
+                      "belonging to a triangle and attempted to draw it as a "
+                      "rectangle.");
+#   endif
+    default:
+        throw RtError("SfmlFlatEngine::render_rectangle: (not) Bad branch.");
+    }
+}
+
+void SfmlWidgetRenderer::render_triangle
+    (const Triangle & tuple, StyleValue itemkey, const void *)
+{
+    auto itr = m_items.find(itemkey);
+    if (itr == m_items.end())
+        return;
+    switch (itr->second.type_id()) {
+    case k_item_type_id<SfmlImageResPtr>:
+        throw RtError("SfmlFlatEngine::render_rectangle: Assigned ItemKey "
+                      "belonging to a rectangle and attempted to draw it as a "
+                      "triangle.");
+    case k_item_type_id<ColorItem>:
+        return render_triangle(tuple, itr->second.as<ColorItem>());
+    default:
+        throw RtError("SfmlFlatEngine::render_rectangle: (not) Bad branch.");
+    }
+}
+
+void SfmlWidgetRenderer::render_text(const TextBase & text_base) {
+    const auto * dc_text = dynamic_cast<const asgl::detail::SfmlText *>(&text_base);
+    if (!dc_text) return;
+    m_target.draw(*dc_text, m_states);
+}
+
+void SfmlWidgetRenderer::render_rectangle_pair
+    (const Rectangle & first, const Rectangle & second, StyleValue key, const void *)
+{
+    auto itr = m_items.find(key);
+    if (itr == m_items.end()) return;
+    switch (itr->second.type_id()) {
+    case k_item_type_id<SfmlImageResPtr>: {
+        auto ptr = itr->second.as<SfmlImageResPtr>();
+        if (!ptr) { throw RtError("somehow null"); }
+        return render_rectangle_pair(first, second, *ptr);
+    }
+    case k_item_type_id<ColorItem>:
+        render_rectangle(first, itr->second.as<ColorItem>());
+        return render_rectangle(second, itr->second.as<ColorItem>());
+    case k_item_type_id<RoundedBorder>:
+        return render_rectangle_pair(first, second, itr->second.as<RoundedBorder>());
+    case k_item_type_id<SquareBorder>:
+        return render_rectangle_pair(first, second, itr->second.as<SquareBorder>());
+    default: throw RtError("bad branch");
+    }
+}
+
+void SfmlWidgetRenderer::render_special
+    (StyleValue key, const Widget * instance_pointer)
+{
+    if (key != asgl::SfmlFlatEngine::to_item_key(asgl::sfml_items::k_special_draw_item)) {
+        throw InvArg("SfmlFlatEngine::render_special: this function should "
+                     "only be called with the special draw item key.");
+    }
+    const auto * as_drawable = dynamic_cast<const sf::Drawable *>(instance_pointer);
+    if (!as_drawable) {
+        throw InvArg("SfmlFlatEngine::render_special: special rendering "
+                     "expects that ");
+    }
+    m_target.draw(*as_drawable, m_states);
+}
+
+/* private */ void SfmlWidgetRenderer::render_rectangle
+    (const Rectangle & rect, ColorItem & color_item) const
+{
+    color_item.update(rect);
+    m_target.draw(color_item.rectangle(), m_states);
+}
+
+/* private */ void SfmlWidgetRenderer::render_triangle
+    (const Triangle & trituple, ColorItem & color_item) const
+{
+    color_item.update(trituple);
+    m_target.draw(color_item.triangle(), m_states);
+}
+
+/* private */ void SfmlWidgetRenderer::render_rectangle_pair
+    (const Rectangle & front, const Rectangle & back, RoundedBorder & obj) const
+{
+    using asgl::SfmlFlatEngine;
+    SfmlFlatEngine::update_draw_rectangle
+        (obj.back_rectangle, Rectangle(front.left, back.top, front.width, back.height));
+    m_target.draw(obj.back_rectangle, m_states);
+
+    SfmlFlatEngine::update_draw_rectangle
+        (obj.back_rectangle, Rectangle(back.left, front.top, back.width, front.height));
+    m_target.draw(obj.back_rectangle, m_states);
+
+    auto draw_circle_at = [&obj, this](float x, float y) {
+        auto nstates = m_states;
+        nstates.transform.translate(x, y);
+        m_target.draw(obj.circle.data(), obj.circle.size(), sf::PrimitiveType::Triangles, nstates);
+    };
+    // tl, tr, bl, br
+    draw_circle_at( float(front.left              ), float(front.top               ) );
+    draw_circle_at( float(front.left + front.width), float(front.top               ) );
+    draw_circle_at( float(front.left              ), float(front.top + front.height) );
+    draw_circle_at( float(front.left + front.width), float(front.top + front.height) );
+
+    SfmlFlatEngine::update_draw_rectangle(obj.front_rectangle, front);
+    m_target.draw(obj.front_rectangle, m_states);
+}
+
+/* private */ void SfmlWidgetRenderer::render_rectangle_pair
+    (const Rectangle & front, const Rectangle & back, SquareBorder & obj) const
+{
+    using asgl::SfmlFlatEngine;
+    SfmlFlatEngine::update_draw_rectangle(obj.back_rectangle, front);
+    m_target.draw(obj.back_rectangle, m_states);
+
+    SfmlFlatEngine::update_draw_rectangle(obj.front_rectangle, back);
+    m_target.draw(obj.front_rectangle, m_states);
+}
+
+/* private */ void SfmlWidgetRenderer::render_rectangle_pair
+    (const Rectangle & bounds, const Rectangle & txrect, SfmlImageResource & obj) const
+{
+    obj.sprite.setTextureRect(convert_to_sfml_rectangle(txrect));
+    obj.sprite.setPosition(float(bounds.left), float(bounds.top));
+    obj.sprite.setScale(float( bounds.width ) / float(txrect.width ),
+                        float( bounds.height) / float(txrect.height));
+    m_target.draw(obj.sprite, m_states);
+}
+
 asgl::Event convert(const sf::Event & sfevent) {
     using namespace asgl;
     switch (sfevent.type) {
@@ -541,6 +546,45 @@ asgl::Event convert(const sf::Event & sfevent) {
         return Event(AxisMove(convert(sfevent.joystickMove)));
     default: return Event();
     }
+}
+
+RoundedBorder make_rounded_border(sf::Color back, sf::Color front, int padding) {
+    assert(padding >= 0);
+    RoundedBorder border;
+    border.back_rectangle.set_color(back);
+    border.front_rectangle.set_color(front);
+
+    auto to_v = [padding](float f)
+        { return sf::Vector2f(std::cos(f), std::sin(f))*float(std::max(0, padding - 1)); };
+    border.circle.reserve(padding*3*3);
+    static constexpr const float k_full_rot = 3.14159265f * 2.f;
+    float t    = 0.f;
+    float step = k_full_rot / float(padding*3);
+    sf::Vertex vtx;
+    vtx.color = back;
+    for (int i = 0; i != padding*3; ++i) {
+        auto next_t = std::min(k_full_rot, t + step);
+        vtx.position = sf::Vector2f();
+        border.circle.push_back(vtx);
+        vtx.position = to_v(t);
+        border.circle.push_back(vtx);
+        vtx.position = to_v(next_t);
+        border.circle.push_back(vtx);
+        t = next_t;
+    }
+    return border;
+}
+
+// I'd like to add this later to the sample rendering options...
+SquareBorder make_square_border(sf::Color back, sf::Color front) {
+    SquareBorder border;
+    border.back_rectangle.set_color(back);
+    border.front_rectangle.set_color(front);
+    return border;
+}
+
+SfmlRenderItem to_color_item(sf::Color color) {
+     return SfmlRenderItem( asgl::SfmlFlatEngine::ColorItem(color) );
 }
 
 // ----------------------------------------------------------------------------

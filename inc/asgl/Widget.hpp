@@ -81,17 +81,20 @@ class WidgetRenderer {
 public:
     virtual ~WidgetRenderer();
 
-    virtual void render_rectangle(const Rectangle &, ItemKey, const void * widget_spec_ptr) = 0;
+    virtual void render_rectangle(const Rectangle &, StyleValue, const void * widget_spec_ptr) = 0;
     // this solves two problems:
     // - rendering buttons with rounded/special borders
     // - rendering images with any texture rectangle
+    // NTS: certainly a creative approach, but the semantics are a little
+    // concerning to me...
+    // perhaps it's best meant to understand this as parameterizing only?
     virtual void render_rectangle_pair
-        (const Rectangle &, const Rectangle &, ItemKey, const void * widget_spec_ptr) = 0;
-    virtual void render_triangle(const Triangle &, ItemKey, const void * widget_spec_ptr) = 0;
+        (const Rectangle &, const Rectangle &, StyleValue, const void * widget_spec_ptr) = 0;
+    virtual void render_triangle(const Triangle &, StyleValue, const void * widget_spec_ptr) = 0;
     virtual void render_text(const TextBase &) = 0;
 
     // there is no way to double dispatch this or to *not* pass a this pointer
-    virtual void render_special(ItemKey, const Widget * instance_pointer) = 0;
+    virtual void render_special(StyleValue, const Widget * instance_pointer) = 0;
 };
 
 /** A frame needs four things from a widget, in order to position the widget
@@ -153,6 +156,9 @@ public:
      */
     void set_location(int x, int y);
 
+    /** @copydoc asg::Widget::set_location(int,int) */
+    void set_location(Vector);
+
     /** @returns the top left location of the widget */
     virtual Vector location() const = 0;
 
@@ -194,12 +200,12 @@ public:
     void assign_flags_receiver(WidgetFlagsReceiver * rec);
 
     struct Helpers {
-        using FieldFindTuple = std::tuple<ItemKey *, const char *, const StyleField *>;
+        using FieldFindTuple = std::tuple<StyleValue *, const char *, const StyleField *>;
 
         static void handle_required_fields
             (const char * caller, std::initializer_list<FieldFindTuple> && fields);
 
-        static ItemKey verify_item_key_field
+        static StyleValue verify_item_key_field
             (const StyleField &, const char * full_caller, const char * key_name);
 
         static void verify_non_negative(int, const char * full_caller, const char * dim_name);
@@ -216,13 +222,13 @@ protected:
 
     virtual void set_location_(int x, int y) = 0;
 
-    void draw_to(WidgetRenderer &, const Rectangle &, ItemKey) const;
+    void draw_to(WidgetRenderer &, const Rectangle &, StyleValue) const;
 
-    void draw_to(WidgetRenderer &, const Rectangle &, const Rectangle &, ItemKey) const;
+    void draw_to(WidgetRenderer &, const Rectangle &, const Rectangle &, StyleValue) const;
 
-    void draw_to(WidgetRenderer &, const Triangle &, ItemKey) const;
+    void draw_to(WidgetRenderer &, const Triangle &, StyleValue) const;
 
-    void draw_special_to(WidgetRenderer &, ItemKey) const;
+    void draw_special_to(WidgetRenderer &, StyleValue) const;
 
     /** Set this flag if you need to resize the whole frame/family of widgets,
      *  in addition to local geometric computations.
@@ -277,8 +283,6 @@ protected:
     bool needs_whole_family_geometry_update() const;
 
 private:
-    static std::runtime_error make_size_changed_error(const char * caller) noexcept;
-
     std::vector<Widget *> m_individuals;
     bool m_geo_update_flag = false;
 };

@@ -28,9 +28,10 @@
 #include <iostream>
 
 namespace {
-
+#if 0
 using asgl::detail::FocusWidgetAtt;
-using FocusContIter = asgl::detail::FrameFocusHandler::FocusContIter;
+#endif
+using FocusContIter = asgl::LinearFocusHandler::FocusContIter;
 using namespace cul::exceptions_abbr;
 
 constexpr const bool k_log_change_focus = false;
@@ -89,7 +90,7 @@ std::ptrdiff_t wrap_difference(Iter a, Iter b, Iter beg, Iter end) {
 } // end of <anonymous> namespace
 
 namespace asgl {
-
+#if 0
 namespace detail {
 
 /* static */ void FocusWidgetAtt::notify_focus_gained(FocusReceiver & fwidget) {
@@ -107,7 +108,7 @@ namespace detail {
 { return fwidget.is_visible_for_focus_advance(); }
 
 } // end of detail namespace -> into ::asgl
-
+#endif
 FocusReceiver::~FocusReceiver() {}
 
 bool FocusReceiver::reset_focus_request() {
@@ -115,28 +116,28 @@ bool FocusReceiver::reset_focus_request() {
     m_request_focus = false;
     return rv;
 }
-
+#if 0
 namespace detail {
-
-void FrameFocusHandler::set_focus_advance(FocusChangeFunc && func) {
+#endif
+void LinearFocusHandler::set_focus_advance(FocusChangeFunc && func) {
     m_advance_func = std::move(func);
 }
 
-void FrameFocusHandler::set_focus_advance(const FocusChangeFunc & func) {
+void LinearFocusHandler::set_focus_advance(const FocusChangeFunc & func) {
     auto temp = func;
     set_focus_advance(std::move(temp));
 }
 
-void FrameFocusHandler::set_focus_regress(FocusChangeFunc && func) {
+void LinearFocusHandler::set_focus_regress(FocusChangeFunc && func) {
     m_regress_func = std::move(func);
 }
 
-void FrameFocusHandler::set_focus_regress(const FocusChangeFunc & func) {
+void LinearFocusHandler::set_focus_regress(const FocusChangeFunc & func) {
     auto temp = func;
     set_focus_regress(std::move(temp));
 }
 
-void FrameFocusHandler::process_event(const Event & event) {
+void LinearFocusHandler::process_event(const Event & event) {
     if (m_focus_widgets.empty()) return;
 
     if (m_current_position != m_focus_widgets.end()) {
@@ -146,7 +147,9 @@ void FrameFocusHandler::process_event(const Event & event) {
 
     auto new_focus = find_requesting_focus(m_focus_widgets.begin(), m_focus_widgets.end());
     if (new_focus == m_focus_widgets.end()) {
+#       if 0
         auto old_itr = m_current_position;
+#       endif
         if (m_advance_func(event)) {
 #           if 0
             if (m_current_position == m_focus_widgets.end()) {
@@ -156,7 +159,7 @@ void FrameFocusHandler::process_event(const Event & event) {
                 m_current_position = m_focus_widgets.begin();
             }
 #           endif
-            m_current_position = advance_focus_iterator(m_current_position);
+            update_focus(m_current_position, advance_focus_iterator(m_current_position));
             log_change_focus("[asgl] Focus widget advanced.");
         } else if (m_regress_func(event)) {
 #           if 0
@@ -167,30 +170,48 @@ void FrameFocusHandler::process_event(const Event & event) {
                 --m_current_position;
             }
 #           endif
-            m_current_position = regress_focus_iterator(m_current_position);
+            update_focus(m_current_position, regress_focus_iterator(m_current_position));
             log_change_focus("[asgl] Focus widget regressed.");
         }
+#       if 0
         if (old_itr != m_current_position) {
+#           if 0
             if (old_itr != m_focus_widgets.end())
                 FocusWidgetAtt::notify_focus_lost(**old_itr);
             FocusWidgetAtt::notify_focus_gained(**m_current_position);
+#           endif
+            if (old_itr != m_focus_widgets.end())
+                (**old_itr).notify_focus_lost();
+            (**m_current_position).notify_focus_gained();
         }
+#       endif
     } else {
+#       if 0
         if (!FocusWidgetAtt::is_visible_for_focus_advance(**new_focus)) {
+#       endif
+        if (!(**new_focus).is_visible_for_focus_advance()) {
             throw RtError("FrameFocusHandler::process_event: A widget was "
                           "requesting focus explicitly while not being "
                           "visible for focus advances.");
         }
+#       if 0
         if (m_current_position != m_focus_widgets.end())
             { FocusWidgetAtt::notify_focus_lost(**m_current_position); }
         FocusWidgetAtt::notify_focus_gained(**new_focus);
+#       endif
+        update_focus(m_current_position, new_focus);
+#       if 0
+        if (m_current_position != m_focus_widgets.end())
+            { (**m_current_position).notify_focus_lost(); }
+        (**new_focus).notify_focus_gained();
         m_current_position = new_focus;
+#       endif
         log_change_focus("[asgl] Focus request answered.");
     }
     check_for_visibility_loss();
 }
 
-void FrameFocusHandler::check_for_child_widget_updates(Widget & parent) {
+void LinearFocusHandler::check_for_child_widget_updates(Widget & parent) {
     bool mismatch_detected = false;
     auto itr = m_focus_widgets.begin();
     // O(n) in virtual calls
@@ -204,7 +225,10 @@ void FrameFocusHandler::check_for_child_widget_updates(Widget & parent) {
         {
             mismatch_detected = true;
             if (m_current_position != m_focus_widgets.end()) {
+#               if 0
                 FocusWidgetAtt::notify_focus_lost(**m_current_position);
+#               endif
+                (**m_current_position).notify_focus_lost();
             }
             m_focus_widgets.erase(itr, m_focus_widgets.end());
             // warning: itr is now unusable!
@@ -218,13 +242,13 @@ void FrameFocusHandler::check_for_child_widget_updates(Widget & parent) {
     }
 }
 
-void FrameFocusHandler::clear_focus_widgets() {
+void LinearFocusHandler::clear_focus_widgets() {
     m_focus_widgets.clear();
     m_current_position = m_focus_widgets.end();
     log_change_focus("[asgl] Focus widgets have been cleared.");
 }
 
-/* static */ bool FrameFocusHandler::default_focus_advance(const Event & event) {
+/* static */ bool LinearFocusHandler::default_focus_advance(const Event & event) {
     if (const auto * keyev = event.as_pointer<KeyPress>()) {
         return keyev->key == keys::k_tab && !keyev->shift;
     } else if (const auto * gmot = event.as_pointer<GeneralMotion>()) {
@@ -233,7 +257,7 @@ void FrameFocusHandler::clear_focus_widgets() {
     return false;
 }
 
-/* static */ bool FrameFocusHandler::default_focus_regress(const Event & event) {
+/* static */ bool LinearFocusHandler::default_focus_regress(const Event & event) {
     if (const auto * keyev = event.as_pointer<KeyPress>()) {
         return keyev->key == keys::k_tab && keyev->shift;
     } else if (const auto * gmot = event.as_pointer<GeneralMotion>()) {
@@ -243,7 +267,7 @@ void FrameFocusHandler::clear_focus_widgets() {
 }
 
 /* private to FrameFocusHandler */ cul::FlowControlSignal
-    FrameFocusHandler::FocusAdvancerFunc::operator ()
+    LinearFocusHandler::FocusAdvancerFunc::operator ()
     (FocusContIter itr)
 {
     using namespace cul::fc_signal;
@@ -251,14 +275,17 @@ void FrameFocusHandler::clear_focus_widgets() {
         m_advanced_at_least_once = true;
         return k_continue;
     }
+#   if 0
     if (FocusWidgetAtt::is_visible_for_focus_advance(**itr)) {
+#   endif
+    if ((**itr).is_visible_for_focus_advance()) {
         m_target_itr = itr;
         return k_break;
     }
     return k_continue;
 }
 
-/* private */ FocusContIter FrameFocusHandler::advance_focus_iterator
+/* private */ FocusContIter LinearFocusHandler::advance_focus_iterator
     (FocusContIter start)
 {
     // the "first" advance
@@ -269,7 +296,7 @@ void FrameFocusHandler::clear_focus_widgets() {
     return rv;
 }
 
-/* private */ FocusContIter FrameFocusHandler::regress_focus_iterator
+/* private */ FocusContIter LinearFocusHandler::regress_focus_iterator
     (FocusContIter start)
 {
     if (m_focus_widgets.empty()) return start;
@@ -281,9 +308,12 @@ void FrameFocusHandler::clear_focus_widgets() {
     return rv;
 }
 
-/* private */ void FrameFocusHandler::check_for_visibility_loss() {
+/* private */ void LinearFocusHandler::check_for_visibility_loss() {
     if (m_current_position == m_focus_widgets.end()) return;
+#   if 0
     if (FocusWidgetAtt::is_visible_for_focus_advance(**m_current_position)) {
+#   endif
+    if ((**m_current_position).is_visible_for_focus_advance()) {
         return;
     }
 
@@ -305,13 +335,41 @@ void FrameFocusHandler::clear_focus_widgets() {
     } ();
 
     if (new_pos == m_current_position) return;
+#   if 0
     if (new_pos != m_focus_widgets.end())
         FocusWidgetAtt::notify_focus_lost(**m_current_position);
     FocusWidgetAtt::notify_focus_gained(**new_pos);
-    m_current_position = new_pos;
-}
+#   endif
 
+    update_focus(m_current_position, new_pos);
+#   if 0
+    if (new_pos != m_focus_widgets.end())
+        (**m_current_position).notify_focus_lost();
+    (**new_pos).notify_focus_gained();
+    m_current_position = new_pos;
+#   endif
+}
+#if 0
 } // end of detail namespace -> into ::asgl
+#endif
+
+void LinearFocusHandler::update_focus
+    (FocusContIter & field, FocusContIter new_value) const
+{
+    static constexpr const auto k_widget_not_visible_for_focus_msg =
+        "LinearFocusHandler::update_focus: Attempted to set new focus to a "
+        "receiver which is not visible for focus.";
+
+    if (field != m_focus_widgets.end())
+        (**field).notify_focus_lost();
+    if (new_value != m_focus_widgets.end()) {
+        if (!(**new_value).is_visible_for_focus_advance()) {
+            throw InvArg(k_widget_not_visible_for_focus_msg);
+        }
+        (**new_value).notify_focus_gained();
+    }
+    field = new_value;
+}
 
 } // end of asgl namespace
 

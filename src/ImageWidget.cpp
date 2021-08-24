@@ -84,7 +84,7 @@ void ImageWidget::set_view_rectangle(Rectangle rect)
 void ImageWidget::draw(WidgetRenderer & target) const
     { draw_to(target, m_bounds, m_image_rect, item_key()); }
 
-/* private */ ItemKey ImageWidget::item_key() const
+/* private */ StyleValue ImageWidget::item_key() const
     { return verify_image_present().item_key(); }
 
 /* private */ ImageResource & ImageWidget::verify_image_present() {

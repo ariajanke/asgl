@@ -194,8 +194,8 @@ private:
     int m_chosen_width = styles::k_uninit_size;
     int m_used_width   = 0;
 
-    ItemKey m_border_appearance, m_border_hover_appearance;
-    ItemKey m_area_appearance, m_cursor_appearance;
+    StyleValue m_border_appearance, m_border_hover_appearance;
+    StyleValue m_area_appearance, m_cursor_appearance;
     Text m_display_left, m_display_right;
     Text m_empty_text;
 

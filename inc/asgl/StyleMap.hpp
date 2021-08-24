@@ -123,23 +123,26 @@ private:
     explicit StyleKey(std::size_t val): IdObject(val) {}
 };
 
-/** An item key, represents a key which is used to figure out how a specific UI
- *  element should be rendered by the renderer.
+/** A style value, represents a value which is used to figure out how a
+ *  specific UI element should be rendered.
+ *
+ *  This could for instance, describe a color, or an image handle, or perhaps,
+ *  something much more complicated.
  */
-class ItemKey final : public detail::IdObject {
+class StyleValue final : public detail::IdObject {
 public:
-    ItemKey() {}
-    ItemKey(const ItemKey &) = default;
-    ItemKey & operator = (const ItemKey &) = default;
+    StyleValue() {}
+    StyleValue(const StyleValue &) = default;
+    StyleValue & operator = (const StyleValue &) = default;
 
-    bool operator == (const ItemKey & rhs) const noexcept
+    bool operator == (const StyleValue & rhs) const noexcept
         { return is_same_as(rhs); }
-    bool operator != (const ItemKey & rhs) const noexcept
+    bool operator != (const StyleValue & rhs) const noexcept
         { return !is_same_as(rhs); }
 
-    static std::shared_ptr<ItemKey> make_unique_key() {
-        auto item_ptr = std::make_shared<ItemKey>();
-        *item_ptr = ItemKey( std::hash<const ItemKey *>()(item_ptr.get()) );
+    static std::shared_ptr<StyleValue> make_unique_key() {
+        auto item_ptr = std::make_shared<StyleValue>();
+        *item_ptr = StyleValue( std::hash<const StyleValue *>()(item_ptr.get()) );
         return item_ptr;
     }
 
@@ -149,7 +152,7 @@ private:
 
     friend class styles::ItemKeyCreator;
 
-    explicit ItemKey(std::size_t val): IdObject(val) {}
+    explicit StyleValue(std::size_t val): IdObject(val) {}
 };
 
 class Font;
@@ -160,7 +163,7 @@ using StyleField = cul::MultiType<
     std::weak_ptr<const Font>,
     styles::AutomaticSize
     // not ready for this
-    , ItemKey
+    , StyleValue
 >;
 
 /** Styles map offers a way to "style" UI elements with certain values.
@@ -177,6 +180,14 @@ class StyleMap {
 public:
     static StyleMap construct_new_map();
 
+    /** To construct a new *usable* map use the "construct_new_map" method
+     *  instead.
+     *
+     *  This has been added so that there is a valid default state, though it
+     *  will not be usable.
+     *
+     *  @note A down side of using shared pointer as a member.
+     */
     StyleMap() {}
 
     StyleMap & add(StyleKey, const StyleField &);
@@ -229,15 +240,15 @@ template <typename T, std::size_t kt_enum_size>
 class ItemKeysEnum final : public detail::KeysEnumBase<T, kt_enum_size> {
     using Base = detail::KeysEnumBase<T, kt_enum_size>;
 public:
-    static ItemKey to_key(const T & val)
-        { return ItemKey( Base::to_unique_hash(val) ); }
+    static StyleValue to_key(const T & val)
+        { return StyleValue( Base::to_unique_hash(val) ); }
 };
 
 class ItemKeyCreator {
 public:
     ItemKeyCreator();
 
-    ItemKey make_key();
+    StyleValue make_key();
 
 private:
     using ArrayForUniqueAddresses = std::array<uint8_t, 1024>;

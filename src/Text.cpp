@@ -29,7 +29,7 @@ namespace {
 
 using namespace cul::exceptions_abbr;
 using asgl::TextBase;
-using asgl::ItemKey;
+using asgl::StyleValue;
 using asgl::UString;
 using asgl::Vector;
 using asgl::UStringConstIter;
@@ -62,7 +62,7 @@ public:
     void set_limiting_line(int) override
         { throw make_cannot_call_error("set_limiting_line"); }
 
-    void stylize(ItemKey) override { throw make_cannot_call_error("stylize"); }
+    void stylize(StyleValue) override { throw make_cannot_call_error("stylize"); }
 
     Size measure_text(UStringConstIter, UStringConstIter) const override
         { return Size(); }
@@ -118,7 +118,7 @@ public:
     void set_limiting_line(int i) override
         { m_limiting_line = i; }
 
-    void stylize(ItemKey) override {}
+    void stylize(StyleValue) override {}
 
     Size measure_text(UStringConstIter, UStringConstIter) const override
         { return Size(); }
@@ -258,7 +258,7 @@ void Text::set_limiting_line(int x_limit) {
     m_proxy->set_limiting_line(x_limit);
 }
 
-void Text::stylize(ItemKey item) {
+void Text::stylize(StyleValue item) {
     // ???
     // I think I'll allow throwing here
     // as this call should be handled by stylize

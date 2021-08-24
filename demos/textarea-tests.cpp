@@ -209,7 +209,6 @@ int main() {
     TestFrame & frame = *frame_ptr;
 
     sf::RenderWindow win;
-    engine.assign_target_and_states(win, sf::RenderStates::Default);
     engine.load_global_font("font.ttf");
 
     //run_engine_tests(engine);
@@ -241,7 +240,7 @@ int main() {
         if (old_width < frame.width()) {
             std::cout << "Frame width increase " << (frame.width() - old_width) << std::endl;
         }
-        frame.draw(engine);
+        engine.draw(frame, win);
 #       if 0
         using IntDistri = std::uniform_int_distribution<int>;
         std::default_random_engine rng { 0x1201471 };

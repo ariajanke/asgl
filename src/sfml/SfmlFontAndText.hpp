@@ -83,9 +83,9 @@ public:
         int character_size = 12;
         sf::Color color = sf::Color::White;
     };
-    using FontStyleMap = std::map<ItemKey, FontStyle>;
+    using FontStyleMap = std::map<StyleValue, FontStyle>;
 
-    void stylize(ItemKey itemkey);
+    void stylize(StyleValue itemkey);
 
     virtual void set_character_size_and_color(int char_size, sf::Color) = 0;
 
@@ -136,7 +136,7 @@ public:
     SfmlText & operator = (const SfmlText &);
     SfmlText & operator = (SfmlText &&) = default;
 
-    void stylize(ItemKey itemkey) override
+    void stylize(StyleValue itemkey) override
         { TextWithFontStyle::stylize(itemkey); }
 
     const UString & string() const override;
@@ -204,11 +204,11 @@ public:
     TextPointer fit_pointer_to_adaptor(TextPointer && ptr) const override;
 
     Size measure_text
-        (ItemKey fontstyle, UStringConstIter beg, UStringConstIter end) const override;
+        (StyleValue fontstyle, UStringConstIter beg, UStringConstIter end) const override;
 
     void load_font(const std::string & filename);
 
-    void add_font_style(ItemKey key, int char_size, sf::Color color);
+    void add_font_style(StyleValue key, int char_size, sf::Color color);
 
     static Size measure_text(const sf::Font & font, int character_size,
                              UStringConstIter beg, UStringConstIter end);
