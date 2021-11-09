@@ -22,13 +22,6 @@
 
 *****************************************************************************/
 
-#if 0
-#include <ksg/Frame.hpp>
-#include <ksg/TextArea.hpp>
-#include <ksg/TextButton.hpp>
-#include <ksg/OptionsSlider.hpp>
-#endif
-
 #include <asgl/Frame.hpp>
 #include <asgl/TextArea.hpp>
 #include <asgl/TextButton.hpp>
@@ -42,10 +35,7 @@
 #include <iostream>
 
 #include <cassert>
-#if 0
-using StyleMap = ksg::StyleMap;
-using UChar    = ksg::Text::UChar;
-#endif
+
 namespace {
 
 using VectorF = sf::Vector2f;
@@ -53,16 +43,14 @@ using asgl::UChar;
 
 class AppFrame : public asgl::Frame {
 public:
-    void setup_frame(/*const StyleMap & styles*/) {
+    void setup_frame() {
         set_title(get_frame_name());
         set_location(get_start_location().x, get_start_location().y);
         setup_widgets();
-        //setup_widgets(styles);
-
     }
     static bool requesting_quit() { return s_requesting_app_quit; }
 protected:
-    virtual void setup_widgets(/*const StyleMap &*/) = 0;
+    virtual void setup_widgets() = 0;
     virtual VectorF get_start_location() const = 0;
     virtual const UChar * get_frame_name() const = 0;
 
@@ -77,7 +65,7 @@ class ExFrameA final : public AppFrame {
 
     const UChar * get_frame_name() const override { return U"Frame A"; }
 
-    void setup_widgets(/*const StyleMap &*/) override;
+    void setup_widgets() override;
     asgl::TextArea m_text;
     asgl::TextButton m_ok;
 };
@@ -86,7 +74,7 @@ class ExFrameB final : public AppFrame {
     VectorF get_start_location() const override { return VectorF(200.f, 200.f); }
     const UChar * get_frame_name() const override { return U"Frame B"; }
 
-    void setup_widgets(/*const StyleMap &*/) override;
+    void setup_widgets() override;
     asgl::TextArea m_text;
     asgl::OptionsSlider m_slider;
 };
@@ -95,7 +83,7 @@ class ExFrameC final : public AppFrame {
     VectorF get_start_location() const override { return VectorF(200.f, 0.f); }
     const UChar * get_frame_name() const override { return U"Frame C"; }
 
-    void setup_widgets(/*const StyleMap &*/) override;
+    void setup_widgets() override;
 
     asgl::TextArea m_exit_notice;
     asgl::TextButton m_exit_button;
@@ -113,7 +101,6 @@ int main() {
     asgl::SfmlFlatEngine engine;
     engine.load_global_font("font.ttf");
     engine.setup_default_styles();
-    engine.assign_target_and_states(window, sf::RenderStates::Default);
 
     std::vector<std::shared_ptr<AppFrame>> frame_list;
     frame_list.push_back(std::make_shared<ExFrameA>());
@@ -161,10 +148,7 @@ int main() {
         window.clear();
         for (auto & frame : frame_list) {
             frame->check_for_geometry_updates();
-            frame->draw(engine);
-#           if 0
-            window.draw(*frame);
-#           endif
+            engine.draw(*frame, window);
         }
         window.display();
     }
@@ -177,11 +161,11 @@ namespace {
 
 // ----------------------------------------------------------------------------
 
-void ExFrameA::setup_widgets(/*const StyleMap & smap*/) {
+void ExFrameA::setup_widgets() {
     m_text.set_string(U"Some random text for frame A.");
     m_ok.set_string(U"Ok");
 
-    begin_adding_widgets(/*smap*/).
+    begin_adding_widgets().
         add(m_text).
         add_line_seperator().
         add_horizontal_spacer().
@@ -191,30 +175,27 @@ void ExFrameA::setup_widgets(/*const StyleMap & smap*/) {
 
 // ----------------------------------------------------------------------------
 
-void ExFrameB::setup_widgets(/*const StyleMap & smap*/) {
+void ExFrameB::setup_widgets() {
     m_text.set_string(U"Sample text for frame B,\ndifferent from frame A.");
 
     std::vector<asgl::UString> options =
         { U"Option one", U"Option two", U"Option three" };
     m_slider.set_options(std::move(options));
-#   if 0
-    m_slider.swap_options(options);    
-#   endif
-    begin_adding_widgets(/*smap*/).
+    begin_adding_widgets().
         add(m_text).add_line_seperator().
         add(m_slider);
 }
 
 // ----------------------------------------------------------------------------
 
-void ExFrameC::setup_widgets(/*const StyleMap & smap*/) {
+void ExFrameC::setup_widgets() {
     m_exit_notice.set_string(U"Press this button to exit the application.");
     m_exit_button.set_string(U"Close");
     m_exit_button.set_press_event([]() {
         AppFrame::request_application_quit();
     });
 
-    begin_adding_widgets(/*smap*/).
+    begin_adding_widgets().
         add(m_exit_notice).add_line_seperator().
         add_horizontal_spacer().add(m_exit_button).add_horizontal_spacer();
 }

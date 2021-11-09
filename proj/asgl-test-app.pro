@@ -32,7 +32,8 @@ DEFINES += MACRO_ASGL_HAS_COMPILING_WASM_ENGINE
 # SOURCES += ../demos/textarea-tests.cpp
 # SOURCES += ../demos/special-item-demo.cpp
 # SOURCES += ../demos/spacer-tests.cpp
-SOURCES += ../demos/editable-text.cpp
+# SOURCES += ../demos/editable-text.cpp
+SOURCES += ../demos/drag-frames.cpp
 
 #SOURCES += ../demos/select-menu-demo.cpp
 #HEADERS += ../demos/select-menu/select-menu-gen.hpp

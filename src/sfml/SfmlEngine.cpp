@@ -61,7 +61,7 @@ using asgl::WidgetRenderer, asgl::Rectangle, asgl::StyleValue, asgl::Triangle,
       asgl::TextBase, asgl::Widget, asgl::detail::SfmlImageResource,
       asgl::SampleStyleColor, asgl::SampleStyleValue;
 
-const std::array k_palette = []() {
+const std::array k_palette = [] {
     //using namespace asgl::sfml_items;
     using namespace asgl::sample_style_values;
     using sf::Color;
@@ -136,9 +136,9 @@ inline StyleField to_field(const SampleStyleValue & obj)
     { return StyleField(asgl::SfmlFlatEngine::to_item_key(obj)); }
 
 RoundedBorder make_rounded_border(sf::Color back, sf::Color front, int padding);
-
+#if 0
 SquareBorder make_square_border(sf::Color back, sf::Color front);
-
+#endif
 SfmlRenderItem to_color_item(sf::Color color);
 
 } // end of <anonymous> namespace
@@ -573,7 +573,7 @@ RoundedBorder make_rounded_border(sf::Color back, sf::Color front, int padding) 
     }
     return border;
 }
-
+#if 0
 // I'd like to add this later to the sample rendering options...
 SquareBorder make_square_border(sf::Color back, sf::Color front) {
     SquareBorder border;
@@ -581,7 +581,7 @@ SquareBorder make_square_border(sf::Color back, sf::Color front) {
     border.front_rectangle.set_color(front);
     return border;
 }
-
+#endif
 SfmlRenderItem to_color_item(sf::Color color) {
      return SfmlRenderItem( asgl::SfmlFlatEngine::ColorItem(color) );
 }

@@ -82,7 +82,6 @@ int main() {
     window.create(sf::VideoMode(unsigned(dialog.width()), unsigned(dialog.height())),
                   "Window Title", sf::Style::Close);
     window.setFramerateLimit(20);
-    engine.assign_target_and_states(window, sf::RenderStates::Default);
 
     bool has_events = true;
 
@@ -99,7 +98,7 @@ int main() {
             window.close();
         if (has_events) {
             window.clear();
-            dialog.draw(engine);
+            engine.draw(dialog, window);
             window.display();
             has_events = false;
         } else {
