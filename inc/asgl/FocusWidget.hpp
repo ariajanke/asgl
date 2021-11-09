@@ -33,18 +33,7 @@ namespace asgl {
 class FocusReceiver;
 
 class LinearFocusHandler;
-#if 0
-namespace detail {
 
-class FocusWidgetAtt {
-    friend class asgl::LinearFocusHandler;
-    static void notify_focus_gained(FocusReceiver &);
-    static void notify_focus_lost  (FocusReceiver &);
-    static bool is_visible_for_focus_advance(const FocusReceiver &);
-};
-
-} // end of detail namespace -> into ::asgl
-#endif
 /** A focus widget is a widget which receives special attention (usually from
  *  the keyboard). An example of a focus widget is a textbox.
  *
@@ -58,9 +47,6 @@ class FocusWidgetAtt {
  */
 class FocusReceiver {
 public:
-#   if 0
-    friend class detail::FocusWidgetAtt;
-#   endif
     virtual ~FocusReceiver();
 
     /** This function is called for any special event processing specific for
@@ -111,9 +97,7 @@ public:
     virtual void process_event(const Event &) = 0;
     virtual ~FocusHandler() {}
 };
-#if 0
-namespace detail {
-#endif
+
 class LinearFocusHandler final {
 public:
     using FocusChangeFunc = std::function<bool(const Event &)>;
@@ -193,7 +177,5 @@ private:
     FocusContainer m_focus_widgets;
     FocusContIter m_current_position;
 };
-#if 0
-} // end of detail namespace -> into ::asgl
-#endif
+
 } // end of asgl namespace

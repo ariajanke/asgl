@@ -26,6 +26,7 @@
 
 #include <asgl/Widget.hpp>
 #include <asgl/ImageWidget.hpp>
+#include <asgl/SampleStyleValues.hpp>
 
 #include <SFML/Graphics/Sprite.hpp>
 #include <SFML/Graphics/Texture.hpp>
@@ -51,41 +52,6 @@ class SfmlImageResource;
 
 // raise this to general interface:
 // have it used by both wasm and sfml
-namespace sfml_items {
-
-enum ItemColorEnum {
-    k_primary_light,
-    k_primary_mid,
-    k_primary_dark,
-
-    k_secondary_light,
-    k_secondary_mid,
-    k_secondary_dark,
-
-    k_mono_light,
-    k_mono_dark,
-
-    k_color_count
-};
-
-enum ItemEnum {
-    k_title_text,
-    k_widget_text,
-
-    k_editable_text_fill,
-    k_editable_text_empty,
-
-    k_bordered_regular_widget,
-    k_bordered_hover_widget,
-    k_bordered_focus_widget,
-    k_bordered_hover_and_focus_widget,
-
-    k_special_draw_item,
-
-    k_item_count
-};
-
-}  // end of sfml_items namespace -> into ::asgl
 
 // ---------------------- BEGINNING OF PUBLIC INTERFACE -----------------------
 
@@ -144,18 +110,18 @@ public:
     using SfmlRenderItem    = cul::MultiType<ColorItem, SfmlImageResPtr,
                                              RoundedBorder, SquareBorder>;
     using SfmlRenderItemMap = std::map<StyleValue, SfmlRenderItem>;
-    using ItemColorEnum     = sfml_items::ItemColorEnum;
-    using ItemEnum          = sfml_items::ItemEnum;
-    using ColorItemStyles   = styles::ItemKeysEnum<ItemColorEnum, sfml_items::k_color_count>;
+    //using ItemColorEnum     = SampleStyleColor;
+    //using ItemEnum          = sfml_items::ItemEnum;
+    using ColorItemStyles   = styles::ItemKeysEnum<SampleStyleColor, sample_style_values::k_color_count>;
     // going to change name... not now until refactoring is done
-    using DescItemStyles    = styles::ItemKeysEnum<ItemEnum, sfml_items::k_item_count>;
+    using DescItemStyles    = styles::ItemKeysEnum<SampleStyleValue, sample_style_values::k_other_style_count>;
 
     static void update_draw_rectangle(DrawRectangle &, const Rectangle &);
 
-    inline static StyleValue to_item_key(sfml_items::ItemColorEnum e)
+    inline static StyleValue to_item_key(SampleStyleColor e)
         { return ColorItemStyles::to_key(e); }
 
-    inline static StyleValue to_item_key(sfml_items::ItemEnum e)
+    inline static StyleValue to_item_key(SampleStyleValue e)
         { return DescItemStyles::to_key(e); }
 
 private:

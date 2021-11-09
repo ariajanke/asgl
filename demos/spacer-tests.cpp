@@ -33,9 +33,9 @@
 #include <SFML/Window.hpp>
 #include <SFML/Graphics/Font.hpp>
 #include <SFML/Graphics/RenderWindow.hpp>
-
+#if 0
 #include <common/DrawRectangle.hpp>
-
+#endif
 using UString     = asgl::UString;
 using Frame       = asgl::Frame;
 using TextArea    = asgl::TextArea;
@@ -100,7 +100,6 @@ int main() {
         sf::VideoMode(unsigned(dialog.width() + 200), unsigned(dialog.height() + 200)),
         "Window Title", sf::Style::Close);
     window.setFramerateLimit(20);
-    engine.assign_target_and_states(window, sf::RenderStates::Default);
 
     bool has_events = true;
     while (window.isOpen()) {
@@ -116,7 +115,7 @@ int main() {
         if (has_events) {
             window.clear();
             dialog.check_for_geometry_updates();
-            dialog.draw(engine);
+            engine.draw(dialog, window);
 
             dialog.iterate_children_const_f([&window](const asgl::Widget & widget) {
                 using cul::DrawRectangle;

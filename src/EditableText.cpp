@@ -88,8 +88,8 @@ void EditableText::process_event(const Event & event) {
 }
 
 Size EditableText::size() const {
-    return Size(text_width() + cursor_width() + m_padding*2
-               ,text_height() + m_padding*2);
+    return Size(text_width () + cursor_width() + m_padding*2,
+                text_height() + m_padding*2);
 }
 
 void EditableText::stylize(const StyleMap & stylemap) {

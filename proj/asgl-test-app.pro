@@ -23,12 +23,16 @@ debug {
     LIBS   += -lcommon
 }
 
+DEFINES += MACRO_ASGL_HAS_COMPILING_WASM_ENGINE
+
 # source fine not found?
 # SOURCES += ../demos/custom-frame-background-demo.cpp
 # SOURCES += ../demos/demo.cpp
 # SOURCES += ../demos/book-demo.cpp
 # SOURCES += ../demos/textarea-tests.cpp
-SOURCES += ../demos/special-item-demo.cpp
+# SOURCES += ../demos/special-item-demo.cpp
+# SOURCES += ../demos/spacer-tests.cpp
+SOURCES += ../demos/editable-text.cpp
 
 #SOURCES += ../demos/select-menu-demo.cpp
 #HEADERS += ../demos/select-menu/select-menu-gen.hpp

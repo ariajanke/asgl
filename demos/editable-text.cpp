@@ -28,9 +28,7 @@
 #include <asgl/TextButton.hpp>
 
 #include <asgl/sfml/SfmlEngine.hpp>
-#if 0
-#include <asgl/SelectionMenu.hpp>
-#endif
+
 #include <SFML/Graphics/RenderWindow.hpp>
 
 #include <common/StringUtil.hpp>
@@ -53,11 +51,10 @@ public:
     EditableTextFrame(): m_request_close_flag(false) {}
 
     bool requesting_to_close() const { return m_request_close_flag; }
+
     void setup_frame();
+
 private:
-#   if 0
-    SelectionMenu m_menu;
-#   endif
     TextArea m_option_text;
 
     TextArea m_text_area;
@@ -91,7 +88,7 @@ int main() {
     sf::RenderWindow window(
         sf::VideoMode(unsigned(dialog.width()), unsigned(dialog.height())), 
         "Window Title");
-    engine.assign_target_and_states(window, sf::RenderStates::Default);
+
     window.setFramerateLimit(20);
     bool has_events = true;
     while (window.isOpen()) {
@@ -117,7 +114,8 @@ int main() {
         if (has_events) {
             window.clear();
             dialog.check_for_geometry_updates();
-            dialog.draw(engine);
+            engine.draw(dialog, window);
+
             window.display();
             has_events = false;
         } else {
@@ -129,9 +127,10 @@ int main() {
 
 namespace {
 
-using UString          = asgl::Text::UString;
-using UStringConstIter = asgl::Text::UStringConstIter;
+using UString          = asgl::UString;
+using UStringConstIter = asgl::UStringConstIter;
 using UChar            = UString::value_type;
+using cul::magnitude, cul::string_to_number;
 
 template <typename T>
 UString shorten(UString &&, T error);
@@ -142,16 +141,7 @@ UString format_us_phone_number(const UString &, UString && = UString());
 
 void EditableTextFrame::setup_frame() {
     m_option_text.set_string(U"none selected");
-#   if 0
-    m_menu.add_options({
-        U"Option 1",
-        U"Option 2",
-        U"Option 3"
-    });
-    m_menu.set_response_function([this](std::size_t, const UString & ustr) {
-        m_option_text.set_string(ustr);
-    });
-#   endif
+
     m_text_area.set_string(U"Editable Text Box:");
     m_editable_text.set_text_width(150);
 
@@ -191,49 +181,52 @@ void EditableTextFrame::setup_frame() {
         .add(m_exit_button);
 }
 
+#define mark MACRO_MARK_POSITION_OF_CUL_TEST_SUITE
+
 void test_editable_text_utils() {
-    ts::TestSuite suite;
+    using cul::ts::TestSuite, cul::ts::test;
+    TestSuite suite;
     suite.start_series("editable text is_display_string_ok");
-    suite.test([]() {
-        return ts::test(EditableText::is_display_string_ok(
+    mark(suite).test([] {
+        return test(EditableText::is_display_string_ok(
             U"abcdefghi", U"abcdefghi"));
     });
-    suite.test([]() {
-        return ts::test(EditableText::is_display_string_ok(
+    mark(suite).test([] {
+        return test(EditableText::is_display_string_ok(
             U" abcdefghi", U"abcdefghi"));
     });
-    suite.test([]() {
-        return ts::test(EditableText::is_display_string_ok(
+    mark(suite).test([] {
+        return test(EditableText::is_display_string_ok(
             U" a b c d e f g h i", U"abcdefghi"));
     });
-    suite.test([]() {
-        return ts::test(EditableText::is_display_string_ok(
+    mark(suite).test([] {
+        return test(EditableText::is_display_string_ok(
             U"cat ", U"cat"));
     });
-    suite.test([]() {
-        return ts::test(!EditableText::is_display_string_ok(
+    mark(suite).test([] {
+        return test(!EditableText::is_display_string_ok(
             U"cat ", U"c-at"));
     });
-    suite.test([]() {
-        return ts::test(EditableText::is_display_string_ok(
+    mark(suite).test([] {
+        return test(EditableText::is_display_string_ok(
             U" 1 (800) 478-", U"1800478"));
     });
     suite.start_series("editable text find_display_position");
-    suite.test([]() {
+    mark(suite).test([] {
         //                   0
         //                  01
         UString display = U" 1 (800) 478-";
         UString entered = U"1800478";
         auto itr = EditableText::find_display_position(display, entered, 0);
-        return ts::test(display.begin() + 1 == itr);
+        return test(display.begin() + 1 == itr);
     });
-    suite.test([]() {
+    mark(suite).test([] {
         //                   0  123
         //                  0123456
         UString display = U" 1 (800) 478-";
         UString entered = U"1800478";
         auto itr = EditableText::find_display_position(display, entered, 3);
-        return ts::test(display.begin() + 6 == itr);
+        return test(display.begin() + 6 == itr);
     });
 }
 

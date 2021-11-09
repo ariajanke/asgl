@@ -58,10 +58,12 @@ using SfmlRenderItemMap = asgl::SfmlFlatEngine::SfmlRenderItemMap;
 using ColorItem         = asgl::SfmlFlatEngine::ColorItem;
 using SfmlImageResPtr   = asgl::SfmlFlatEngine::SfmlImageResPtr;
 using asgl::WidgetRenderer, asgl::Rectangle, asgl::StyleValue, asgl::Triangle,
-      asgl::TextBase, asgl::Widget, asgl::detail::SfmlImageResource;
+      asgl::TextBase, asgl::Widget, asgl::detail::SfmlImageResource,
+      asgl::SampleStyleColor, asgl::SampleStyleValue;
 
 const std::array k_palette = []() {
-    using namespace asgl::sfml_items;
+    //using namespace asgl::sfml_items;
+    using namespace asgl::sample_style_values;
     using sf::Color;
     std::array<Color, k_color_count> rv;
     // not like this: "= { ... };" I want to see which index to which color
@@ -84,13 +86,10 @@ const std::array k_palette = []() {
 template <typename T>
 constexpr const int k_item_type_id = asgl::SfmlFlatEngine::SfmlRenderItem::GetTypeId<T>::k_value;
 
-using ItemColorEnum = asgl::sfml_items::ItemColorEnum;
-using ItemEnum      = asgl::sfml_items::ItemEnum;
-
 template <typename T>
 constexpr const bool is_field_type_t = StyleField::HasType<T>::k_value
-    || std::is_same_v<ItemColorEnum, T>
-    || std::is_same_v<ItemEnum, T>;
+    || std::is_same_v<SampleStyleColor, T>
+    || std::is_same_v<SampleStyleValue, T>;
 
 class SfmlWidgetRenderer final : public WidgetRenderer {
 public:
@@ -129,11 +128,11 @@ inline std::enable_if_t<is_field_type_t<T>, StyleField>
     { return StyleField(obj); }
 
 template <>
-inline StyleField to_field(const ItemColorEnum & obj)
+inline StyleField to_field(const SampleStyleColor & obj)
     { return StyleField(asgl::SfmlFlatEngine::to_item_key(obj)); }
 
 template <>
-inline StyleField to_field(const ItemEnum & obj)
+inline StyleField to_field(const SampleStyleValue & obj)
     { return StyleField(asgl::SfmlFlatEngine::to_item_key(obj)); }
 
 RoundedBorder make_rounded_border(sf::Color back, sf::Color front, int padding);
@@ -156,7 +155,7 @@ void SfmlFlatEngine::stylize(Widget & widget) const {
 }
 
 void SfmlFlatEngine::setup_default_styles() {
-    using namespace sfml_items;
+    using namespace sample_style_values;
     static constexpr const int k_chosen_padding = 5;
     if (m_first_setup_done) return;
     if (m_style_map.has_same_map_pointer(StyleMap())) {
@@ -225,7 +224,7 @@ void SfmlFlatEngine::setup_default_styles() {
     m_items[to_item_key(k_mono_light     )] = to_color_item(k_palette[k_mono_light     ]);
     m_items[to_item_key(k_mono_dark      )] = to_color_item(k_palette[k_mono_dark      ]);
 
-    auto make_button_item =  [](ItemColorEnum back, ItemColorEnum fore) {
+    auto make_button_item =  [](SampleStyleColor back, SampleStyleColor fore) {
         return SfmlRenderItem( make_rounded_border( k_palette[back], k_palette[fore], k_chosen_padding ) );
     };
 
@@ -449,7 +448,7 @@ void SfmlWidgetRenderer::render_rectangle_pair
 void SfmlWidgetRenderer::render_special
     (StyleValue key, const Widget * instance_pointer)
 {
-    if (key != asgl::SfmlFlatEngine::to_item_key(asgl::sfml_items::k_special_draw_item)) {
+    if (key != asgl::SfmlFlatEngine::to_item_key(asgl::sample_style_values::k_special_draw_item)) {
         throw InvArg("SfmlFlatEngine::render_special: this function should "
                      "only be called with the special draw item key.");
     }
